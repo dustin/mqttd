@@ -75,20 +75,22 @@ subscribe (T.SubscribeRequest _ topics _props) ch = do
   st <- asks subs
   liftSTM $ modifyTVar' st (Map.unionWith (<>) m)
 
-registerClient :: MonadIO m => T.ConnectRequest -> TChan T.MQTTPkt -> Async () -> MQTTD m ()
+registerClient :: MonadIO m => T.ConnectRequest -> TChan T.MQTTPkt -> Async () -> MQTTD m Session
 registerClient req@T.ConnectRequest{..} ch o = do
   c <- asks sessions
   let k = _connID
       nc = ConnectedClient req ch o
-  o' <- liftSTM $ do
+  (o', ns) <- liftSTM $ do
     m <- readTVar c
     let s = maybeClean $ Map.findWithDefault (Session Nothing) k m
         o' = _sessionClient s
-    writeTVar c (Map.insert k s{_sessionClient=Just nc} m)
-    pure o'
+        ns = s{_sessionClient=Just nc}
+    writeTVar c (Map.insert k ns m)
+    pure (o', ns)
   case o' of
     Nothing                      -> pure ()
     Just a@(ConnectedClient{..}) -> cancelWith _clientThread MQTTDuplicate
+  pure ns
 
     where
       maybeClean x

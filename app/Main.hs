@@ -22,11 +22,11 @@ import qualified Network.MQTT.Types       as T
 
 import           MQTTD
 
-dispatch :: (MonadLogger m, MonadFail m, MonadIO m) => TChan T.MQTTPkt -> T.MQTTPkt -> MQTTD m ()
-dispatch ch T.PingPkt = sendPacketIO ch T.PongPkt
-dispatch ch (T.SubscribePkt req@(T.SubscribeRequest pid subs props)) = do
-  subscribe req ch
-  sendPacketIO ch (T.SubACKPkt (T.SubscribeResponse pid (map (const (Right T.QoS0)) subs) props))
+dispatch :: (MonadLogger m, MonadFail m, MonadIO m) => ConnectedClient -> T.MQTTPkt -> MQTTD m ()
+dispatch ConnectedClient{..} T.PingPkt = sendPacketIO _clientChan T.PongPkt
+dispatch ConnectedClient{..} (T.SubscribePkt req@(T.SubscribeRequest pid subs props)) = do
+  subscribe req _clientChan
+  sendPacketIO _clientChan (T.SubACKPkt (T.SubscribeResponse pid (map (const (Right T.QoS0)) subs) props))
 dispatch _ (T.PublishPkt T.PublishRequest{..}) =
   broadcast (blToText _pubTopic) _pubBody _pubRetain _pubQoS
 dispatch _ x = fail ("unhandled: " <> show x)
@@ -45,13 +45,13 @@ handleConnection ad = runConduit $ do
       logInfoN ("A connection is made " <> tshow req)
       link o
       -- Register and accept the connection
-      registerClient req ch o
+      sess@Session{_sessionClient=Just cli} <- registerClient req ch o
       let cprops = [ T.PropAssignedClientIdentifier i | Just i <- [nid] ]
       sendPacketIO ch (T.ConnACKPkt $ T.ConnACKFlags False T.ConnAccepted cprops)
 
       runConduit $ appSource ad
         .| conduitParser (T.parsePacket pl)
-        .| C.mapM_ (\(_,x) -> dispatch ch x)
+        .| C.mapM_ (\(_,x) -> dispatch cli x)
 
     processOut pl ch = runConduit $
       C.repeatM (liftSTM $ readTChan ch)
