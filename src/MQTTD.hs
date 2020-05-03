@@ -38,9 +38,13 @@ data ConnectedClient = ConnectedClient {
 instance Show ConnectedClient where
   show ConnectedClient{..} = "ConnectedClient " <> show _clientConnReq
 
+data Session = Session {
+  _sessionClient :: Maybe ConnectedClient
+  }
+
 data Env = Env {
-  subs  :: TVar (Map Text [TChan T.MQTTPkt]),
-  conns :: TVar (Map BL.ByteString ConnectedClient)
+  subs     :: TVar (Map Text [TChan T.MQTTPkt]),
+  sessions :: TVar (Map BL.ByteString Session)
   }
 
 newtype MQTTD m a = MQTTD
@@ -69,24 +73,34 @@ subscribe (T.SubscribeRequest _ topics _props) ch = do
   st <- asks subs
   liftSTM $ modifyTVar' st (Map.unionWith (<>) m)
 
-registerClient :: MonadIO m => T.ConnectRequest -> TChan T.MQTTPkt -> Async () -> MQTTD m BL.ByteString
+registerClient :: MonadIO m => T.ConnectRequest -> TChan T.MQTTPkt -> Async () -> MQTTD m ()
 registerClient req@T.ConnectRequest{..} ch o = do
-  c <- asks conns
+  c <- asks sessions
   let k = _connID
+      nc = ConnectedClient req ch o
   o' <- liftSTM $ do
     m <- readTVar c
-    let (r, m') = Map.insertLookupWithKey (\_ a _ -> a) k (ConnectedClient req ch o) m
-    writeTVar c m'
-    pure r
+    let s = maybeClean $ Map.findWithDefault (Session Nothing) k m
+        o' = _sessionClient s
+    writeTVar c (Map.insert k s{_sessionClient=Just nc} m)
+    pure o'
   case o' of
     Nothing                      -> pure ()
     Just a@(ConnectedClient{..}) -> cancelWith _clientThread MQTTDuplicate
-  pure k
+
+    where
+      maybeClean x
+        | _cleanSession = Session Nothing
+        | otherwise = x
 
 unregisterClient :: MonadIO m => BL.ByteString -> TChan T.MQTTPkt -> MQTTD m ()
 unregisterClient k ch = do
-  c <- asks conns
-  liftSTM $ modifyTVar' c (Map.update (\c@ConnectedClient{..} -> if _clientChan == ch then Nothing else Just c)  k)
+  c <- asks sessions
+  liftSTM $ modifyTVar' c (Map.update up k)
+
+    where
+      up Session{_sessionClient=Just (ConnectedClient{_clientChan=ch})} = Nothing
+      up s = Just s
 
 unSubAll :: MonadIO m => TChan T.MQTTPkt -> MQTTD m ()
 unSubAll ch = asks subs >>= \st -> liftSTM $ modifyTVar' st (Map.map (filter (/= ch)))

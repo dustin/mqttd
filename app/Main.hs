@@ -45,7 +45,7 @@ handleConnection ad = runConduit $ do
       logInfoN ("A connection is made " <> tshow req)
       link o
       -- Register and accept the connection
-      _ <- registerClient req ch o
+      registerClient req ch o
       let cprops = [ T.PropAssignedClientIdentifier i | Just i <- [nid] ]
       sendPacketIO ch (T.ConnACKPkt $ T.ConnACKFlags False T.ConnAccepted cprops)
 
