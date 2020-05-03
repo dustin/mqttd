@@ -22,6 +22,7 @@ import           Data.Map.Strict        (Map)
 import qualified Data.Map.Strict        as Map
 import           Data.Text              (Text, pack)
 import qualified Data.Text.Encoding     as TE
+import           Data.Word              (Word16)
 import qualified Network.MQTT.Types     as T
 import           UnliftIO               (Async (..), MonadUnliftIO (..), cancelWith)
 
@@ -44,7 +45,8 @@ data Session = Session {
 
 data Env = Env {
   subs     :: TVar (Map Text [TChan T.MQTTPkt]),
-  sessions :: TVar (Map BL.ByteString Session)
+  sessions :: TVar (Map BL.ByteString Session),
+  pktID    :: TVar Word16
   }
 
 newtype MQTTD m a = MQTTD
@@ -62,7 +64,7 @@ runIO :: (MonadIO m, MonadLogger m) => Env -> MQTTD m a -> m a
 runIO e m = runReaderT (runMQTTD m) e
 
 newEnv :: MonadIO m => m Env
-newEnv = liftIO $ Env <$> newTVarIO mempty <*> newTVarIO mempty
+newEnv = liftIO $ Env <$> newTVarIO mempty <*> newTVarIO mempty <*> newTVarIO 1
 
 findSubs :: MonadIO m => Text -> MQTTD m [TChan T.MQTTPkt]
 findSubs t = asks subs >>= \st -> liftSTM $ Map.findWithDefault [] t <$> readTVar st
@@ -120,15 +122,21 @@ blToText = TE.decodeUtf8 . BL.toStrict
 tshow :: Show a => a -> Text
 tshow = pack . show
 
+nextPktID :: TVar Word16 -> STM Word16
+nextPktID x = do
+  modifyTVar' x $ \pid -> if pid == maxBound then 1 else succ pid
+  readTVar x
+
 broadcast :: MonadIO m => Text -> BL.ByteString -> Bool -> T.QoS -> MQTTD m ()
 broadcast t m r q = do
   subs <- findSubs t
-  mapM_ (\ch' -> sendPacketIO ch' pkt) subs
-  where pkt = T.PublishPkt T.PublishRequest{
+  pid <- liftSTM . nextPktID =<< asks pktID
+  mapM_ (\ch' -> sendPacketIO ch' (pkt pid)) subs
+  where pkt pid = T.PublishPkt T.PublishRequest{
           _pubDup=False,
           _pubRetain=r,
           _pubQoS=q,
           _pubTopic=textToBL t,
-          _pubPktID=13,
+          _pubPktID=pid,
           _pubBody=m,
           _pubProps=mempty}

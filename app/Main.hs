@@ -22,7 +22,7 @@ import qualified Network.MQTT.Types       as T
 
 import           MQTTD
 
-dispatch :: (MonadFail m, MonadIO m) => TChan T.MQTTPkt -> T.MQTTPkt -> MQTTD m ()
+dispatch :: (MonadLogger m, MonadFail m, MonadIO m) => TChan T.MQTTPkt -> T.MQTTPkt -> MQTTD m ()
 dispatch ch T.PingPkt = sendPacketIO ch T.PongPkt
 dispatch ch (T.SubscribePkt req@(T.SubscribeRequest pid subs props)) = do
   subscribe req ch
