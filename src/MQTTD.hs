@@ -2,6 +2,7 @@
 {-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE GeneralisedNewtypeDeriving #-}
 {-# LANGUAGE ScopedTypeVariables        #-}
+{-# LANGUAGE StandaloneDeriving         #-}
 {-# LANGUAGE UndecidableInstances       #-}
 
 module MQTTD where
@@ -27,33 +28,36 @@ data Env = Env {
   subs :: TVar (Map Text [TChan T.MQTTPkt])
   }
 
-newtype MQTTD a = MQTTD
-  { runMQTTD :: ReaderT Env IO a
-  } deriving (Applicative, Functor, Monad, MonadIO, MonadUnliftIO,
+newtype MQTTD m a = MQTTD
+  { runMQTTD :: ReaderT Env m a
+  } deriving (Applicative, Functor, Monad, MonadIO,
               MonadCatch, MonadThrow, MonadMask, MonadReader Env, MonadFail)
+
+instance MonadUnliftIO m => MonadUnliftIO (MQTTD m) where
+  withRunInIO inner = MQTTD $ withRunInIO $ \run -> inner (run . runMQTTD)
 
 liftSTM :: MonadIO m => STM a -> m a
 liftSTM = liftIO . atomically
 
-runIO :: MonadIO m => Env -> MQTTD a -> m a
-runIO e m = liftIO $ runReaderT (runMQTTD m) e
+runIO :: MonadIO m => Env -> MQTTD m a -> m a
+runIO e m = runReaderT (runMQTTD m) e
 
 newEnv :: MonadIO m => m Env
 newEnv = liftIO $ Env <$> newTVarIO mempty
 
-runNew :: MonadIO m => MQTTD a -> m a
+runNew :: MonadIO m => MQTTD m a -> m a
 runNew a = newEnv >>= \e -> runIO e a
 
-findSubs :: Text -> MQTTD [TChan T.MQTTPkt]
+findSubs :: MonadIO m => Text -> MQTTD m [TChan T.MQTTPkt]
 findSubs t = asks subs >>= \st -> liftSTM $ Map.findWithDefault [] t <$> readTVar st
 
-subscribe :: T.SubscribeRequest -> TChan T.MQTTPkt -> MQTTD ()
+subscribe :: MonadIO m => T.SubscribeRequest -> TChan T.MQTTPkt -> MQTTD m ()
 subscribe (T.SubscribeRequest _ topics _props) ch = do
   let m = Map.fromList $ map (\(sbs,_) -> (blToText sbs, [ch])) topics
   st <- asks subs
   liftSTM $ modifyTVar' st (Map.unionWith (<>) m)
 
-unSubAll :: TChan T.MQTTPkt -> MQTTD ()
+unSubAll :: MonadIO m => TChan T.MQTTPkt -> MQTTD m ()
 unSubAll ch = asks subs >>= \st -> liftSTM $ modifyTVar' st (Map.map (filter (/= ch)))
 
 sendPacket :: TChan T.MQTTPkt -> T.MQTTPkt -> STM ()
@@ -68,7 +72,7 @@ textToBL = BL.fromStrict . TE.encodeUtf8
 blToText :: BL.ByteString -> Text
 blToText = TE.decodeUtf8 . BL.toStrict
 
-broadcast :: Text -> BL.ByteString -> Bool -> T.QoS -> MQTTD ()
+broadcast :: MonadIO m => Text -> BL.ByteString -> Bool -> T.QoS -> MQTTD m ()
 broadcast t m r q = do
   subs <- findSubs t
   mapM_ (\ch' -> sendPacketIO ch' pkt) subs

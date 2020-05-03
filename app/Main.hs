@@ -6,20 +6,20 @@ module Main where
 
 import           Control.Concurrent.STM   (TChan, newTChanIO, readTChan)
 import qualified Control.Monad.Catch      as E
-import           Control.Monad.IO.Class   (liftIO)
+import           Control.Monad.IO.Class   (MonadIO (..))
 import           Control.Monad.Trans      (lift)
 import qualified Data.ByteString.Lazy     as BL
 import           Data.Conduit             (runConduit, (.|))
 import           Data.Conduit.Attoparsec  (conduitParser, sinkParser)
 import qualified Data.Conduit.Combinators as C
 import           Data.Conduit.Network     (AppData, appSink, appSource, runTCPServer, serverSettings)
-import           UnliftIO                 (Async (..), async, cancel)
+import           UnliftIO                 (Async (..), MonadUnliftIO (..), async, cancel)
 
 import qualified Network.MQTT.Types       as T
 
 import           MQTTD
 
-dispatch :: TChan T.MQTTPkt -> T.MQTTPkt -> MQTTD ()
+dispatch :: (MonadFail m, MonadIO m) => TChan T.MQTTPkt -> T.MQTTPkt -> MQTTD m ()
 dispatch ch T.PingPkt = sendPacketIO ch T.PongPkt
 dispatch ch (T.SubscribePkt req@(T.SubscribeRequest pid subs props)) = do
   subscribe req ch
@@ -28,7 +28,7 @@ dispatch _ (T.PublishPkt T.PublishRequest{..}) =
   broadcast (blToText _pubTopic) _pubBody _pubRetain _pubQoS
 dispatch _ x = fail ("unhandled: " <> show x)
 
-handleConnection :: AppData -> MQTTD ()
+handleConnection :: forall m. (MonadUnliftIO m, MonadFail m, E.MonadMask m, E.MonadThrow m) => AppData -> MQTTD m ()
 handleConnection ad = runConduit $ do
   ch :: TChan T.MQTTPkt <- liftIO newTChanIO
   cpkt@(T.ConnPkt _ pl) <- appSource ad .| sinkParser T.parseConnect
@@ -38,7 +38,7 @@ handleConnection ad = runConduit $ do
   lift $ E.finally (runIn pl ch) (teardown o ch cpkt)
 
   where
-    runIn :: T.ProtocolLevel -> TChan T.MQTTPkt -> MQTTD ()
+    runIn :: T.ProtocolLevel -> TChan T.MQTTPkt -> MQTTD m ()
     runIn pl ch = runConduit $ appSource ad
                   .| conduitParser (T.parsePacket pl)
                   .| C.mapM_ (\(_,x) -> dispatch ch x)
@@ -52,7 +52,7 @@ handleConnection ad = runConduit $ do
       .| C.map (BL.toStrict . T.toByteString pl)
       .| appSink ad
 
-    teardown :: Async a -> TChan T.MQTTPkt -> T.MQTTPkt -> MQTTD ()
+    teardown :: Async a -> TChan T.MQTTPkt -> T.MQTTPkt -> MQTTD m ()
     teardown o ch (T.ConnPkt c@T.ConnectRequest{..} _) = do
       cancel o
       liftIO $ putStrLn ("Tearing down ... " <> show c)
