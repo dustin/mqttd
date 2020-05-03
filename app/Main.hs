@@ -13,7 +13,7 @@ import           Data.Conduit             (runConduit, (.|))
 import           Data.Conduit.Attoparsec  (conduitParser, sinkParser)
 import qualified Data.Conduit.Combinators as C
 import           Data.Conduit.Network     (AppData, appSink, appSource, runTCPServer, serverSettings)
-import           UnliftIO                 (Async (..), MonadUnliftIO (..), async, cancel)
+import           UnliftIO                 (Async (..), MonadUnliftIO (..), async, cancel, link)
 
 import qualified Network.MQTT.Types       as T
 
@@ -33,19 +33,20 @@ handleConnection ad = runConduit $ do
   ch :: TChan T.MQTTPkt <- liftIO newTChanIO
   cpkt@(T.ConnPkt _ pl) <- appSource ad .| sinkParser T.parseConnect
   o <- lift . async $ processOut pl ch
-  acceptConn ch cpkt
 
-  lift $ E.finally (runIn pl ch) (teardown o ch cpkt)
+  lift $ E.finally (runIn pl ch cpkt o) (teardown o ch cpkt)
 
   where
-    runIn :: T.ProtocolLevel -> TChan T.MQTTPkt -> MQTTD m ()
-    runIn pl ch = runConduit $ appSource ad
-                  .| conduitParser (T.parsePacket pl)
-                  .| C.mapM_ (\(_,x) -> dispatch ch x)
-
-    acceptConn ch (T.ConnPkt c@T.ConnectRequest{..} _pl) = do
-      liftIO (print c)
+    runIn :: T.ProtocolLevel -> TChan T.MQTTPkt -> T.MQTTPkt -> Async () -> MQTTD m ()
+    runIn pl ch (T.ConnPkt req@T.ConnectRequest{..} _) o = do
+      link o
+      -- Register and accept the connection
+      _ <- registerClient req o
       sendPacketIO ch (T.ConnACKPkt $ T.ConnACKFlags False T.ConnAccepted mempty)
+
+      runConduit $ appSource ad
+        .| conduitParser (T.parsePacket pl)
+        .| C.mapM_ (\(_,x) -> dispatch ch x)
 
     processOut pl ch = runConduit $
       C.repeatM (liftSTM $ readTChan ch)

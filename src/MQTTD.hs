@@ -1,3 +1,4 @@
+{-# LANGUAGE DerivingVia                #-}
 {-# LANGUAGE FlexibleContexts           #-}
 {-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE GeneralisedNewtypeDeriving #-}
@@ -9,9 +10,9 @@ module MQTTD where
 
 import           Control.Concurrent.STM (TChan, atomically, writeTChan)
 import           Control.Concurrent.STM (STM, TChan, TVar, atomically, modifyTVar', newTChanIO, newTVarIO, readTChan,
-                                         readTVar, writeTChan)
-import           Control.Monad.Catch    (MonadCatch (..), MonadMask (..), MonadThrow (..), SomeException (..), bracket_,
-                                         catch)
+                                         readTVar, writeTChan, writeTVar)
+import           Control.Monad.Catch    (Exception, MonadCatch (..), MonadMask (..), MonadThrow (..),
+                                         SomeException (..), bracket_, catch)
 import           Control.Monad.IO.Class (MonadIO (..))
 import           Control.Monad.Logger   (Loc (..), LogLevel (..), LogSource, LogStr, MonadLogger (..), ToLogStr (..),
                                          logDebugN, logErrorN, logInfoN, monadLoggerLog)
@@ -22,10 +23,23 @@ import qualified Data.Map.Strict        as Map
 import           Data.Text              (Text)
 import qualified Data.Text.Encoding     as TE
 import qualified Network.MQTT.Types     as T
-import           UnliftIO               (MonadUnliftIO (..))
+import           UnliftIO               (Async (..), MonadUnliftIO (..), cancelWith)
+
+data MQTTException = MQTTDuplicate deriving Show
+
+instance Exception MQTTException
+
+data ConnectedClient = ConnectedClient {
+  _clientConnReq :: T.ConnectRequest,
+  _clientThread  :: Async ()
+  }
+
+instance Show ConnectedClient where
+  show ConnectedClient{..} = "ConnectedClient " <> show _clientConnReq
 
 data Env = Env {
-  subs :: TVar (Map Text [TChan T.MQTTPkt])
+  subs  :: TVar (Map Text [TChan T.MQTTPkt]),
+  conns :: TVar (Map BL.ByteString ConnectedClient)
   }
 
 newtype MQTTD m a = MQTTD
@@ -43,7 +57,7 @@ runIO :: MonadIO m => Env -> MQTTD m a -> m a
 runIO e m = runReaderT (runMQTTD m) e
 
 newEnv :: MonadIO m => m Env
-newEnv = liftIO $ Env <$> newTVarIO mempty
+newEnv = liftIO $ Env <$> newTVarIO mempty <*> newTVarIO mempty
 
 runNew :: MonadIO m => MQTTD m a -> m a
 runNew a = newEnv >>= \e -> runIO e a
@@ -56,6 +70,20 @@ subscribe (T.SubscribeRequest _ topics _props) ch = do
   let m = Map.fromList $ map (\(sbs,_) -> (blToText sbs, [ch])) topics
   st <- asks subs
   liftSTM $ modifyTVar' st (Map.unionWith (<>) m)
+
+registerClient :: MonadIO m => T.ConnectRequest -> Async () -> MQTTD m BL.ByteString
+registerClient req@T.ConnectRequest{..} o = do
+  c <- asks conns
+  let k = _connID
+  o <- liftSTM $ do
+    m <- readTVar c
+    let (r, m') = Map.insertLookupWithKey (\_ a _ -> a) k (ConnectedClient req o) m
+    writeTVar c m'
+    pure r
+  case o of
+    Nothing                      -> pure ()
+    Just a@(ConnectedClient{..}) -> cancelWith _clientThread MQTTDuplicate
+  pure k
 
 unSubAll :: MonadIO m => TChan T.MQTTPkt -> MQTTD m ()
 unSubAll ch = asks subs >>= \st -> liftSTM $ modifyTVar' st (Map.map (filter (/= ch)))
