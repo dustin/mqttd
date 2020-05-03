@@ -23,6 +23,7 @@ import qualified Data.Map.Strict        as Map
 import           Data.Text              (Text, pack)
 import qualified Data.Text.Encoding     as TE
 import           Data.Word              (Word16)
+import qualified Network.MQTT.Topic     as T
 import qualified Network.MQTT.Types     as T
 import           UnliftIO               (Async (..), MonadUnliftIO (..), cancelWith)
 
@@ -30,9 +31,11 @@ data MQTTException = MQTTDuplicate deriving Show
 
 instance Exception MQTTException
 
+type PktChan = TChan T.MQTTPkt
+
 data ConnectedClient = ConnectedClient {
   _clientConnReq :: T.ConnectRequest,
-  _clientChan    :: TChan T.MQTTPkt,
+  _clientChan    :: PktChan,
   _clientThread  :: Async ()
   }
 
@@ -44,7 +47,7 @@ data Session = Session {
   }
 
 data Env = Env {
-  subs     :: TVar (Map Text [TChan T.MQTTPkt]),
+  subs     :: TVar [(T.Filter, PktChan)],
   sessions :: TVar (Map BL.ByteString Session),
   pktID    :: TVar Word16
   }
@@ -66,16 +69,16 @@ runIO e m = runReaderT (runMQTTD m) e
 newEnv :: MonadIO m => m Env
 newEnv = liftIO $ Env <$> newTVarIO mempty <*> newTVarIO mempty <*> newTVarIO 1
 
-findSubs :: MonadIO m => Text -> MQTTD m [TChan T.MQTTPkt]
-findSubs t = asks subs >>= \st -> liftSTM $ Map.findWithDefault [] t <$> readTVar st
+findSubs :: MonadIO m => Text -> MQTTD m [PktChan]
+findSubs t = asks subs >>= \st -> liftSTM $ fmap snd . filter (\(f,_) -> T.match f t) <$> readTVar st
 
-subscribe :: MonadIO m => T.SubscribeRequest -> TChan T.MQTTPkt -> MQTTD m ()
+subscribe :: MonadIO m => T.SubscribeRequest -> PktChan -> MQTTD m ()
 subscribe (T.SubscribeRequest _ topics _props) ch = do
-  let m = Map.fromList $ map (\(sbs,_) -> (blToText sbs, [ch])) topics
+  let new = map (\(sbs,_) -> (blToText sbs, ch)) topics
   st <- asks subs
-  liftSTM $ modifyTVar' st (Map.unionWith (<>) m)
+  liftSTM $ modifyTVar' st (<> new)
 
-registerClient :: MonadIO m => T.ConnectRequest -> TChan T.MQTTPkt -> Async () -> MQTTD m Session
+registerClient :: MonadIO m => T.ConnectRequest -> PktChan -> Async () -> MQTTD m Session
 registerClient req@T.ConnectRequest{..} ch o = do
   c <- asks sessions
   let k = _connID
@@ -97,7 +100,7 @@ registerClient req@T.ConnectRequest{..} ch o = do
         | _cleanSession = Session Nothing
         | otherwise = x
 
-unregisterClient :: MonadIO m => BL.ByteString -> TChan T.MQTTPkt -> MQTTD m ()
+unregisterClient :: MonadIO m => BL.ByteString -> PktChan -> MQTTD m ()
 unregisterClient k ch = do
   c <- asks sessions
   liftSTM $ modifyTVar' c (Map.update up k)
@@ -106,13 +109,13 @@ unregisterClient k ch = do
       up Session{_sessionClient=Just (ConnectedClient{_clientChan=ch})} = Nothing
       up s = Just s
 
-unSubAll :: MonadIO m => TChan T.MQTTPkt -> MQTTD m ()
-unSubAll ch = asks subs >>= \st -> liftSTM $ modifyTVar' st (Map.map (filter (/= ch)))
+unSubAll :: MonadIO m => PktChan -> MQTTD m ()
+unSubAll ch = asks subs >>= \st -> liftSTM $ modifyTVar' st (filter ((/= ch) . snd))
 
-sendPacket :: TChan T.MQTTPkt -> T.MQTTPkt -> STM ()
+sendPacket :: PktChan -> T.MQTTPkt -> STM ()
 sendPacket ch p = writeTChan ch p
 
-sendPacketIO :: MonadIO m => TChan T.MQTTPkt -> T.MQTTPkt -> m ()
+sendPacketIO :: MonadIO m => PktChan -> T.MQTTPkt -> m ()
 sendPacketIO ch = liftSTM . sendPacket ch
 
 textToBL :: Text -> BL.ByteString
