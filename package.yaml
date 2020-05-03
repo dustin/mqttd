@@ -39,6 +39,8 @@ dependencies:
 - conduit-extra
 - exceptions
 - unliftio
+- random
+- uuid
 
 library:
   source-dirs: src
