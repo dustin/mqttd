@@ -7,6 +7,7 @@ module Main where
 import           Control.Concurrent.STM   (TChan, newTChanIO, readTChan)
 import qualified Control.Monad.Catch      as E
 import           Control.Monad.IO.Class   (MonadIO (..))
+import           Control.Monad.Logger     (MonadLogger (..), logDebugN, logInfoN, runStderrLoggingT)
 import           Control.Monad.Trans      (lift)
 import qualified Data.ByteString.Lazy     as BL
 import           Data.Conduit             (runConduit, (.|))
@@ -28,7 +29,7 @@ dispatch _ (T.PublishPkt T.PublishRequest{..}) =
   broadcast (blToText _pubTopic) _pubBody _pubRetain _pubQoS
 dispatch _ x = fail ("unhandled: " <> show x)
 
-handleConnection :: forall m. (MonadUnliftIO m, MonadFail m, E.MonadMask m, E.MonadThrow m) => AppData -> MQTTD m ()
+handleConnection :: forall m. (MonadLogger m, MonadUnliftIO m, MonadFail m, E.MonadMask m, E.MonadThrow m) => AppData -> MQTTD m ()
 handleConnection ad = runConduit $ do
   ch :: TChan T.MQTTPkt <- liftIO newTChanIO
   cpkt@(T.ConnPkt _ pl) <- appSource ad .| sinkParser T.parseConnect
@@ -39,9 +40,10 @@ handleConnection ad = runConduit $ do
   where
     runIn :: T.ProtocolLevel -> TChan T.MQTTPkt -> T.MQTTPkt -> Async () -> MQTTD m ()
     runIn pl ch (T.ConnPkt req@T.ConnectRequest{..} _) o = do
+      logInfoN ("A connection is made " <> tshow req)
       link o
       -- Register and accept the connection
-      _ <- registerClient req o
+      _ <- registerClient req ch o
       sendPacketIO ch (T.ConnACKPkt $ T.ConnACKFlags False T.ConnAccepted mempty)
 
       runConduit $ appSource ad
@@ -56,7 +58,8 @@ handleConnection ad = runConduit $ do
     teardown :: Async a -> TChan T.MQTTPkt -> T.MQTTPkt -> MQTTD m ()
     teardown o ch (T.ConnPkt c@T.ConnectRequest{..} _) = do
       cancel o
-      liftIO $ putStrLn ("Tearing down ... " <> show c)
+      logDebugN ("Tearing down ... " <> tshow c)
+      unregisterClient _connID ch
       unSubAll ch
       case _lastWill of
         Nothing               -> pure ()
@@ -65,4 +68,4 @@ handleConnection ad = runConduit $ do
 main :: IO ()
 main = do
   e <- newEnv
-  runTCPServer (serverSettings 1883 "*") (runIO e . handleConnection)
+  runTCPServer (serverSettings 1883 "*") (runStderrLoggingT . runIO e . handleConnection)
