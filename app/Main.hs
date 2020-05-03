@@ -4,7 +4,7 @@
 
 module Main where
 
-import           Control.Concurrent.STM   (TChan, newTChanIO, readTChan)
+import           Control.Concurrent.STM   (newTChanIO, readTChan)
 import qualified Control.Monad.Catch      as E
 import           Control.Monad.IO.Class   (MonadIO (..))
 import           Control.Monad.Logger     (MonadLogger (..), logDebugN, logInfoN, runStderrLoggingT)
@@ -33,19 +33,19 @@ dispatch _ x = fail ("unhandled: " <> show x)
 
 handleConnection :: forall m. (MonadLogger m, MonadUnliftIO m, MonadFail m, E.MonadMask m, E.MonadThrow m) => AppData -> MQTTD m ()
 handleConnection ad = runConduit $ do
-  ch :: TChan T.MQTTPkt <- liftIO newTChanIO
+  ch :: PktChan <- liftIO newTChanIO
   (cpkt@(T.ConnPkt _ pl), genedID) <- ensureID =<< appSource ad .| sinkParser T.parseConnect
   o <- lift . async $ processOut pl ch
 
   lift $ E.finally (runIn pl ch cpkt genedID o) (teardown o ch cpkt)
 
   where
-    runIn :: T.ProtocolLevel -> TChan T.MQTTPkt -> T.MQTTPkt -> Maybe BL.ByteString -> Async () -> MQTTD m ()
+    runIn :: T.ProtocolLevel -> PktChan -> T.MQTTPkt -> Maybe BL.ByteString -> Async () -> MQTTD m ()
     runIn pl ch (T.ConnPkt req@T.ConnectRequest{..} _) nid o = do
       logInfoN ("A connection is made " <> tshow req)
       link o
       -- Register and accept the connection
-      sess@Session{_sessionClient=Just cli} <- registerClient req ch o
+      Session{_sessionClient=Just cli} <- registerClient req ch o
       let cprops = [ T.PropAssignedClientIdentifier i | Just i <- [nid] ]
       sendPacketIO ch (T.ConnACKPkt $ T.ConnACKFlags False T.ConnAccepted cprops)
 
@@ -58,7 +58,7 @@ handleConnection ad = runConduit $ do
       .| C.map (BL.toStrict . T.toByteString pl)
       .| appSink ad
 
-    teardown :: Async a -> TChan T.MQTTPkt -> T.MQTTPkt -> MQTTD m ()
+    teardown :: Async a -> PktChan -> T.MQTTPkt -> MQTTD m ()
     teardown o ch (T.ConnPkt c@T.ConnectRequest{..} _) = do
       cancel o
       logDebugN ("Tearing down ... " <> tshow c)

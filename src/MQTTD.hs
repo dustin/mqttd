@@ -8,14 +8,11 @@
 
 module MQTTD where
 
-import           Control.Concurrent.STM (TChan, atomically, writeTChan)
-import           Control.Concurrent.STM (STM, TChan, TVar, atomically, modifyTVar', newTChanIO, newTVarIO, readTChan,
-                                         readTVar, writeTChan, writeTVar)
-import           Control.Monad.Catch    (Exception, MonadCatch (..), MonadMask (..), MonadThrow (..),
-                                         SomeException (..), bracket_, catch)
+import           Control.Concurrent.STM (STM, TChan, TVar, atomically, modifyTVar', newTVarIO, readTVar, writeTChan,
+                                         writeTVar)
+import           Control.Monad.Catch    (Exception, MonadCatch (..), MonadMask (..), MonadThrow (..))
 import           Control.Monad.IO.Class (MonadIO (..))
-import           Control.Monad.Logger   (Loc (..), LogLevel (..), LogSource, LogStr, MonadLogger (..), ToLogStr (..),
-                                         logDebugN, logErrorN, logInfoN, monadLoggerLog)
+import           Control.Monad.Logger   (MonadLogger (..))
 import           Control.Monad.Reader   (MonadReader, ReaderT (..), asks, runReaderT)
 import qualified Data.ByteString.Lazy   as BL
 import           Data.Map.Strict        (Map)
@@ -69,7 +66,7 @@ runIO e m = runReaderT (runMQTTD m) e
 newEnv :: MonadIO m => m Env
 newEnv = liftIO $ Env <$> newTVarIO mempty <*> newTVarIO mempty <*> newTVarIO 1
 
-findSubs :: MonadIO m => Text -> MQTTD m [PktChan]
+findSubs :: MonadIO m => T.Topic -> MQTTD m [PktChan]
 findSubs t = asks subs >>= \st -> liftSTM $ fmap snd . filter (\(f,_) -> T.match f t) <$> readTVar st
 
 subscribe :: MonadIO m => T.SubscribeRequest -> PktChan -> MQTTD m ()
@@ -91,8 +88,8 @@ registerClient req@T.ConnectRequest{..} ch o = do
     writeTVar c (Map.insert k ns m)
     pure (o', ns)
   case o' of
-    Nothing                      -> pure ()
-    Just a@(ConnectedClient{..}) -> cancelWith _clientThread MQTTDuplicate
+    Nothing                  -> pure ()
+    Just ConnectedClient{..} -> cancelWith _clientThread MQTTDuplicate
   pure ns
 
     where
@@ -106,7 +103,8 @@ unregisterClient k ch = do
   liftSTM $ modifyTVar' c (Map.update up k)
 
     where
-      up Session{_sessionClient=Just (ConnectedClient{_clientChan=ch})} = Nothing
+      up Session{_sessionClient=Just (ConnectedClient{_clientChan=ch'})}
+        | ch == ch' = Nothing
       up s = Just s
 
 unSubAll :: MonadIO m => PktChan -> MQTTD m ()
@@ -132,7 +130,7 @@ nextPktID x = do
   modifyTVar' x $ \pid -> if pid == maxBound then 1 else succ pid
   readTVar x
 
-broadcast :: MonadIO m => Text -> BL.ByteString -> Bool -> T.QoS -> MQTTD m ()
+broadcast :: MonadIO m => T.Topic -> BL.ByteString -> Bool -> T.QoS -> MQTTD m ()
 broadcast t m r q = do
   subs <- findSubs t
   pid <- liftSTM . nextPktID =<< asks pktID
