@@ -8,8 +8,9 @@
 
 module MQTTD where
 
-import           Control.Concurrent.STM (STM, TBQueue, TVar, atomically, isFullTBQueue, modifyTVar', newTVarIO,
-                                         readTVar, writeTBQueue, writeTVar)
+import           Control.Concurrent     (ThreadId, throwTo)
+import           Control.Concurrent.STM (STM, TBQueue, TVar, atomically, isFullTBQueue, modifyTVar', newTBQueue,
+                                         newTVarIO, readTVar, writeTBQueue, writeTVar)
 import           Control.Monad          (unless)
 import           Control.Monad.Catch    (Exception, MonadCatch (..), MonadMask (..), MonadThrow (..))
 import           Control.Monad.IO.Class (MonadIO (..))
@@ -23,31 +24,34 @@ import qualified Data.Text.Encoding     as TE
 import           Data.Word              (Word16)
 import qualified Network.MQTT.Topic     as T
 import qualified Network.MQTT.Types     as T
-import           UnliftIO               (Async (..), MonadUnliftIO (..), cancelWith)
+import           UnliftIO               (MonadUnliftIO (..))
 
 data MQTTException = MQTTDuplicate deriving Show
 
 instance Exception MQTTException
 
 type PktQueue = TBQueue T.MQTTPkt
+type ClientID = Int
 
 data ConnectedClient = ConnectedClient {
   _clientConnReq :: T.ConnectRequest,
-  _clientChan    :: PktQueue,
-  _clientThread  :: Async ()
+  _clientThread  :: ThreadId,
+  _clientID      :: ClientID
   }
 
 instance Show ConnectedClient where
   show ConnectedClient{..} = "ConnectedClient " <> show _clientConnReq
 
 data Session = Session {
-  _sessionClient :: Maybe ConnectedClient
+  _sessionClient :: Maybe ConnectedClient,
+  _sessionChan   :: PktQueue
   }
 
 data Env = Env {
-  subs     :: TVar [(T.Filter, PktQueue)],
-  sessions :: TVar (Map BL.ByteString Session),
-  pktID    :: TVar Word16
+  subs        :: TVar [(T.Filter, PktQueue)],
+  sessions    :: TVar (Map BL.ByteString Session),
+  pktID       :: TVar Word16,
+  clientIDGen :: TVar ClientID
   }
 
 newtype MQTTD m a = MQTTD
@@ -65,7 +69,10 @@ runIO :: (MonadIO m, MonadLogger m) => Env -> MQTTD m a -> m a
 runIO e m = runReaderT (runMQTTD m) e
 
 newEnv :: MonadIO m => m Env
-newEnv = liftIO $ Env <$> newTVarIO mempty <*> newTVarIO mempty <*> newTVarIO 1
+newEnv = liftIO $ Env <$> newTVarIO mempty <*> newTVarIO mempty <*> newTVarIO 1 <*> newTVarIO 0
+
+nextID :: MonadIO m => MQTTD m Int
+nextID = asks clientIDGen >>= \ig -> liftSTM $ modifyTVar' ig (+1) >> readTVar ig
 
 findSubs :: MonadIO m => T.Topic -> MQTTD m [PktQueue]
 findSubs t = asks subs >>= \st -> liftSTM $ fmap snd . filter (\(f,_) -> T.match f t) <$> readTVar st
@@ -76,36 +83,37 @@ subscribe (T.SubscribeRequest _ topics _props) ch = do
   st <- asks subs
   liftSTM $ modifyTVar' st (<> new)
 
-registerClient :: MonadIO m => T.ConnectRequest -> PktQueue -> Async () -> MQTTD m Session
-registerClient req@T.ConnectRequest{..} ch o = do
+registerClient :: MonadIO m => T.ConnectRequest -> ClientID -> ThreadId -> MQTTD m Session
+registerClient req@T.ConnectRequest{..} i o = do
   c <- asks sessions
   let k = _connID
-      nc = ConnectedClient req ch o
+      nc = ConnectedClient req o i
   (o', ns) <- liftSTM $ do
+    ch <- newTBQueue 1000
     m <- readTVar c
-    let s = maybeClean $ Map.findWithDefault (Session Nothing) k m
-        o' = _sessionClient s
+    let s = maybeClean ch $ Map.findWithDefault (Session Nothing ch) k m
+        o' = _sessionClient =<< Map.lookup k m
         ns = s{_sessionClient=Just nc}
     writeTVar c (Map.insert k ns m)
     pure (o', ns)
   case o' of
     Nothing                  -> pure ()
-    Just ConnectedClient{..} -> cancelWith _clientThread MQTTDuplicate
+    Just ConnectedClient{..} -> liftIO $ throwTo _clientThread MQTTDuplicate
   pure ns
 
     where
-      maybeClean x
-        | _cleanSession = Session Nothing
+      maybeClean ch x
+        | _cleanSession = Session Nothing ch
         | otherwise = x
 
-unregisterClient :: MonadIO m => BL.ByteString -> PktQueue -> MQTTD m ()
-unregisterClient k ch = do
+unregisterClient :: MonadIO m => BL.ByteString -> ClientID -> MQTTD m ()
+unregisterClient k mid = do
   c <- asks sessions
   liftSTM $ modifyTVar' c (Map.update up k)
 
     where
-      up Session{_sessionClient=Just (ConnectedClient{_clientChan=ch'})}
-        | ch == ch' = Nothing
+      up Session{_sessionClient=Just (ConnectedClient{_clientID=i})}
+        | mid == i = Nothing
       up s = Just s
 
 unSubAll :: MonadIO m => PktQueue -> MQTTD m ()

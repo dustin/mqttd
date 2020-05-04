@@ -4,6 +4,7 @@
 
 module Main where
 
+import           Control.Concurrent       (myThreadId)
 import           Control.Concurrent.STM   (newTBQueueIO, readTBQueue)
 import           Control.Monad            (void)
 import qualified Control.Monad.Catch      as E
@@ -23,48 +24,51 @@ import qualified Network.MQTT.Types       as T
 
 import           MQTTD
 
-dispatch :: (MonadLogger m, MonadFail m, MonadIO m) => ConnectedClient -> T.MQTTPkt -> MQTTD m ()
-dispatch ConnectedClient{..} T.PingPkt = void $ sendPacketIO _clientChan T.PongPkt
-dispatch ConnectedClient{..} (T.SubscribePkt req@(T.SubscribeRequest pid subs props)) = do
-  subscribe req _clientChan
-  void $ sendPacketIO _clientChan (T.SubACKPkt (T.SubscribeResponse pid (map (const (Right T.QoS0)) subs) props))
+dispatch :: (MonadLogger m, MonadFail m, MonadIO m) => Session -> T.MQTTPkt -> MQTTD m ()
+dispatch Session{..} T.PingPkt = void $ sendPacketIO _sessionChan T.PongPkt
+dispatch Session{..} (T.SubscribePkt req@(T.SubscribeRequest pid subs props)) = do
+  subscribe req _sessionChan
+  void $ sendPacketIO _sessionChan (T.SubACKPkt (T.SubscribeResponse pid (map (const (Right T.QoS0)) subs) props))
 dispatch _ (T.PublishPkt T.PublishRequest{..}) =
   broadcast (blToText _pubTopic) _pubBody _pubRetain _pubQoS
 dispatch _ x = fail ("unhandled: " <> show x)
 
 handleConnection :: forall m. (MonadLogger m, MonadUnliftIO m, MonadFail m, E.MonadMask m, E.MonadThrow m) => AppData -> MQTTD m ()
 handleConnection ad = runConduit $ do
-  ch :: PktQueue <- liftIO $ newTBQueueIO 1000
   (cpkt@(T.ConnPkt _ pl), genedID) <- ensureID =<< appSource ad .| sinkParser T.parseConnect
-  o <- lift . async $ processOut pl ch
+  cid <- lift nextID
 
-  lift $ E.finally (runIn pl ch cpkt genedID o) (teardown o ch cpkt)
+  lift $ run pl cid cpkt genedID
 
   where
-    runIn :: T.ProtocolLevel -> PktQueue -> T.MQTTPkt -> Maybe BL.ByteString -> Async () -> MQTTD m ()
-    runIn pl ch (T.ConnPkt req@T.ConnectRequest{..} _) nid o = do
+    run :: T.ProtocolLevel -> ClientID -> T.MQTTPkt -> Maybe BL.ByteString -> MQTTD m ()
+    run pl cid (T.ConnPkt req@T.ConnectRequest{..} _) nid = do
       logInfoN ("A connection is made " <> tshow req)
-      link o
       -- Register and accept the connection
-      Session{_sessionClient=Just cli} <- registerClient req ch o
+      tid <- liftIO myThreadId
+      sess@Session{_sessionChan} <- registerClient req cid tid
       let cprops = [ T.PropAssignedClientIdentifier i | Just i <- [nid] ]
-      sendPacketIO ch (T.ConnACKPkt $ T.ConnACKFlags False T.ConnAccepted cprops)
+      sendPacketIO _sessionChan (T.ConnACKPkt $ T.ConnACKFlags False T.ConnAccepted cprops)
 
-      runConduit $ appSource ad
+      o <- async $ processOut pl _sessionChan
+      link o
+
+      E.finally (runIn sess pl) (teardown o cid req)
+
+    runIn sess pl = runConduit $ appSource ad
         .| conduitParser (T.parsePacket pl)
-        .| C.mapM_ (\(_,x) -> dispatch cli x)
+        .| C.mapM_ (\(_,x) -> dispatch sess x)
 
     processOut pl ch = runConduit $
       C.repeatM (liftSTM $ readTBQueue ch)
       .| C.map (BL.toStrict . T.toByteString pl)
       .| appSink ad
 
-    teardown :: Async a -> PktQueue -> T.MQTTPkt -> MQTTD m ()
-    teardown o ch (T.ConnPkt c@T.ConnectRequest{..} _) = do
+    teardown :: Async a -> ClientID -> T.ConnectRequest -> MQTTD m ()
+    teardown o cid c@T.ConnectRequest{..} = do
       cancel o
       logDebugN ("Tearing down ... " <> tshow c)
-      unregisterClient _connID ch
-      unSubAll ch
+      unregisterClient _connID cid
       case _lastWill of
         Nothing               -> pure ()
         Just (T.LastWill{..}) -> broadcast (blToText _willTopic) _willMsg _willRetain _willQoS
