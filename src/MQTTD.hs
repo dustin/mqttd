@@ -8,8 +8,9 @@
 
 module MQTTD where
 
-import           Control.Concurrent.STM (STM, TChan, TVar, atomically, modifyTVar', newTVarIO, readTVar, writeTChan,
-                                         writeTVar)
+import           Control.Concurrent.STM (STM, TBQueue, TVar, atomically, isFullTBQueue, modifyTVar', newTVarIO,
+                                         readTVar, writeTBQueue, writeTVar)
+import           Control.Monad          (unless)
 import           Control.Monad.Catch    (Exception, MonadCatch (..), MonadMask (..), MonadThrow (..))
 import           Control.Monad.IO.Class (MonadIO (..))
 import           Control.Monad.Logger   (MonadLogger (..))
@@ -28,11 +29,11 @@ data MQTTException = MQTTDuplicate deriving Show
 
 instance Exception MQTTException
 
-type PktChan = TChan T.MQTTPkt
+type PktQueue = TBQueue T.MQTTPkt
 
 data ConnectedClient = ConnectedClient {
   _clientConnReq :: T.ConnectRequest,
-  _clientChan    :: PktChan,
+  _clientChan    :: PktQueue,
   _clientThread  :: Async ()
   }
 
@@ -44,7 +45,7 @@ data Session = Session {
   }
 
 data Env = Env {
-  subs     :: TVar [(T.Filter, PktChan)],
+  subs     :: TVar [(T.Filter, PktQueue)],
   sessions :: TVar (Map BL.ByteString Session),
   pktID    :: TVar Word16
   }
@@ -66,16 +67,16 @@ runIO e m = runReaderT (runMQTTD m) e
 newEnv :: MonadIO m => m Env
 newEnv = liftIO $ Env <$> newTVarIO mempty <*> newTVarIO mempty <*> newTVarIO 1
 
-findSubs :: MonadIO m => T.Topic -> MQTTD m [PktChan]
+findSubs :: MonadIO m => T.Topic -> MQTTD m [PktQueue]
 findSubs t = asks subs >>= \st -> liftSTM $ fmap snd . filter (\(f,_) -> T.match f t) <$> readTVar st
 
-subscribe :: MonadIO m => T.SubscribeRequest -> PktChan -> MQTTD m ()
+subscribe :: MonadIO m => T.SubscribeRequest -> PktQueue -> MQTTD m ()
 subscribe (T.SubscribeRequest _ topics _props) ch = do
   let new = map (\(sbs,_) -> (blToText sbs, ch)) topics
   st <- asks subs
   liftSTM $ modifyTVar' st (<> new)
 
-registerClient :: MonadIO m => T.ConnectRequest -> PktChan -> Async () -> MQTTD m Session
+registerClient :: MonadIO m => T.ConnectRequest -> PktQueue -> Async () -> MQTTD m Session
 registerClient req@T.ConnectRequest{..} ch o = do
   c <- asks sessions
   let k = _connID
@@ -97,7 +98,7 @@ registerClient req@T.ConnectRequest{..} ch o = do
         | _cleanSession = Session Nothing
         | otherwise = x
 
-unregisterClient :: MonadIO m => BL.ByteString -> PktChan -> MQTTD m ()
+unregisterClient :: MonadIO m => BL.ByteString -> PktQueue -> MQTTD m ()
 unregisterClient k ch = do
   c <- asks sessions
   liftSTM $ modifyTVar' c (Map.update up k)
@@ -107,13 +108,16 @@ unregisterClient k ch = do
         | ch == ch' = Nothing
       up s = Just s
 
-unSubAll :: MonadIO m => PktChan -> MQTTD m ()
+unSubAll :: MonadIO m => PktQueue -> MQTTD m ()
 unSubAll ch = asks subs >>= \st -> liftSTM $ modifyTVar' st (filter ((/= ch) . snd))
 
-sendPacket :: PktChan -> T.MQTTPkt -> STM ()
-sendPacket ch p = writeTChan ch p
+sendPacket :: PktQueue -> T.MQTTPkt -> STM Bool
+sendPacket ch p = do
+  full <- isFullTBQueue ch
+  unless full $ writeTBQueue ch p
+  pure full
 
-sendPacketIO :: MonadIO m => PktChan -> T.MQTTPkt -> m ()
+sendPacketIO :: MonadIO m => PktQueue -> T.MQTTPkt -> m Bool
 sendPacketIO ch = liftSTM . sendPacket ch
 
 textToBL :: Text -> BL.ByteString

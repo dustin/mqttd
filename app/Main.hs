@@ -4,7 +4,8 @@
 
 module Main where
 
-import           Control.Concurrent.STM   (newTChanIO, readTChan)
+import           Control.Concurrent.STM   (newTBQueueIO, readTBQueue)
+import           Control.Monad            (void)
 import qualified Control.Monad.Catch      as E
 import           Control.Monad.IO.Class   (MonadIO (..))
 import           Control.Monad.Logger     (MonadLogger (..), logDebugN, logInfoN, runStderrLoggingT)
@@ -23,24 +24,24 @@ import qualified Network.MQTT.Types       as T
 import           MQTTD
 
 dispatch :: (MonadLogger m, MonadFail m, MonadIO m) => ConnectedClient -> T.MQTTPkt -> MQTTD m ()
-dispatch ConnectedClient{..} T.PingPkt = sendPacketIO _clientChan T.PongPkt
+dispatch ConnectedClient{..} T.PingPkt = void $ sendPacketIO _clientChan T.PongPkt
 dispatch ConnectedClient{..} (T.SubscribePkt req@(T.SubscribeRequest pid subs props)) = do
   subscribe req _clientChan
-  sendPacketIO _clientChan (T.SubACKPkt (T.SubscribeResponse pid (map (const (Right T.QoS0)) subs) props))
+  void $ sendPacketIO _clientChan (T.SubACKPkt (T.SubscribeResponse pid (map (const (Right T.QoS0)) subs) props))
 dispatch _ (T.PublishPkt T.PublishRequest{..}) =
   broadcast (blToText _pubTopic) _pubBody _pubRetain _pubQoS
 dispatch _ x = fail ("unhandled: " <> show x)
 
 handleConnection :: forall m. (MonadLogger m, MonadUnliftIO m, MonadFail m, E.MonadMask m, E.MonadThrow m) => AppData -> MQTTD m ()
 handleConnection ad = runConduit $ do
-  ch :: PktChan <- liftIO newTChanIO
+  ch :: PktQueue <- liftIO $ newTBQueueIO 1000
   (cpkt@(T.ConnPkt _ pl), genedID) <- ensureID =<< appSource ad .| sinkParser T.parseConnect
   o <- lift . async $ processOut pl ch
 
   lift $ E.finally (runIn pl ch cpkt genedID o) (teardown o ch cpkt)
 
   where
-    runIn :: T.ProtocolLevel -> PktChan -> T.MQTTPkt -> Maybe BL.ByteString -> Async () -> MQTTD m ()
+    runIn :: T.ProtocolLevel -> PktQueue -> T.MQTTPkt -> Maybe BL.ByteString -> Async () -> MQTTD m ()
     runIn pl ch (T.ConnPkt req@T.ConnectRequest{..} _) nid o = do
       logInfoN ("A connection is made " <> tshow req)
       link o
@@ -54,11 +55,11 @@ handleConnection ad = runConduit $ do
         .| C.mapM_ (\(_,x) -> dispatch cli x)
 
     processOut pl ch = runConduit $
-      C.repeatM (liftSTM $ readTChan ch)
+      C.repeatM (liftSTM $ readTBQueue ch)
       .| C.map (BL.toStrict . T.toByteString pl)
       .| appSink ad
 
-    teardown :: Async a -> PktChan -> T.MQTTPkt -> MQTTD m ()
+    teardown :: Async a -> PktQueue -> T.MQTTPkt -> MQTTD m ()
     teardown o ch (T.ConnPkt c@T.ConnectRequest{..} _) = do
       cancel o
       logDebugN ("Tearing down ... " <> tshow c)
