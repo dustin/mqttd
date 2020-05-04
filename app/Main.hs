@@ -46,9 +46,9 @@ handleConnection ad = runConduit $ do
       logInfoN ("A connection is made " <> tshow req)
       -- Register and accept the connection
       tid <- liftIO myThreadId
-      sess@Session{_sessionChan} <- registerClient req cid tid
+      (sess@Session{_sessionChan}, existing) <- registerClient req cid tid
       let cprops = [ T.PropAssignedClientIdentifier i | Just i <- [nid] ]
-      sendPacketIO _sessionChan (T.ConnACKPkt $ T.ConnACKFlags False T.ConnAccepted cprops)
+      sendPacketIO _sessionChan (T.ConnACKPkt $ T.ConnACKFlags existing T.ConnAccepted cprops)
 
       o <- async $ processOut pl _sessionChan
       link o
@@ -61,6 +61,7 @@ handleConnection ad = runConduit $ do
 
     processOut pl ch = runConduit $
       C.repeatM (liftSTM $ readTBQueue ch)
+      .| C.mapM (\x -> liftIO (print x) >> pure x)
       .| C.map (BL.toStrict . T.toByteString pl)
       .| appSink ad
 

@@ -89,29 +89,30 @@ subscribe Session{..} (T.SubscribeRequest _ topics _props) = do
   let new = map (blToText . fst) topics
   liftSTM $ modifyTVar' _sessionSubs (Set.toList . Set.fromList . (<> new))
 
-registerClient :: MonadIO m => T.ConnectRequest -> ClientID -> ThreadId -> MQTTD m Session
+registerClient :: MonadIO m => T.ConnectRequest -> ClientID -> ThreadId -> MQTTD m (Session, Bool)
 registerClient req@T.ConnectRequest{..} i o = do
   c <- asks sessions
   let k = _connID
       nc = ConnectedClient req o i
-  (o', ns) <- liftSTM $ do
+  (o', x, ns) <- liftSTM $ do
     ch <- newTBQueue 1000
     m <- readTVar c
     subz <- newTVar mempty
-    let s = maybeClean ch subz $ Map.findWithDefault (Session Nothing ch subz) k m
-        o' = _sessionClient =<< Map.lookup k m
-        ns = s{_sessionClient=Just nc}
+    let s = Map.lookup k m
+        o' = _sessionClient =<< s
+        (ns, clean) = maybeClean ch subz nc s
     writeTVar c (Map.insert k ns m)
-    pure (o', ns)
+    pure (o', not clean, ns)
   case o' of
     Nothing                  -> pure ()
     Just ConnectedClient{..} -> liftIO $ throwTo _clientThread MQTTDuplicate
-  pure ns
+  pure (ns, x)
 
     where
-      maybeClean ch subz x
-        | _cleanSession = Session Nothing ch subz
-        | otherwise = x
+      maybeClean ch subz nc Nothing = (Session (Just nc) ch subz, True)
+      maybeClean ch subz nc (Just s)
+        | _cleanSession = (Session (Just nc) ch subz, True)
+        | otherwise = (s{_sessionClient=Just nc}, False)
 
 unregisterClient :: MonadIO m => BL.ByteString -> ClientID -> MQTTD m ()
 unregisterClient k mid = do
@@ -119,8 +120,8 @@ unregisterClient k mid = do
   liftSTM $ modifyTVar' c (Map.update up k)
 
     where
-      up Session{_sessionClient=Just (ConnectedClient{_clientID=i})}
-        | mid == i = Nothing
+      up sess@Session{_sessionClient=Just (ConnectedClient{_clientID=i})}
+        | mid == i = Just $ sess{_sessionClient=Nothing}
       up s = Just s
 
 sendPacket :: PktQueue -> T.MQTTPkt -> STM Bool
