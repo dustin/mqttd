@@ -5,7 +5,7 @@
 module Main where
 
 import           Control.Concurrent       (myThreadId)
-import           Control.Concurrent.STM   (newTBQueueIO, readTBQueue)
+import           Control.Concurrent.STM   (readTBQueue)
 import           Control.Monad            (void)
 import qualified Control.Monad.Catch      as E
 import           Control.Monad.IO.Class   (MonadIO (..))
@@ -26,8 +26,8 @@ import           MQTTD
 
 dispatch :: (MonadLogger m, MonadFail m, MonadIO m) => Session -> T.MQTTPkt -> MQTTD m ()
 dispatch Session{..} T.PingPkt = void $ sendPacketIO _sessionChan T.PongPkt
-dispatch Session{..} (T.SubscribePkt req@(T.SubscribeRequest pid subs props)) = do
-  subscribe req _sessionChan
+dispatch sess@Session{..} (T.SubscribePkt req@(T.SubscribeRequest pid subs props)) = do
+  subscribe sess req
   void $ sendPacketIO _sessionChan (T.SubACKPkt (T.SubscribeResponse pid (map (const (Right T.QoS0)) subs) props))
 dispatch _ (T.PublishPkt T.PublishRequest{..}) =
   broadcast (blToText _pubTopic) _pubBody _pubRetain _pubQoS

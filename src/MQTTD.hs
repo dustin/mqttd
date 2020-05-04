@@ -10,8 +10,8 @@ module MQTTD where
 
 import           Control.Concurrent     (ThreadId, throwTo)
 import           Control.Concurrent.STM (STM, TBQueue, TVar, atomically, isFullTBQueue, modifyTVar', newTBQueue,
-                                         newTVarIO, readTVar, writeTBQueue, writeTVar)
-import           Control.Monad          (unless)
+                                         newTVar, newTVarIO, readTVar, writeTBQueue, writeTVar)
+import           Control.Monad          (filterM, unless)
 import           Control.Monad.Catch    (Exception, MonadCatch (..), MonadMask (..), MonadThrow (..))
 import           Control.Monad.IO.Class (MonadIO (..))
 import           Control.Monad.Logger   (MonadLogger (..))
@@ -19,6 +19,7 @@ import           Control.Monad.Reader   (MonadReader, ReaderT (..), asks, runRea
 import qualified Data.ByteString.Lazy   as BL
 import           Data.Map.Strict        (Map)
 import qualified Data.Map.Strict        as Map
+import qualified Data.Set               as Set
 import           Data.Text              (Text, pack)
 import qualified Data.Text.Encoding     as TE
 import           Data.Word              (Word16)
@@ -44,11 +45,11 @@ instance Show ConnectedClient where
 
 data Session = Session {
   _sessionClient :: Maybe ConnectedClient,
-  _sessionChan   :: PktQueue
+  _sessionChan   :: PktQueue,
+  _sessionSubs   :: TVar [T.Filter]
   }
 
 data Env = Env {
-  subs        :: TVar [(T.Filter, PktQueue)],
   sessions    :: TVar (Map BL.ByteString Session),
   pktID       :: TVar Word16,
   clientIDGen :: TVar ClientID
@@ -69,19 +70,24 @@ runIO :: (MonadIO m, MonadLogger m) => Env -> MQTTD m a -> m a
 runIO e m = runReaderT (runMQTTD m) e
 
 newEnv :: MonadIO m => m Env
-newEnv = liftIO $ Env <$> newTVarIO mempty <*> newTVarIO mempty <*> newTVarIO 1 <*> newTVarIO 0
+newEnv = liftIO $ Env <$> newTVarIO mempty <*> newTVarIO 1 <*> newTVarIO 0
 
 nextID :: MonadIO m => MQTTD m Int
 nextID = asks clientIDGen >>= \ig -> liftSTM $ modifyTVar' ig (+1) >> readTVar ig
 
 findSubs :: MonadIO m => T.Topic -> MQTTD m [PktQueue]
-findSubs t = asks subs >>= \st -> liftSTM $ fmap snd . filter (\(f,_) -> T.match f t) <$> readTVar st
+findSubs t = do
+  ss <- asks sessions
+  sess <- Map.elems <$> liftSTM (readTVar ss)
+  map _sessionChan <$> filterM subsTopic sess
 
-subscribe :: MonadIO m => T.SubscribeRequest -> PktQueue -> MQTTD m ()
-subscribe (T.SubscribeRequest _ topics _props) ch = do
-  let new = map (\(sbs,_) -> (blToText sbs, ch)) topics
-  st <- asks subs
-  liftSTM $ modifyTVar' st (<> new)
+  where
+    subsTopic Session{_sessionSubs} = any (flip T.match t) <$> liftSTM (readTVar _sessionSubs)
+
+subscribe :: MonadIO m => Session -> T.SubscribeRequest -> MQTTD m ()
+subscribe Session{..} (T.SubscribeRequest _ topics _props) = do
+  let new = map (blToText . fst) topics
+  liftSTM $ modifyTVar' _sessionSubs (Set.toList . Set.fromList . (<> new))
 
 registerClient :: MonadIO m => T.ConnectRequest -> ClientID -> ThreadId -> MQTTD m Session
 registerClient req@T.ConnectRequest{..} i o = do
@@ -91,7 +97,8 @@ registerClient req@T.ConnectRequest{..} i o = do
   (o', ns) <- liftSTM $ do
     ch <- newTBQueue 1000
     m <- readTVar c
-    let s = maybeClean ch $ Map.findWithDefault (Session Nothing ch) k m
+    subz <- newTVar mempty
+    let s = maybeClean ch subz $ Map.findWithDefault (Session Nothing ch subz) k m
         o' = _sessionClient =<< Map.lookup k m
         ns = s{_sessionClient=Just nc}
     writeTVar c (Map.insert k ns m)
@@ -102,8 +109,8 @@ registerClient req@T.ConnectRequest{..} i o = do
   pure ns
 
     where
-      maybeClean ch x
-        | _cleanSession = Session Nothing ch
+      maybeClean ch subz x
+        | _cleanSession = Session Nothing ch subz
         | otherwise = x
 
 unregisterClient :: MonadIO m => BL.ByteString -> ClientID -> MQTTD m ()
@@ -115,9 +122,6 @@ unregisterClient k mid = do
       up Session{_sessionClient=Just (ConnectedClient{_clientID=i})}
         | mid == i = Nothing
       up s = Just s
-
-unSubAll :: MonadIO m => PktQueue -> MQTTD m ()
-unSubAll ch = asks subs >>= \st -> liftSTM $ modifyTVar' st (filter ((/= ch) . snd))
 
 sendPacket :: PktQueue -> T.MQTTPkt -> STM Bool
 sendPacket ch p = do
