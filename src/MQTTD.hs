@@ -89,7 +89,7 @@ subscribe Session{..} (T.SubscribeRequest _ topics _props) = do
   let new = map (blToText . fst) topics
   liftSTM $ modifyTVar' _sessionSubs (Set.toList . Set.fromList . (<> new))
 
-registerClient :: MonadIO m => T.ConnectRequest -> ClientID -> ThreadId -> MQTTD m (Session, Bool)
+registerClient :: MonadIO m => T.ConnectRequest -> ClientID -> ThreadId -> MQTTD m (Session, T.SessionReuse)
 registerClient req@T.ConnectRequest{..} i o = do
   c <- asks sessions
   let k = _connID
@@ -100,19 +100,19 @@ registerClient req@T.ConnectRequest{..} i o = do
     subz <- newTVar mempty
     let s = Map.lookup k m
         o' = _sessionClient =<< s
-        (ns, clean) = maybeClean ch subz nc s
+        (ns, ruse) = maybeClean ch subz nc s
     writeTVar c (Map.insert k ns m)
-    pure (o', not clean, ns)
+    pure (o', ruse, ns)
   case o' of
     Nothing                  -> pure ()
     Just ConnectedClient{..} -> liftIO $ throwTo _clientThread MQTTDuplicate
   pure (ns, x)
 
     where
-      maybeClean ch subz nc Nothing = (Session (Just nc) ch subz, True)
+      maybeClean ch subz nc Nothing = (Session (Just nc) ch subz, T.NewSession)
       maybeClean ch subz nc (Just s)
-        | _cleanSession = (Session (Just nc) ch subz, True)
-        | otherwise = (s{_sessionClient=Just nc}, False)
+        | _cleanSession = (Session (Just nc) ch subz, T.NewSession)
+        | otherwise = (s{_sessionClient=Just nc}, T.ExistingSession)
 
 unregisterClient :: MonadIO m => BL.ByteString -> ClientID -> MQTTD m ()
 unregisterClient k mid = do
