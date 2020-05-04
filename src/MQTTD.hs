@@ -146,7 +146,7 @@ broadcast :: MonadIO m => T.Topic -> BL.ByteString -> Bool -> T.QoS -> MQTTD m (
 broadcast t m r q = do
   subs <- findSubs t
   pid <- liftSTM . nextPktID =<< asks pktID
-  mapM_ (\ch' -> sendPacketIO ch' (pkt pid)) subs
+  mapM_ (flip sendPacketIO (pkt pid)) subs
   where pkt pid = T.PublishPkt T.PublishRequest{
           _pubDup=False,
           _pubRetain=r,
