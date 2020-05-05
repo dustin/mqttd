@@ -8,10 +8,10 @@
 
 module MQTTD where
 
-import           Control.Concurrent     (ThreadId, throwTo)
+import           Control.Concurrent     (ThreadId, threadDelay, throwTo)
 import           Control.Concurrent.STM (STM, TBQueue, TVar, atomically, isFullTBQueue, modifyTVar', newTBQueue,
                                          newTVar, newTVarIO, readTVar, writeTBQueue, writeTVar)
-import           Control.Monad          (filterM, unless)
+import           Control.Monad          (filterM, forever, unless)
 import           Control.Monad.Catch    (Exception, MonadCatch (..), MonadMask (..), MonadThrow (..))
 import           Control.Monad.IO.Class (MonadIO (..))
 import           Control.Monad.Logger   (MonadLogger (..))
@@ -22,10 +22,11 @@ import qualified Data.Map.Strict        as Map
 import qualified Data.Set               as Set
 import           Data.Text              (Text, pack)
 import qualified Data.Text.Encoding     as TE
+import           Data.Time.Clock        (NominalDiffTime, diffUTCTime, getCurrentTime)
 import           Data.Word              (Word16)
 import qualified Network.MQTT.Topic     as T
 import qualified Network.MQTT.Types     as T
-import           UnliftIO               (MonadUnliftIO (..))
+import           UnliftIO               (Async (..), MonadUnliftIO (..), async)
 
 data MQTTException = MQTTDuplicate deriving Show
 
@@ -52,7 +53,8 @@ data Session = Session {
 data Env = Env {
   sessions    :: TVar (Map BL.ByteString Session),
   pktID       :: TVar Word16,
-  clientIDGen :: TVar ClientID
+  clientIDGen :: TVar ClientID,
+  cleaner     :: Async ()
   }
 
 newtype MQTTD m a = MQTTD
@@ -70,7 +72,25 @@ runIO :: (MonadIO m, MonadLogger m) => Env -> MQTTD m a -> m a
 runIO e m = runReaderT (runMQTTD m) e
 
 newEnv :: MonadIO m => m Env
-newEnv = liftIO $ Env <$> newTVarIO mempty <*> newTVarIO 1 <*> newTVarIO 0
+newEnv = do
+  ss <- liftIO $ newTVarIO mempty
+  o <- liftIO $ async (clean ss)
+  liftIO $ Env ss <$> newTVarIO 1 <*> newTVarIO 0 <*> pure o
+
+    where
+      clean :: TVar (Map BL.ByteString Session) -> IO ()
+      clean tm = forever $ (threadDelay (seconds 1) >> clean1)
+        where
+          clean1 = do
+            now <- getCurrentTime
+            atomically $ do
+              modifyTVar' tm (Map.filter (keep now))
+
+          keep _ Session{_sessionClient=Just _} = True
+          keep _ _ = False
+
+seconds :: Num p => p -> p
+seconds = (1000000 *)
 
 nextID :: MonadIO m => MQTTD m Int
 nextID = asks clientIDGen >>= \ig -> liftSTM $ modifyTVar' ig (+1) >> readTVar ig
