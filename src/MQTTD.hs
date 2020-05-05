@@ -139,7 +139,7 @@ registerClient req@T.ConnectRequest{..} i o = do
       maybeClean ch subz nc Nothing = (Session (Just nc) ch subz Nothing, T.NewSession)
       maybeClean ch subz nc (Just s)
         | _cleanSession = (Session (Just nc) ch subz Nothing, T.NewSession)
-        | otherwise = (s{_sessionClient=Just nc}, T.ExistingSession)
+        | otherwise = (s{_sessionClient=Just nc, _sessionExpires=Nothing}, T.ExistingSession)
 
 unregisterClient :: MonadIO m => BL.ByteString -> ClientID -> MQTTD m ()
 unregisterClient k mid = do
