@@ -4,6 +4,7 @@
 {-# LANGUAGE GeneralisedNewtypeDeriving #-}
 {-# LANGUAGE ScopedTypeVariables        #-}
 {-# LANGUAGE StandaloneDeriving         #-}
+{-# LANGUAGE TemplateHaskell            #-}
 {-# LANGUAGE UndecidableInstances       #-}
 
 module MQTTD where
@@ -11,6 +12,7 @@ module MQTTD where
 import           Control.Concurrent     (ThreadId, threadDelay, throwTo)
 import           Control.Concurrent.STM (STM, TBQueue, TVar, atomically, isFullTBQueue, modifyTVar', newTBQueue,
                                          newTVar, newTVarIO, readTVar, writeTBQueue, writeTVar)
+import           Control.Lens
 import           Control.Monad          (filterM, forever, unless)
 import           Control.Monad.Catch    (Exception, MonadCatch (..), MonadMask (..), MonadThrow (..))
 import           Control.Monad.IO.Class (MonadIO (..))
@@ -22,11 +24,13 @@ import qualified Data.Map.Strict        as Map
 import qualified Data.Set               as Set
 import           Data.Text              (Text, pack)
 import qualified Data.Text.Encoding     as TE
-import           Data.Time.Clock        (NominalDiffTime, diffUTCTime, getCurrentTime)
+import           Data.Time.Clock        (UTCTime (..), addUTCTime, getCurrentTime)
 import           Data.Word              (Word16)
 import qualified Network.MQTT.Topic     as T
 import qualified Network.MQTT.Types     as T
 import           UnliftIO               (Async (..), MonadUnliftIO (..), async)
+
+import           Network.MQTT.Lens
 
 data MQTTException = MQTTDuplicate deriving Show
 
@@ -41,14 +45,19 @@ data ConnectedClient = ConnectedClient {
   _clientID      :: ClientID
   }
 
+makeLenses ''ConnectedClient
+
 instance Show ConnectedClient where
   show ConnectedClient{..} = "ConnectedClient " <> show _clientConnReq
 
 data Session = Session {
-  _sessionClient :: Maybe ConnectedClient,
-  _sessionChan   :: PktQueue,
-  _sessionSubs   :: TVar [T.Filter]
+  _sessionClient  :: Maybe ConnectedClient,
+  _sessionChan    :: PktQueue,
+  _sessionSubs    :: TVar [T.Filter],
+  _sessionExpires :: Maybe UTCTime
   }
+
+makeLenses ''Session
 
 data Env = Env {
   sessions    :: TVar (Map BL.ByteString Session),
@@ -81,13 +90,11 @@ newEnv = do
       clean :: TVar (Map BL.ByteString Session) -> IO ()
       clean tm = forever $ (threadDelay (seconds 1) >> clean1)
         where
-          clean1 = do
-            now <- getCurrentTime
-            atomically $ do
-              modifyTVar' tm (Map.filter (keep now))
+          clean1 = getCurrentTime >>= \now -> atomically $ modifyTVar' tm (Map.filter (keep now))
 
           keep _ Session{_sessionClient=Just _} = True
-          keep _ _ = False
+          keep _ Session{_sessionExpires=Nothing} = False
+          keep now Session{_sessionExpires=Just x} = now < x
 
 seconds :: Num p => p -> p
 seconds = (1000000 *)
@@ -129,20 +136,26 @@ registerClient req@T.ConnectRequest{..} i o = do
   pure (ns, x)
 
     where
-      maybeClean ch subz nc Nothing = (Session (Just nc) ch subz, T.NewSession)
+      maybeClean ch subz nc Nothing = (Session (Just nc) ch subz Nothing, T.NewSession)
       maybeClean ch subz nc (Just s)
-        | _cleanSession = (Session (Just nc) ch subz, T.NewSession)
+        | _cleanSession = (Session (Just nc) ch subz Nothing, T.NewSession)
         | otherwise = (s{_sessionClient=Just nc}, T.ExistingSession)
 
 unregisterClient :: MonadIO m => BL.ByteString -> ClientID -> MQTTD m ()
 unregisterClient k mid = do
+  now <- liftIO getCurrentTime
   c <- asks sessions
-  liftSTM $ modifyTVar' c (Map.update up k)
+  liftSTM $ modifyTVar' c (Map.update (up now) k)
 
     where
-      up sess@Session{_sessionClient=Just (ConnectedClient{_clientID=i})}
-        | mid == i = Just $ sess{_sessionClient=Nothing}
-      up s = Just s
+      up now sess@Session{_sessionClient=Just (ConnectedClient{_clientID=i})}
+        | mid == i =
+          case sess ^? sessionClient . _Just . clientConnReq . properties . folded . _PropSessionExpiryInterval of
+            Nothing -> Nothing
+            Just 0  -> Nothing
+            Just x  -> Just $ sess{_sessionExpires=Just (addUTCTime (fromIntegral x) now),
+                                   _sessionClient=Nothing}
+      up _ s = Just s
 
 sendPacket :: PktQueue -> T.MQTTPkt -> STM Bool
 sendPacket ch p = do
