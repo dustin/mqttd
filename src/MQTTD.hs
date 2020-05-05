@@ -148,9 +148,9 @@ unregisterClient k mid = do
   liftSTM $ modifyTVar' c (Map.update (up now) k)
 
     where
-      up now sess@Session{_sessionClient=Just (ConnectedClient{_clientID=i})}
+      up now sess@Session{_sessionClient=Just (cc@ConnectedClient{_clientID=i})}
         | mid == i =
-          case sess ^? sessionClient . _Just . clientConnReq . properties . folded . _PropSessionExpiryInterval of
+          case cc ^? clientConnReq . properties . folded . _PropSessionExpiryInterval of
             Nothing -> Nothing
             Just 0  -> Nothing
             Just x  -> Just $ sess{_sessionExpires=Just (addUTCTime (fromIntegral x) now),
