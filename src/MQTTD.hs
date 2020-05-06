@@ -11,12 +11,12 @@ module MQTTD where
 
 import           Control.Concurrent     (ThreadId, threadDelay, throwTo)
 import           Control.Concurrent.STM (STM, TBQueue, TVar, atomically, isFullTBQueue, modifyTVar', newTBQueue,
-                                         newTVar, newTVarIO, readTVar, writeTBQueue, writeTVar)
+                                         newTVar, newTVarIO, readTVar, swapTVar, writeTBQueue, writeTVar)
 import           Control.Lens
 import           Control.Monad          (filterM, forever, unless, when)
 import           Control.Monad.Catch    (Exception, MonadCatch (..), MonadMask (..), MonadThrow (..))
 import           Control.Monad.IO.Class (MonadIO (..))
-import           Control.Monad.Logger   (MonadLogger (..))
+import           Control.Monad.Logger   (MonadLogger (..), logDebugN)
 import           Control.Monad.Reader   (MonadReader, ReaderT (..), asks, runReaderT)
 import qualified Data.ByteString.Lazy   as BL
 import           Data.Map.Strict        (Map)
@@ -28,7 +28,7 @@ import           Data.Time.Clock        (UTCTime (..), addUTCTime, getCurrentTim
 import           Data.Word              (Word16)
 import qualified Network.MQTT.Topic     as T
 import qualified Network.MQTT.Types     as T
-import           UnliftIO               (Async (..), MonadUnliftIO (..), async)
+import           UnliftIO               (Async (..), MonadUnliftIO (..), async, cancel)
 
 import           Network.MQTT.Lens
 
@@ -51,6 +51,7 @@ makeLenses ''ConnectedClient
 instance Show ConnectedClient where
   show ConnectedClient{..} = "ConnectedClient " <> show _clientConnReq
 
+-- TODO:  Move will into session.
 data Session = Session {
   _sessionClient  :: Maybe ConnectedClient,
   _sessionChan    :: PktQueue,
@@ -64,7 +65,7 @@ data Env = Env {
   sessions    :: TVar (Map BL.ByteString Session),
   pktID       :: TVar Word16,
   clientIDGen :: TVar ClientID,
-  cleaner     :: Async ()
+  cleaner     :: TVar (Maybe (Async ()))
   }
 
 newtype MQTTD m a = MQTTD
@@ -83,22 +84,48 @@ runIO e m = runReaderT (runMQTTD m) e
 
 newEnv :: MonadIO m => m Env
 newEnv = do
-  ss <- liftIO $ newTVarIO mempty
-  o <- liftIO $ async (clean ss)
-  liftIO $ Env ss <$> newTVarIO 1 <*> newTVarIO 0 <*> pure o
+  liftIO $ Env <$> newTVarIO mempty <*> newTVarIO 1 <*> newTVarIO 0 <*> newTVarIO Nothing
 
-    where
-      clean :: TVar (Map BL.ByteString Session) -> IO ()
-      clean tm = forever $ (threadDelay (seconds 1) >> clean1)
-        where
-          clean1 = getCurrentTime >>= \now -> atomically $ modifyTVar' tm (Map.filter (keep now))
+runSessionCleaner :: forall m. (MonadLogger m, MonadUnliftIO m, MonadIO m) => MQTTD m ()
+runSessionCleaner = do
+  c <- asks cleaner
+  maybeStart =<< liftSTM (readTVar c)
 
-          keep _ Session{_sessionClient=Just _} = True
-          keep _ Session{_sessionExpires=Nothing} = False
-          keep now Session{_sessionExpires=Just x} = now < x
+  where
+    maybeStart :: Maybe (Async ()) -> MQTTD m ()
+    maybeStart (Just _) = pure ()
+    maybeStart Nothing = do
+      c <- asks cleaner
+      o <- async sessionCleaner
+      prev <- liftSTM $ swapTVar c (Just o)
+      case prev of
+        Nothing -> pure ()
+        Just o' -> cancel o' -- double-scheduled
+
+sessionCleaner :: (MonadLogger m, MonadUnliftIO m) => MQTTD m ()
+sessionCleaner = forever $ (sleep 1 >> clean1)
+  where
+    clean1 = do
+      tm <- asks sessions
+      now <- liftIO getCurrentTime
+      ded <- liftSTM $ do
+        ded <- Map.filter (not . keep now) <$> readTVar tm
+        modifyTVar' tm (Map.filter (keep now))
+        pure ded
+      mapM_ sessionDied (Map.assocs ded)
+
+    keep _ Session{_sessionClient=Just _} = True
+    keep _ Session{_sessionExpires=Nothing} = False
+    keep now Session{_sessionExpires=Just x} = now < x
+
+sessionDied :: (MonadIO m, MonadLogger m) => (BL.ByteString, Session) -> MQTTD m ()
+sessionDied (k,s) = logDebugN ("Session " <> blToText k <> " has died")
 
 seconds :: Num p => p -> p
 seconds = (1000000 *)
+
+sleep :: MonadIO m => Int -> m ()
+sleep secs = liftIO (threadDelay (seconds secs))
 
 nextID :: MonadIO m => MQTTD m Int
 nextID = asks clientIDGen >>= \ig -> liftSTM $ modifyTVar' ig (+1) >> readTVar ig
@@ -131,6 +158,9 @@ subscribe Session{..} (T.SubscribeRequest _ topics _props) = do
   let new = map (blToText . fst) topics
   liftSTM $ modifyTVar' _sessionSubs (Set.toList . Set.fromList . (<> new))
 
+modifySession :: MonadIO m => BL.ByteString -> (Session -> Maybe Session) -> MQTTD m ()
+modifySession k f = asks sessions >>= \s -> liftSTM $ modifyTVar' s (Map.update f k)
+
 registerClient :: MonadIO m => T.ConnectRequest -> ClientID -> ThreadId -> MQTTD m (Session, T.SessionReuse)
 registerClient req@T.ConnectRequest{..} i o = do
   c <- asks sessions
@@ -157,11 +187,19 @@ registerClient req@T.ConnectRequest{..} i o = do
         | _cleanSession = (Session (Just nc) ch subz Nothing, T.NewSession)
         | otherwise = (s{_sessionClient=Just nc, _sessionExpires=Nothing}, T.ExistingSession)
 
-unregisterClient :: MonadIO m => BL.ByteString -> ClientID -> MQTTD m ()
+unregisterClient :: (MonadLogger m, MonadUnliftIO m, MonadIO m) => BL.ByteString -> ClientID -> MQTTD m ()
 unregisterClient k mid = do
+  runSessionCleaner
   now <- liftIO getCurrentTime
   c <- asks sessions
-  liftSTM $ modifyTVar' c (Map.update (up now) k)
+  rmd <- liftSTM $ do
+    current <- Map.lookup k <$> readTVar c
+    let upv = maybe Nothing (up now) current
+    modifyTVar' c (Map.update (const upv) k)
+    pure $ maybe current (const Nothing) upv
+  case rmd of
+    Nothing -> pure ()
+    Just s  -> sessionDied (k,s)
 
     where
       up now sess@Session{_sessionClient=Just (cc@ConnectedClient{_clientID=i})}

@@ -6,6 +6,7 @@ module Main where
 
 import           Control.Concurrent       (myThreadId)
 import           Control.Concurrent.STM   (readTBQueue)
+import           Control.Lens
 import           Control.Monad            (void)
 import qualified Control.Monad.Catch      as E
 import           Control.Monad.IO.Class   (MonadIO (..))
@@ -20,16 +21,21 @@ import qualified Data.UUID                as UUID
 import           System.Random            (randomIO)
 import           UnliftIO                 (Async (..), MonadUnliftIO (..), async, cancel, link)
 
+import qualified Network.MQTT.Lens        as T
 import qualified Network.MQTT.Types       as T
 
 import           MQTTD
 
 dispatch :: (MonadLogger m, MonadFail m, MonadIO m) => Session -> T.MQTTPkt -> MQTTD m ()
+
 dispatch Session{..} T.PingPkt = void $ sendPacketIO _sessionChan T.PongPkt
+
 dispatch _ (T.PubACKPkt _) = pure ()
+
 dispatch sess@Session{..} (T.SubscribePkt req@(T.SubscribeRequest pid subs props)) = do
   subscribe sess req
   void $ sendPacketIO _sessionChan (T.SubACKPkt (T.SubscribeResponse pid (map (const (Right T.QoS0)) subs) props))
+
 dispatch sess@Session{_sessionChan} (T.PublishPkt req) = do
   r@T.PublishRequest{..} <- resolveAliasIn sess req
   satisfyQoS _pubQoS r
@@ -40,6 +46,11 @@ dispatch sess@Session{_sessionChan} (T.PublishPkt req) = do
         void $ sendPacketIO _sessionChan (T.PubACKPkt (T.PubACK _pubPktID 0 _pubProps))
       satisfyQoS T.QoS2 T.PublishRequest{..} =
         void $ sendPacketIO _sessionChan (T.PubACKPkt (T.PubACK _pubPktID 0x80 _pubProps))
+
+dispatch sess (T.DisconnectPkt (T.DisconnectRequest T.DiscoNormalDisconnection props)) = do
+  let Just sid = sess ^? sessionClient . _Just . clientConnReq . T.connID
+  modifySession sid (Just . (set (sessionClient . _Just . clientConnReq . T.lastWill) Nothing))
+
 dispatch _ x = fail ("unhandled: " <> show x)
 
 handleConnection :: forall m. (MonadLogger m, MonadUnliftIO m, MonadFail m, E.MonadMask m, E.MonadThrow m) => AppData -> MQTTD m ()
