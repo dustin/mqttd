@@ -58,11 +58,12 @@ handleConnection ad = runConduit $ do
 
     runIn sess pl = runConduit $ appSource ad
         .| conduitParser (T.parsePacket pl)
+        .| C.mapM (\i@(_,x) -> logDebugN ("<< " <> tshow x) >> pure i)
         .| C.mapM_ (\(_,x) -> dispatch sess x)
 
     processOut pl ch = runConduit $
       C.repeatM (liftSTM $ readTBQueue ch)
-      .| C.mapM (\x -> liftIO (print x) >> pure x)
+      .| C.mapM (\x -> logDebugN (">> " <> tshow x) >> pure x)
       .| C.map (BL.toStrict . T.toByteString pl)
       .| appSink ad
 
