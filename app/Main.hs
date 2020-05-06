@@ -26,12 +26,20 @@ import           MQTTD
 
 dispatch :: (MonadLogger m, MonadFail m, MonadIO m) => Session -> T.MQTTPkt -> MQTTD m ()
 dispatch Session{..} T.PingPkt = void $ sendPacketIO _sessionChan T.PongPkt
+dispatch _ (T.PubACKPkt _) = pure ()
 dispatch sess@Session{..} (T.SubscribePkt req@(T.SubscribeRequest pid subs props)) = do
   subscribe sess req
   void $ sendPacketIO _sessionChan (T.SubACKPkt (T.SubscribeResponse pid (map (const (Right T.QoS0)) subs) props))
-dispatch sess (T.PublishPkt req) = do
-  T.PublishRequest{..} <- resolveAliasIn sess req
+dispatch sess@Session{_sessionChan} (T.PublishPkt req) = do
+  r@T.PublishRequest{..} <- resolveAliasIn sess req
+  satisfyQoS _pubQoS r
   broadcast (blToText _pubTopic) _pubBody _pubRetain _pubQoS
+    where
+      satisfyQoS T.QoS0 _ = pure ()
+      satisfyQoS T.QoS1 T.PublishRequest{..} =
+        void $ sendPacketIO _sessionChan (T.PubACKPkt (T.PubACK _pubPktID 0 _pubProps))
+      satisfyQoS T.QoS2 T.PublishRequest{..} =
+        void $ sendPacketIO _sessionChan (T.PubACKPkt (T.PubACK _pubPktID 0x80 _pubProps))
 dispatch _ x = fail ("unhandled: " <> show x)
 
 handleConnection :: forall m. (MonadLogger m, MonadUnliftIO m, MonadFail m, E.MonadMask m, E.MonadThrow m) => AppData -> MQTTD m ()
