@@ -13,7 +13,7 @@ import           Control.Concurrent     (ThreadId, threadDelay, throwTo)
 import           Control.Concurrent.STM (STM, TBQueue, TVar, atomically, isFullTBQueue, modifyTVar', newTBQueue,
                                          newTVar, newTVarIO, readTVar, writeTBQueue, writeTVar)
 import           Control.Lens
-import           Control.Monad          (filterM, forever, unless)
+import           Control.Monad          (filterM, forever, unless, when)
 import           Control.Monad.Catch    (Exception, MonadCatch (..), MonadMask (..), MonadThrow (..))
 import           Control.Monad.IO.Class (MonadIO (..))
 import           Control.Monad.Logger   (MonadLogger (..))
@@ -42,7 +42,8 @@ type ClientID = Int
 data ConnectedClient = ConnectedClient {
   _clientConnReq :: T.ConnectRequest,
   _clientThread  :: ThreadId,
-  _clientID      :: ClientID
+  _clientID      :: ClientID,
+  _clientAliasIn :: TVar (Map Word16 BL.ByteString)
   }
 
 makeLenses ''ConnectedClient
@@ -102,6 +103,20 @@ seconds = (1000000 *)
 nextID :: MonadIO m => MQTTD m Int
 nextID = asks clientIDGen >>= \ig -> liftSTM $ modifyTVar' ig (+1) >> readTVar ig
 
+resolveAliasIn :: MonadIO m => Session -> T.PublishRequest -> m T.PublishRequest
+resolveAliasIn Session{_sessionClient=Nothing} r = pure r
+resolveAliasIn Session{_sessionClient=Just ConnectedClient{_clientAliasIn}} r =
+  case r ^? properties . folded . _PropTopicAlias of
+    Nothing -> pure r
+    Just n  -> resolve n r
+
+  where
+    resolve n T.PublishRequest{_pubTopic} = do
+      t <- liftSTM $ do
+        when (_pubTopic /= "") $ modifyTVar' _clientAliasIn (Map.insert n _pubTopic)
+        Map.findWithDefault "" n <$> readTVar _clientAliasIn
+      pure $ r & pubTopic .~ t
+
 findSubs :: MonadIO m => T.Topic -> MQTTD m [PktQueue]
 findSubs t = do
   ss <- asks sessions
@@ -119,8 +134,9 @@ subscribe Session{..} (T.SubscribeRequest _ topics _props) = do
 registerClient :: MonadIO m => T.ConnectRequest -> ClientID -> ThreadId -> MQTTD m (Session, T.SessionReuse)
 registerClient req@T.ConnectRequest{..} i o = do
   c <- asks sessions
+  ai <- liftIO $ newTVarIO mempty
   let k = _connID
-      nc = ConnectedClient req o i
+      nc = ConnectedClient req o i ai
   (o', x, ns) <- liftSTM $ do
     ch <- newTBQueue 1000
     m <- readTVar c

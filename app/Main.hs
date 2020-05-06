@@ -29,7 +29,8 @@ dispatch Session{..} T.PingPkt = void $ sendPacketIO _sessionChan T.PongPkt
 dispatch sess@Session{..} (T.SubscribePkt req@(T.SubscribeRequest pid subs props)) = do
   subscribe sess req
   void $ sendPacketIO _sessionChan (T.SubACKPkt (T.SubscribeResponse pid (map (const (Right T.QoS0)) subs) props))
-dispatch _ (T.PublishPkt T.PublishRequest{..}) =
+dispatch sess (T.PublishPkt req) = do
+  T.PublishRequest{..} <- resolveAliasIn sess req
   broadcast (blToText _pubTopic) _pubBody _pubRetain _pubQoS
 dispatch _ x = fail ("unhandled: " <> show x)
 
@@ -47,7 +48,7 @@ handleConnection ad = runConduit $ do
       -- Register and accept the connection
       tid <- liftIO myThreadId
       (sess@Session{_sessionChan}, existing) <- registerClient req cid tid
-      let cprops = [ T.PropAssignedClientIdentifier i | Just i <- [nid] ]
+      let cprops = [ T.PropTopicAliasMaximum 100 ] <> [ T.PropAssignedClientIdentifier i | Just i <- [nid] ]
       sendPacketIO _sessionChan (T.ConnACKPkt $ T.ConnACKFlags existing T.ConnAccepted cprops)
 
       o <- async $ processOut pl _sessionChan
