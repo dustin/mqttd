@@ -49,7 +49,7 @@ dispatch sess@Session{_sessionChan} (T.PublishPkt req) = do
 
 dispatch sess (T.DisconnectPkt (T.DisconnectRequest T.DiscoNormalDisconnection props)) = do
   let Just sid = sess ^? sessionClient . _Just . clientConnReq . T.connID
-  modifySession sid (Just . (set (sessionClient . _Just . clientConnReq . T.lastWill) Nothing))
+  modifySession sid (Just . (set sessionWill Nothing))
 
 dispatch _ x = fail ("unhandled: " <> show x)
 
@@ -91,9 +91,6 @@ handleConnection ad = runConduit $ do
       cancel o
       logDebugN ("Tearing down ... " <> tshow c)
       unregisterClient _connID cid
-      case _lastWill of
-        Nothing               -> pure ()
-        Just (T.LastWill{..}) -> broadcast (blToText _willTopic) _willMsg _willRetain _willQoS
 
     ensureID (T.ConnPkt c@T.ConnectRequest{_connID=""} pl) = do
       nid <- BL.fromStrict . UUID.toASCIIBytes <$> liftIO randomIO

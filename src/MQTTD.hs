@@ -51,12 +51,12 @@ makeLenses ''ConnectedClient
 instance Show ConnectedClient where
   show ConnectedClient{..} = "ConnectedClient " <> show _clientConnReq
 
--- TODO:  Move will into session.
 data Session = Session {
   _sessionClient  :: Maybe ConnectedClient,
   _sessionChan    :: PktQueue,
   _sessionSubs    :: TVar [T.Filter],
-  _sessionExpires :: Maybe UTCTime
+  _sessionExpires :: Maybe UTCTime,
+  _sessionWill    :: Maybe T.LastWill
   }
 
 makeLenses ''Session
@@ -119,7 +119,10 @@ sessionCleaner = forever $ (sleep 1 >> clean1)
     keep now Session{_sessionExpires=Just x} = now < x
 
 sessionDied :: (MonadIO m, MonadLogger m) => (BL.ByteString, Session) -> MQTTD m ()
-sessionDied (k,s) = logDebugN ("Session " <> blToText k <> " has died")
+sessionDied (k, Session{_sessionWill=Nothing}) = logDebugN ("Session without will: " <> tshow k <> " has died")
+sessionDied (k, Session{_sessionWill=Just T.LastWill{..}}) = do
+  logDebugN ("Session with will " <> tshow k <> " has died")
+  broadcast (blToText _willTopic) _willMsg _willRetain _willQoS
 
 seconds :: Num p => p -> p
 seconds = (1000000 *)
@@ -182,10 +185,10 @@ registerClient req@T.ConnectRequest{..} i o = do
   pure (ns, x)
 
     where
-      maybeClean ch subz nc Nothing = (Session (Just nc) ch subz Nothing, T.NewSession)
+      maybeClean ch subz nc Nothing = (Session (Just nc) ch subz Nothing _lastWill, T.NewSession)
       maybeClean ch subz nc (Just s)
-        | _cleanSession = (Session (Just nc) ch subz Nothing, T.NewSession)
-        | otherwise = (s{_sessionClient=Just nc, _sessionExpires=Nothing}, T.ExistingSession)
+        | _cleanSession = (Session (Just nc) ch subz Nothing _lastWill, T.NewSession)
+        | otherwise = (s{_sessionClient=Just nc, _sessionExpires=Nothing, _sessionWill=_lastWill}, T.ExistingSession)
 
 unregisterClient :: (MonadLogger m, MonadUnliftIO m, MonadIO m) => BL.ByteString -> ClientID -> MQTTD m ()
 unregisterClient k mid = do
