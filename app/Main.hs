@@ -70,6 +70,8 @@ handleConnection ad = runConduit $ do
       let cprops = [ T.PropTopicAliasMaximum 100 ] <> [ T.PropAssignedClientIdentifier i | Just i <- [nid] ]
       sendPacketIO _sessionChan (T.ConnACKPkt $ T.ConnACKFlags existing T.ConnAccepted cprops)
 
+      -- TODO:  ping watchdog
+
       o <- async $ processOut pl _sessionChan
       link o
 
