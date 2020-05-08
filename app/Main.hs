@@ -36,6 +36,8 @@ dispatch sess@Session{..} (T.SubscribePkt req@(T.SubscribeRequest pid subs props
   subscribe sess req
   void $ sendPacketIO _sessionChan (T.SubACKPkt (T.SubscribeResponse pid (map (const (Right T.QoS0)) subs) props))
 
+-- TODO: unsubscribe
+
 dispatch sess@Session{..} (T.PublishPkt req) = do
   r@T.PublishRequest{..} <- resolveAliasIn sess req
   satisfyQoS _pubQoS r
@@ -47,9 +49,14 @@ dispatch sess@Session{..} (T.PublishPkt req) = do
       satisfyQoS T.QoS2 T.PublishRequest{..} =
         void $ sendPacketIO _sessionChan (T.PubACKPkt (T.PubACK _pubPktID 0x80 _pubProps))
 
+-- TODO:  QoS 2 (and maybe even 1?)
+-- TODO:  retain
+
 dispatch sess (T.DisconnectPkt (T.DisconnectRequest T.DiscoNormalDisconnection props)) = do
   let Just sid = sess ^? sessionClient . _Just . clientConnReq . T.connID
   modifySession sid (Just . (set sessionWill Nothing))
+
+-- TODO: other disconnection types.
 
 dispatch _ x = fail ("unhandled: " <> show x)
 
@@ -105,5 +112,7 @@ main = do
   e <- newEnv
   runStderrLoggingT . runIO e $ do
     _ <- async runScheduler
+    -- TODO:  TLS
+    -- TODO:  websockets
     withRunInIO $ \unl ->
       runTCPServer (serverSettings 1883 "*") (unl . handleConnection)
