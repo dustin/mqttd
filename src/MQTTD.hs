@@ -14,7 +14,7 @@ import           Control.Concurrent     (ThreadId, threadDelay, throwTo)
 import           Control.Concurrent.STM (STM, TBQueue, TVar, atomically, isFullTBQueue, modifyTVar', newTBQueue,
                                          newTVar, newTVarIO, readTVar, writeTBQueue, writeTVar)
 import           Control.Lens
-import           Control.Monad          (filterM, unless, void, when)
+import           Control.Monad          (filterM, unless, when)
 import           Control.Monad.Catch    (Exception, MonadCatch (..), MonadMask (..), MonadThrow (..))
 import           Control.Monad.IO.Class (MonadIO (..))
 import           Control.Monad.Logger   (MonadLogger (..), logDebugN)
@@ -25,13 +25,15 @@ import qualified Data.Map.Strict        as Map
 import qualified Data.Set               as Set
 import           Data.Text              (Text, pack)
 import qualified Data.Text.Encoding     as TE
-import           Data.Time.Clock        (UTCTime (..), addUTCTime, diffUTCTime, getCurrentTime)
+import           Data.Time.Clock        (UTCTime (..), addUTCTime, getCurrentTime)
 import           Data.Word              (Word16)
 import qualified Network.MQTT.Topic     as T
 import qualified Network.MQTT.Types     as T
-import           UnliftIO               (MonadUnliftIO (..), async)
+import           UnliftIO               (MonadUnliftIO (..))
 
 import           Network.MQTT.Lens
+
+import qualified Scheduler
 
 data MQTTException = MQTTDuplicate deriving Show
 
@@ -65,7 +67,8 @@ makeLenses ''Session
 data Env = Env {
   sessions    :: TVar (Map BL.ByteString Session),
   pktID       :: TVar Word16,
-  clientIDGen :: TVar ClientID
+  clientIDGen :: TVar ClientID,
+  queueRunner :: Scheduler.QueueRunner BL.ByteString
   }
 
 newtype MQTTD m a = MQTTD
@@ -84,7 +87,7 @@ runIO e m = runReaderT (runMQTTD m) e
 
 newEnv :: MonadIO m => m Env
 newEnv = do
-  liftIO $ Env <$> newTVarIO mempty <*> newTVarIO 1 <*> newTVarIO 0
+  liftIO $ Env <$> newTVarIO mempty <*> newTVarIO 1 <*> newTVarIO 0 <*> Scheduler.newRunner
 
 seconds :: Num p => p -> p
 seconds = (1000000 *)
@@ -94,6 +97,9 @@ sleep secs = liftIO (threadDelay (seconds secs))
 
 nextID :: MonadIO m => MQTTD m Int
 nextID = asks clientIDGen >>= \ig -> liftSTM $ modifyTVar' ig (+1) >> readTVar ig
+
+runScheduler :: (MonadUnliftIO m, MonadLogger m) => MQTTD m ()
+runScheduler = asks queueRunner >>= Scheduler.run expireSession
 
 resolveAliasIn :: MonadIO m => Session -> T.PublishRequest -> m T.PublishRequest
 resolveAliasIn Session{_sessionClient=Nothing} r = pure r
@@ -167,14 +173,9 @@ expireSession k = do
     possiblyCleanup (Just Session{_sessionClient=Nothing,
                                   _sessionExpires=Just ex}) = do
       now <- liftIO getCurrentTime
-      expireIn (diffUTCTime ex now)
-
-    expireIn s
-      | s <= 0 = expireNow
-      | otherwise = do
-          logDebugN ("Tearing down " <> tshow k <> " in " <> tshow s)
-          let secs = seconds (succ . fromIntegral @Int . fst . properFraction $ s)
-          void $ async (liftIO (threadDelay secs) >> expireSession k)
+      if ex > now
+        then Scheduler.enqueue ex k =<< asks queueRunner
+        else expireNow
 
     expireNow = do
       now <- liftIO getCurrentTime

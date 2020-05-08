@@ -103,4 +103,7 @@ handleConnection ad = runConduit $ do
 main :: IO ()
 main = do
   e <- newEnv
-  runTCPServer (serverSettings 1883 "*") (runStderrLoggingT . runIO e . handleConnection)
+  runStderrLoggingT . runIO e $ do
+    _ <- async runScheduler
+    withRunInIO $ \unl ->
+      runTCPServer (serverSettings 1883 "*") (unl . handleConnection)
