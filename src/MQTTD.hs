@@ -86,8 +86,7 @@ runIO :: (MonadIO m, MonadLogger m) => Env -> MQTTD m a -> m a
 runIO e m = runReaderT (runMQTTD m) e
 
 newEnv :: MonadIO m => m Env
-newEnv = do
-  liftIO $ Env <$> newTVarIO mempty <*> newTVarIO 1 <*> newTVarIO 0 <*> Scheduler.newRunner
+newEnv = liftIO $ Env <$> newTVarIO mempty <*> newTVarIO 1 <*> newTVarIO 0 <*> Scheduler.newRunner
 
 seconds :: Num p => p -> p
 seconds = (1000000 *)
@@ -122,7 +121,7 @@ findSubs t = do
   map _sessionChan <$> filterM subsTopic sess
 
   where
-    subsTopic Session{_sessionSubs} = any (flip T.match t) <$> liftSTM (readTVar _sessionSubs)
+    subsTopic Session{_sessionSubs} = any (`T.match` t) <$> liftSTM (readTVar _sessionSubs)
 
 subscribe :: MonadIO m => Session -> T.SubscribeRequest -> MQTTD m ()
 subscribe Session{..} (T.SubscribeRequest _ topics _props) = do
@@ -169,7 +168,7 @@ expireSession k = do
     possiblyCleanup Nothing = pure ()
     possiblyCleanup (Just Session{_sessionClient=Just _}) = logDebugN (tshow k <> " is in use")
     possiblyCleanup (Just Session{_sessionClient=Nothing,
-                                 _sessionExpires=Nothing}) = expireNow
+                                  _sessionExpires=Nothing}) = expireNow
     possiblyCleanup (Just Session{_sessionClient=Nothing,
                                   _sessionExpires=Just ex}) = do
       now <- liftIO getCurrentTime
@@ -208,7 +207,7 @@ unregisterClient k mid = do
   expireSession k
 
     where
-      up now sess@Session{_sessionClient=Just (cc@ConnectedClient{_clientID=i})}
+      up now sess@Session{_sessionClient=Just cc@ConnectedClient{_clientID=i}}
         | mid == i =
           case cc ^? clientConnReq . properties . folded . _PropSessionExpiryInterval of
             Nothing -> Nothing
@@ -244,7 +243,7 @@ broadcast :: MonadIO m => T.Topic -> BL.ByteString -> Bool -> T.QoS -> MQTTD m (
 broadcast t m r q = do
   subs <- findSubs t
   pid <- liftSTM . nextPktID =<< asks pktID
-  mapM_ (flip sendPacketIO (pkt pid)) subs
+  mapM_ (`sendPacketIO` pkt pid) subs
   -- TODO honor subscriber options.
   where pkt pid = T.PublishPkt T.PublishRequest{
           _pubDup=False,
