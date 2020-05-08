@@ -36,10 +36,10 @@ dispatch sess@Session{..} (T.SubscribePkt req@(T.SubscribeRequest pid subs props
   subscribe sess req
   void $ sendPacketIO _sessionChan (T.SubACKPkt (T.SubscribeResponse pid (map (const (Right T.QoS0)) subs) props))
 
-dispatch sess@Session{_sessionChan} (T.PublishPkt req) = do
+dispatch sess@Session{..} (T.PublishPkt req) = do
   r@T.PublishRequest{..} <- resolveAliasIn sess req
   satisfyQoS _pubQoS r
-  broadcast (blToText _pubTopic) _pubBody _pubRetain _pubQoS
+  broadcast (Just _sessionID) (blToText _pubTopic) _pubBody _pubRetain _pubQoS
     where
       satisfyQoS T.QoS0 _ = pure ()
       satisfyQoS T.QoS1 T.PublishRequest{..} =

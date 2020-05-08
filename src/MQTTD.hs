@@ -14,7 +14,7 @@ import           Control.Concurrent     (ThreadId, threadDelay, throwTo)
 import           Control.Concurrent.STM (STM, TBQueue, TVar, atomically, isFullTBQueue, modifyTVar', newTBQueue,
                                          newTVar, newTVarIO, readTVar, writeTBQueue, writeTVar)
 import           Control.Lens
-import           Control.Monad          (filterM, unless, when)
+import           Control.Monad          (unless, void, when)
 import           Control.Monad.Catch    (Exception, MonadCatch (..), MonadMask (..), MonadThrow (..))
 import           Control.Monad.IO.Class (MonadIO (..))
 import           Control.Monad.Logger   (MonadLogger (..), logDebugN)
@@ -22,7 +22,6 @@ import           Control.Monad.Reader   (MonadReader, ReaderT (..), asks, runRea
 import qualified Data.ByteString.Lazy   as BL
 import           Data.Map.Strict        (Map)
 import qualified Data.Map.Strict        as Map
-import qualified Data.Set               as Set
 import           Data.Text              (Text, pack)
 import qualified Data.Text.Encoding     as TE
 import           Data.Time.Clock        (UTCTime (..), addUTCTime, getCurrentTime)
@@ -55,9 +54,10 @@ instance Show ConnectedClient where
   show ConnectedClient{..} = "ConnectedClient " <> show _clientConnReq
 
 data Session = Session {
+  _sessionID      :: BL.ByteString,
   _sessionClient  :: Maybe ConnectedClient,
   _sessionChan    :: PktQueue,
-  _sessionSubs    :: TVar [T.Filter],
+  _sessionSubs    :: TVar [(T.Filter, T.SubOptions)],
   _sessionExpires :: Maybe UTCTime,
   _sessionWill    :: Maybe T.LastWill
   }
@@ -114,19 +114,21 @@ resolveAliasIn Session{_sessionClient=Just ConnectedClient{_clientAliasIn}} r =
         Map.findWithDefault "" n <$> readTVar _clientAliasIn
       pure $ r & pubTopic .~ t
 
-findSubs :: MonadIO m => T.Topic -> MQTTD m [PktQueue]
+findSubs :: MonadIO m => T.Topic -> MQTTD m [(PktQueue, BL.ByteString, T.SubOptions)]
 findSubs t = do
   ss <- asks sessions
   sess <- Map.elems <$> liftSTM (readTVar ss)
-  map _sessionChan <$> filterM subsTopic sess
+  mconcat <$> traverse sessTopic sess
 
   where
-    subsTopic Session{_sessionSubs} = any (`T.match` t) <$> liftSTM (readTVar _sessionSubs)
+    sessTopic Session{..} = foldMap (\(m,o) -> if T.match m t
+                                               then [(_sessionChan, _sessionID, o)]
+                                               else []) <$> liftSTM (readTVar _sessionSubs)
 
 subscribe :: MonadIO m => Session -> T.SubscribeRequest -> MQTTD m ()
 subscribe Session{..} (T.SubscribeRequest _ topics _props) = do
-  let new = map (blToText . fst) topics
-  liftSTM $ modifyTVar' _sessionSubs (Set.toList . Set.fromList . (<> new))
+  let new = map (\(t,o) -> (blToText t, o)) topics
+  liftSTM $ modifyTVar' _sessionSubs (<> new)
 
 modifySession :: MonadIO m => BL.ByteString -> (Session -> Maybe Session) -> MQTTD m ()
 modifySession k f = asks sessions >>= \s -> liftSTM $ modifyTVar' s (Map.update f k)
@@ -152,9 +154,9 @@ registerClient req@T.ConnectRequest{..} i o = do
   pure (ns, x)
 
     where
-      maybeClean ch subz nc Nothing = (Session (Just nc) ch subz Nothing _lastWill, T.NewSession)
+      maybeClean ch subz nc Nothing = (Session _connID (Just nc) ch subz Nothing _lastWill, T.NewSession)
       maybeClean ch subz nc (Just s)
-        | _cleanSession = (Session (Just nc) ch subz Nothing _lastWill, T.NewSession)
+        | _cleanSession = (Session _connID (Just nc) ch subz Nothing _lastWill, T.NewSession)
         | otherwise = (s{_sessionClient=Just nc,
                          _sessionExpires=Nothing,
                          _sessionWill=_lastWill}, T.ExistingSession)
@@ -196,7 +198,7 @@ expireSession k = do
       logDebugN ("Session without will: " <> tshow k <> " has died")
     sessionDied Session{_sessionWill=Just T.LastWill{..}} = do
       logDebugN ("Session with will " <> tshow k <> " has died")
-      broadcast (blToText _willTopic) _willMsg _willRetain _willQoS
+      broadcast Nothing (blToText _willTopic) _willMsg _willRetain _willQoS
 
 
 unregisterClient :: (MonadLogger m, MonadUnliftIO m, MonadIO m) => BL.ByteString -> ClientID -> MQTTD m ()
@@ -239,17 +241,23 @@ nextPktID x = do
   modifyTVar' x $ \pid -> if pid == maxBound then 1 else succ pid
   readTVar x
 
-broadcast :: MonadIO m => T.Topic -> BL.ByteString -> Bool -> T.QoS -> MQTTD m ()
-broadcast t m r q = do
+broadcast :: MonadIO m => Maybe BL.ByteString -> T.Topic -> BL.ByteString -> Bool -> T.QoS -> MQTTD m ()
+broadcast src t m r qos = do
   subs <- findSubs t
   pid <- liftSTM . nextPktID =<< asks pktID
-  mapM_ (`sendPacketIO` pkt pid) subs
-  -- TODO honor subscriber options.
-  where pkt pid = T.PublishPkt T.PublishRequest{
-          _pubDup=False,
-          _pubRetain=r,
-          _pubQoS=q,
-          _pubTopic=textToBL t,
-          _pubPktID=pid,
-          _pubBody=m,
-          _pubProps=mempty}
+  mapM_ (\(q, s, o) -> maybe (pure ()) (void . sendPacketIO q) (pkt s o pid)) subs
+  where
+    pkt sid T.SubOptions{T._noLocal=True} _
+      | Just sid == src = Nothing
+    pkt _ opts pid = Just (T.PublishPkt T.PublishRequest{
+                              _pubDup=False,
+                              _pubRetain=mightRetain opts,
+                              _pubQoS=maxQoS opts,
+                              _pubTopic=textToBL t,
+                              _pubPktID=pid,
+                              _pubBody=m,
+                              _pubProps=mempty})
+
+    maxQoS T.SubOptions{_subQoS} = if qos > _subQoS then _subQoS else qos
+    mightRetain T.SubOptions{_retainAsPublished=False} = False
+    mightRetain _ = r
