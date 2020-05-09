@@ -25,8 +25,6 @@ import qualified Data.ByteString.Lazy   as BL
 import           Data.Foldable          (foldl')
 import           Data.Map.Strict        (Map)
 import qualified Data.Map.Strict        as Map
-import           Data.Text              (Text, pack)
-import qualified Data.Text.Encoding     as TE
 import           Data.Time.Clock        (UTCTime (..), addUTCTime, getCurrentTime)
 import           Data.Word              (Word16)
 import           Network.MQTT.Lens
@@ -137,6 +135,22 @@ subscribe :: MonadIO m => Session -> T.SubscribeRequest -> MQTTD m ()
 subscribe Session{..} (T.SubscribeRequest _ topics _props) = do
   let new = Map.fromList $ map (first blToText) topics
   liftSTM $ modifyTVar' _sessionSubs (Map.union new)
+  p <- asks persistence
+  mapM_ (doRetained p) topics
+
+  where
+    doRetained _ (_, T.SubOptions{T._retainHandling=T.DoNotSendOnSubscribe}) = pure ()
+    doRetained p (t, ops) = mapM_ (sendOne ops) =<< matchRetained p (blToText t)
+
+    sendOne opts@T.SubOptions{..} ir@T.PublishRequest{..} = do
+      pid <- liftSTM . nextPktID =<< asks pktID
+      let r = ir{T._pubPktID=pid, T._pubRetain=mightRetain opts,
+                 T._pubQoS = if _pubQoS > _subQoS then _subQoS else _pubQoS}
+      void $ sendPacketIO _sessionChan (T.PublishPkt r)
+
+        where
+          mightRetain T.SubOptions{_retainAsPublished=False} = False
+          mightRetain _ = _pubRetain
 
 unsubscribe :: MonadIO m => Session -> [BL.ByteString] -> MQTTD m [T.UnsubStatus]
 unsubscribe Session{..} topics =
@@ -253,22 +267,14 @@ sendPacket ch p = do
 sendPacketIO :: MonadIO m => PktQueue -> T.MQTTPkt -> m Bool
 sendPacketIO ch = liftSTM . sendPacket ch
 
-textToBL :: Text -> BL.ByteString
-textToBL = BL.fromStrict . TE.encodeUtf8
-
-blToText :: BL.ByteString -> Text
-blToText = TE.decodeUtf8 . BL.toStrict
-
-tshow :: Show a => a -> Text
-tshow = pack . show
-
 nextPktID :: TVar Word16 -> STM Word16
 nextPktID x = do
   modifyTVar' x $ \pid -> if pid == maxBound then 1 else succ pid
   readTVar x
 
-broadcast :: MonadIO m => Maybe BL.ByteString -> T.PublishRequest -> MQTTD m ()
+broadcast :: (MonadLogger m, MonadIO m) => Maybe BL.ByteString -> T.PublishRequest -> MQTTD m ()
 broadcast src req@T.PublishRequest{..} = do
+  asks persistence >>= retain req
   subs <- findSubs (blToText _pubTopic)
   pid <- liftSTM . nextPktID =<< asks pktID
   mapM_ (\(q, s, o) -> maybe (pure ()) (void . sendPacketIO q) (pkt s o pid)) subs
