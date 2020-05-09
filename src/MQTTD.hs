@@ -124,13 +124,12 @@ findSubs t = do
   mconcat <$> traverse sessTopic sess
 
   where
-    sessTopic Session{..} = foldMap (\(m,o) -> if T.match m t
-                                               then [(_sessionChan, _sessionID, o)]
-                                               else []) . Map.assocs <$> liftSTM (readTVar _sessionSubs)
+    sessTopic Session{..} = foldMap (\(m,o) -> [(_sessionChan, _sessionID, o) | T.match m t]
+                                    ) . Map.assocs <$> liftSTM (readTVar _sessionSubs)
 
 subscribe :: MonadIO m => Session -> T.SubscribeRequest -> MQTTD m ()
 subscribe Session{..} (T.SubscribeRequest _ topics _props) = do
-  let new = Map.fromList $ map (\(t,o) -> (blToText t, o)) topics
+  let new = Map.fromList $ map (first blToText) topics
   liftSTM $ modifyTVar' _sessionSubs (Map.union new)
 
 unsubscribe :: MonadIO m => Session -> [BL.ByteString] -> MQTTD m [T.UnsubStatus]

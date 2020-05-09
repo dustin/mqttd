@@ -55,9 +55,9 @@ dispatch sess@Session{..} (T.PublishPkt req) = do
 -- TODO:  QoS 2 (and maybe even 1?)
 -- TODO:  retain
 
-dispatch sess (T.DisconnectPkt (T.DisconnectRequest T.DiscoNormalDisconnection props)) = do
+dispatch sess (T.DisconnectPkt (T.DisconnectRequest T.DiscoNormalDisconnection _props)) = do
   let Just sid = sess ^? sessionClient . _Just . clientConnReq . T.connID
-  modifySession sid (Just . (set sessionWill Nothing))
+  modifySession sid (Just . set sessionWill Nothing)
 
 -- TODO: other disconnection types.
 
