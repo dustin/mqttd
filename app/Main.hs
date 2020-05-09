@@ -18,6 +18,7 @@ import           Data.Conduit             (runConduit, (.|))
 import           Data.Conduit.Attoparsec  (conduitParser, sinkParser)
 import qualified Data.Conduit.Combinators as C
 import           Data.Conduit.Network     (AppData, appSink, appSource, runTCPServer, serverSettings)
+import           Data.Conduit.Network.TLS (runGeneralTCPServerTLS, tlsConfig)
 import qualified Data.UUID                as UUID
 import           System.Random            (randomIO)
 import           UnliftIO                 (MonadUnliftIO (..), async, waitAnyCancel)
@@ -121,9 +122,14 @@ main :: IO ()
 main = do
   e <- newEnv
   runStderrLoggingT . runIO e $ do
-    _ <- async sessionCleanup
-    _ <- async persistenceCleanup
-    -- TODO:  TLS
+    sc <- async sessionCleanup
+    pc <- async persistenceCleanup
+    -- Plaintext server
+    serv <- async (withRunInIO $ \unl -> runTCPServer (serverSettings 1883 "*") (unl . handleConnection))
+    -- TLS Server
+    let cfile = "certificate.pem"
+        kfile = "key.pem"
+    sserv <- async (withRunInIO $ \unl -> runGeneralTCPServerTLS (tlsConfig "*" 8883 cfile kfile) (unl . handleConnection))
     -- TODO:  websockets
-    withRunInIO $ \unl ->
-      runTCPServer (serverSettings 1883 "*") (unl . handleConnection)
+
+    void $ waitAnyCancel [sc, pc, serv, sserv]

@@ -38,6 +38,7 @@ dependencies:
 - monad-logger
 - conduit
 - conduit-extra
+- network-conduit-tls
 - exceptions
 - unliftio
 - random
