@@ -122,7 +122,8 @@ main :: IO ()
 main = do
   e <- newEnv
   runStderrLoggingT . runIO e $ do
-    _ <- async runScheduler
+    _ <- async sessionCleanup
+    _ <- async persistenceCleanup
     -- TODO:  TLS
     -- TODO:  websockets
     withRunInIO $ \unl ->

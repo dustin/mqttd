@@ -11,8 +11,8 @@
 module MQTTD where
 
 import           Control.Concurrent     (ThreadId, threadDelay, throwTo)
-import           Control.Concurrent.STM (STM, TBQueue, TVar, atomically, isFullTBQueue, modifyTVar', newTBQueue,
-                                         newTVar, newTVarIO, readTVar, writeTBQueue, writeTVar)
+import           Control.Concurrent.STM (STM, TBQueue, TVar, isFullTBQueue, modifyTVar', newTBQueue, newTVar, newTVarIO,
+                                         readTVar, writeTBQueue, writeTVar)
 import           Control.Lens
 import           Control.Monad          (unless, void, when)
 import           Control.Monad.Catch    (Exception, MonadCatch (..), MonadMask (..), MonadThrow (..))
@@ -34,6 +34,7 @@ import qualified Network.MQTT.Types     as T
 import           UnliftIO               (MonadUnliftIO (..))
 
 import           MQTTD.Util
+import           Retention
 import qualified Scheduler
 
 data MQTTException = MQTTPingTimeout | MQTTDuplicate deriving Show
@@ -71,7 +72,8 @@ data Env = Env {
   sessions    :: TVar (Map BL.ByteString Session),
   pktID       :: TVar Word16,
   clientIDGen :: TVar ClientID,
-  queueRunner :: Scheduler.QueueRunner BL.ByteString
+  queueRunner :: Scheduler.QueueRunner BL.ByteString,
+  persistence :: Persistence
   }
 
 newtype MQTTD m a = MQTTD
@@ -86,7 +88,7 @@ runIO :: (MonadIO m, MonadLogger m) => Env -> MQTTD m a -> m a
 runIO e m = runReaderT (runMQTTD m) e
 
 newEnv :: MonadIO m => m Env
-newEnv = liftIO $ Env <$> newTVarIO mempty <*> newTVarIO 1 <*> newTVarIO 0 <*> Scheduler.newRunner
+newEnv = liftIO $ Env <$> newTVarIO mempty <*> newTVarIO 1 <*> newTVarIO 0 <*> Scheduler.newRunner <*> newPersistence
 
 seconds :: Num p => p -> p
 seconds = (1000000 *)
@@ -97,8 +99,11 @@ sleep secs = liftIO (threadDelay (seconds secs))
 nextID :: MonadIO m => MQTTD m Int
 nextID = asks clientIDGen >>= \ig -> liftSTM $ modifyTVar' ig (+1) >> readTVar ig
 
-runScheduler :: (MonadUnliftIO m, MonadLogger m) => MQTTD m ()
-runScheduler = asks queueRunner >>= Scheduler.run expireSession
+sessionCleanup :: (MonadUnliftIO m, MonadLogger m) => MQTTD m ()
+sessionCleanup = asks queueRunner >>= Scheduler.run expireSession
+
+persistenceCleanup :: (MonadUnliftIO m, MonadLogger m) => MQTTD m ()
+persistenceCleanup = asks persistence >>= cleanPersistence
 
 resolveAliasIn :: MonadIO m => Session -> T.PublishRequest -> m T.PublishRequest
 resolveAliasIn Session{_sessionClient=Nothing} r = pure r
