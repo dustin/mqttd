@@ -4,10 +4,11 @@
 
 module Main where
 
-import           Control.Concurrent       (myThreadId)
-import           Control.Concurrent.STM   (readTBQueue)
+import           Control.Concurrent       (myThreadId, throwTo)
+import           Control.Concurrent.STM   (check, newTChanIO, orElse, readTBQueue, readTChan, readTVar, registerDelay,
+                                           writeTChan)
 import           Control.Lens
-import           Control.Monad            (void)
+import           Control.Monad            (forever, void, when)
 import qualified Control.Monad.Catch      as E
 import           Control.Monad.IO.Class   (MonadIO (..))
 import           Control.Monad.Logger     (MonadLogger (..), logDebugN, logInfoN, runStderrLoggingT)
@@ -19,7 +20,7 @@ import qualified Data.Conduit.Combinators as C
 import           Data.Conduit.Network     (AppData, appSink, appSource, runTCPServer, serverSettings)
 import qualified Data.UUID                as UUID
 import           System.Random            (randomIO)
-import           UnliftIO                 (Async (..), MonadUnliftIO (..), async, cancel, link)
+import           UnliftIO                 (MonadUnliftIO (..), async, waitAnyCancel)
 
 import qualified Network.MQTT.Lens        as T
 import qualified Network.MQTT.Types       as T
@@ -73,21 +74,20 @@ handleConnection ad = runConduit $ do
       logInfoN ("A connection is made " <> tshow req)
       -- Register and accept the connection
       tid <- liftIO myThreadId
-      (sess@Session{_sessionChan}, existing) <- registerClient req cid tid
+      (sess@Session{_sessionID, _sessionChan}, existing) <- registerClient req cid tid
       let cprops = [ T.PropTopicAliasMaximum 100 ] <> [ T.PropAssignedClientIdentifier i | Just i <- [nid] ]
       sendPacketIO _sessionChan (T.ConnACKPkt $ T.ConnACKFlags existing T.ConnAccepted cprops)
 
-      -- TODO:  ping watchdog
-
+      wdch <- liftIO newTChanIO
+      w <- async $ watchdog (3 * seconds (fromIntegral _keepAlive)) wdch _sessionID tid
       o <- async $ processOut pl _sessionChan
-      link o
+      i <- async $ E.finally (runIn wdch sess pl) (teardown cid req)
+      void $ waitAnyCancel [i, o, w]
 
-      E.finally (runIn sess pl) (teardown o cid req)
-
-    runIn sess pl = runConduit $ appSource ad
+    runIn wdch sess pl = runConduit $ appSource ad
         .| conduitParser (T.parsePacket pl)
         .| C.mapM (\i@(_,x) -> logDebugN ("<< " <> tshow x) >> pure i)
-        .| C.mapM_ (\(_,x) -> dispatch sess x)
+        .| C.mapM_ (\(_,x) -> feed wdch >> dispatch sess x)
 
     processOut pl ch = runConduit $
       C.repeatM (liftSTM $ readTBQueue ch)
@@ -95,9 +95,8 @@ handleConnection ad = runConduit $ do
       .| C.map (BL.toStrict . T.toByteString pl)
       .| appSink ad
 
-    teardown :: Async a -> ClientID -> T.ConnectRequest -> MQTTD m ()
-    teardown o cid c@T.ConnectRequest{..} = do
-      cancel o
+    teardown :: ClientID -> T.ConnectRequest -> MQTTD m ()
+    teardown cid c@T.ConnectRequest{..} = do
       logDebugN ("Tearing down ... " <> tshow c)
       unregisterClient _connID cid
 
@@ -106,6 +105,15 @@ handleConnection ad = runConduit $ do
       logDebugN ("Generating ID for anonymous client: " <> tshow nid)
       pure (T.ConnPkt c{T._connID=nid} pl, Just nid)
     ensureID x = pure (x, Nothing)
+
+    feed wdch = liftSTM (writeTChan wdch True)
+
+    watchdog pp wdch sid t = forever $ do
+      toch <- liftIO $ registerDelay pp
+      timedOut <- liftSTM $ ((check =<< readTVar toch) >> pure True) `orElse` (readTChan wdch >> pure False)
+      when timedOut $ do
+        logInfoN ("Client with session " <> tshow sid <> " timed out")
+        liftIO $ throwTo t MQTTPingTimeout
 
 main :: IO ()
 main = do

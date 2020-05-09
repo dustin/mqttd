@@ -34,7 +34,7 @@ import           Network.MQTT.Lens
 
 import qualified Scheduler
 
-data MQTTException = MQTTDuplicate deriving Show
+data MQTTException = MQTTPingTimeout | MQTTDuplicate deriving Show
 
 instance Exception MQTTException
 
