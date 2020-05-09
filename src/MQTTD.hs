@@ -58,7 +58,7 @@ data Session = Session {
   _sessionID      :: BL.ByteString,
   _sessionClient  :: Maybe ConnectedClient,
   _sessionChan    :: PktQueue,
-  _sessionSubs    :: TVar [(T.Filter, T.SubOptions)],
+  _sessionSubs    :: TVar (Map T.Filter T.SubOptions),
   _sessionExpires :: Maybe UTCTime,
   _sessionWill    :: Maybe T.LastWill
   }
@@ -124,12 +124,12 @@ findSubs t = do
   where
     sessTopic Session{..} = foldMap (\(m,o) -> if T.match m t
                                                then [(_sessionChan, _sessionID, o)]
-                                               else []) <$> liftSTM (readTVar _sessionSubs)
+                                               else []) . Map.assocs <$> liftSTM (readTVar _sessionSubs)
 
 subscribe :: MonadIO m => Session -> T.SubscribeRequest -> MQTTD m ()
 subscribe Session{..} (T.SubscribeRequest _ topics _props) = do
-  let new = map (\(t,o) -> (blToText t, o)) topics
-  liftSTM $ modifyTVar' _sessionSubs (<> new) -- TODO: Dedup subscriptions
+  let new = Map.fromList $ map (\(t,o) -> (blToText t, o)) topics
+  liftSTM $ modifyTVar' _sessionSubs (Map.union new)
 
 modifySession :: MonadIO m => BL.ByteString -> (Session -> Maybe Session) -> MQTTD m ()
 modifySession k f = asks sessions >>= \s -> liftSTM $ modifyTVar' s (Map.update f k)
