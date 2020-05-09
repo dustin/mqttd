@@ -32,8 +32,8 @@ import qualified Network.MQTT.Topic     as T
 import qualified Network.MQTT.Types     as T
 import           UnliftIO               (MonadUnliftIO (..))
 
+import           MQTTD.Retention
 import           MQTTD.Util
-import           Retention
 import qualified Scheduler
 
 data MQTTException = MQTTPingTimeout | MQTTDuplicate deriving Show

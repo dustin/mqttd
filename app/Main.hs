@@ -54,7 +54,6 @@ dispatch sess@Session{..} (T.PublishPkt req) = do
         void $ sendPacketIO _sessionChan (T.PubACKPkt (T.PubACK _pubPktID 0x80 _pubProps))
 
 -- TODO:  QoS 2 (and maybe even 1?)
--- TODO:  retain
 
 dispatch sess (T.DisconnectPkt (T.DisconnectRequest T.DiscoNormalDisconnection _props)) = do
   let Just sid = sess ^? sessionClient . _Just . clientConnReq . T.connID

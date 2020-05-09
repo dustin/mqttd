@@ -1,4 +1,4 @@
-module Retention where
+module MQTTD.Retention where
 
 import           Control.Concurrent.STM
 import           Control.Lens
