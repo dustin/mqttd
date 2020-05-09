@@ -19,7 +19,9 @@ import           Control.Monad.Catch    (Exception, MonadCatch (..), MonadMask (
 import           Control.Monad.IO.Class (MonadIO (..))
 import           Control.Monad.Logger   (MonadLogger (..), logDebugN)
 import           Control.Monad.Reader   (MonadReader, ReaderT (..), asks, runReaderT)
+import           Data.Bifunctor         (first)
 import qualified Data.ByteString.Lazy   as BL
+import           Data.Foldable          (foldl')
 import           Data.Map.Strict        (Map)
 import qualified Data.Map.Strict        as Map
 import           Data.Text              (Text, pack)
@@ -130,6 +132,18 @@ subscribe :: MonadIO m => Session -> T.SubscribeRequest -> MQTTD m ()
 subscribe Session{..} (T.SubscribeRequest _ topics _props) = do
   let new = Map.fromList $ map (\(t,o) -> (blToText t, o)) topics
   liftSTM $ modifyTVar' _sessionSubs (Map.union new)
+
+unsubscribe :: MonadIO m => Session -> [BL.ByteString] -> MQTTD m [T.UnsubStatus]
+unsubscribe Session{..} topics =
+  liftSTM $ do
+    m <- readTVar _sessionSubs
+    let (uns, n) = foldl' (\(r,m') t -> first ((:r) . unm) $ up t m') ([], m) topics
+    writeTVar _sessionSubs n
+    pure (reverse uns)
+
+    where
+      unm = maybe T.UnsubNoSubscriptionExisted (const T.UnsubSuccess)
+      up t = Map.updateLookupWithKey (const.const $ Nothing) (blToText t)
 
 modifySession :: MonadIO m => BL.ByteString -> (Session -> Maybe Session) -> MQTTD m ()
 modifySession k f = asks sessions >>= \s -> liftSTM $ modifyTVar' s (Map.update f k)

@@ -37,7 +37,9 @@ dispatch sess@Session{..} (T.SubscribePkt req@(T.SubscribeRequest pid subs props
   subscribe sess req
   void $ sendPacketIO _sessionChan (T.SubACKPkt (T.SubscribeResponse pid (map (const (Right T.QoS0)) subs) props))
 
--- TODO: unsubscribe
+dispatch sess@Session{..} (T.UnsubscribePkt (T.UnsubscribeRequest pid subs props)) = do
+  uns <- unsubscribe sess subs
+  void $ sendPacketIO _sessionChan (T.UnsubACKPkt (T.UnsubscribeResponse pid props uns))
 
 dispatch sess@Session{..} (T.PublishPkt req) = do
   r@T.PublishRequest{..} <- resolveAliasIn sess req
