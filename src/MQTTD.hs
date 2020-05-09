@@ -2,6 +2,7 @@
 {-# LANGUAGE FlexibleContexts           #-}
 {-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE GeneralisedNewtypeDeriving #-}
+{-# LANGUAGE LambdaCase                 #-}
 {-# LANGUAGE ScopedTypeVariables        #-}
 {-# LANGUAGE StandaloneDeriving         #-}
 {-# LANGUAGE TemplateHaskell            #-}
@@ -117,7 +118,10 @@ resolveAliasIn Session{_sessionClient=Just ConnectedClient{_clientAliasIn}} r =
       t <- liftSTM $ do
         when (_pubTopic /= "") $ modifyTVar' _clientAliasIn (Map.insert n _pubTopic)
         Map.findWithDefault "" n <$> readTVar _clientAliasIn
-      pure $ r & pubTopic .~ t
+      pure $ r & pubTopic .~ t & properties %~ cleanProps
+    cleanProps = filter (\case
+                            (T.PropTopicAlias _) -> False
+                            _ -> True)
 
 findSubs :: MonadIO m => T.Topic -> MQTTD m [(PktQueue, BL.ByteString, T.SubOptions)]
 findSubs t = do
