@@ -54,6 +54,7 @@ retain pr@T.PublishRequest{..} Persistence{..} = do
 
     where absExp now secs = addUTCTime (fromIntegral secs) now
 
+-- TODO:  Expiry needs to be adjusted based on concurrent time.
 matchRetained :: MonadIO m => Persistence -> T.Filter -> m [T.PublishRequest]
 matchRetained Persistence{..} f =
   filter (\r -> T.match f (blToText . T._pubTopic $ r)) . map _retainMsg . Map.elems <$> liftSTM (readTVar _store)
