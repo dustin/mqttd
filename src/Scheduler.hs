@@ -1,6 +1,6 @@
 module Scheduler where
 
-import           Control.Concurrent.STM (STM, TVar, atomically, check, modifyTVar', newTVarIO, orElse, readTVar,
+import           Control.Concurrent.STM (TVar, atomically, check, modifyTVar', newTVarIO, orElse, readTVar,
                                          registerDelay, writeTVar)
 import           Control.Monad          (forever)
 import           Control.Monad.IO.Class (MonadIO (..))
@@ -10,6 +10,8 @@ import qualified Data.Map.Strict        as Map
 import           Data.Maybe             (fromMaybe)
 import           Data.Text              (pack)
 import           Data.Time.Clock        (NominalDiffTime, UTCTime (..), diffUTCTime, getCurrentTime)
+
+import           MQTTD.Util
 
 -- This bit is just about managing a schedule of tasks.
 
@@ -67,9 +69,6 @@ runOnce action QueueRunner{..} = block >> go
       mapM_ action todo
 
 -- A couple utilities
-
-liftSTM :: MonadIO m => STM a -> m a
-liftSTM = liftIO . atomically
 
 diffTimeToMicros :: NominalDiffTime -> Int
 diffTimeToMicros dt = let (s, f) = properFraction dt

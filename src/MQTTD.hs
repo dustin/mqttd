@@ -28,12 +28,12 @@ import           Data.Text              (Text, pack)
 import qualified Data.Text.Encoding     as TE
 import           Data.Time.Clock        (UTCTime (..), addUTCTime, getCurrentTime)
 import           Data.Word              (Word16)
+import           Network.MQTT.Lens
 import qualified Network.MQTT.Topic     as T
 import qualified Network.MQTT.Types     as T
 import           UnliftIO               (MonadUnliftIO (..))
 
-import           Network.MQTT.Lens
-
+import           MQTTD.Util
 import qualified Scheduler
 
 data MQTTException = MQTTPingTimeout | MQTTDuplicate deriving Show
@@ -81,9 +81,6 @@ newtype MQTTD m a = MQTTD
 
 instance MonadUnliftIO m => MonadUnliftIO (MQTTD m) where
   withRunInIO inner = MQTTD $ withRunInIO $ \run -> inner (run . runMQTTD)
-
-liftSTM :: MonadIO m => STM a -> m a
-liftSTM = liftIO . atomically
 
 runIO :: (MonadIO m, MonadLogger m) => Env -> MQTTD m a -> m a
 runIO e m = runReaderT (runMQTTD m) e

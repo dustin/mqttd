@@ -26,6 +26,7 @@ import qualified Network.MQTT.Lens        as T
 import qualified Network.MQTT.Types       as T
 
 import           MQTTD
+import           MQTTD.Util
 
 dispatch :: (MonadLogger m, MonadFail m, MonadIO m) => Session -> T.MQTTPkt -> MQTTD m ()
 
