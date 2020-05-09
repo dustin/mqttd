@@ -63,6 +63,6 @@ matchRetained Persistence{..} f = do
     match = T.match f . blToText . T._pubTopic . _retainMsg
     adj _ Retained{_retainExp=Nothing, _retainMsg} = _retainMsg
     adj now Retained{_retainExp=Just e, _retainMsg} =
-      _retainMsg & properties . partsOf (traversed  . _PropMessageExpiryInterval) . mapped .~ til
+      _retainMsg & properties . traversed . _PropMessageExpiryInterval .~ til
       where
         til = fst . properFraction $ diffUTCTime e now
