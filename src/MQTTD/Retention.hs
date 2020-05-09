@@ -8,7 +8,7 @@ import           Control.Monad.Logger   (MonadLogger (..), logDebugN)
 import qualified Data.ByteString.Lazy   as BL
 import           Data.Map.Strict        (Map)
 import qualified Data.Map.Strict        as Map
-import           Data.Time.Clock        (UTCTime (..), addUTCTime, getCurrentTime)
+import           Data.Time.Clock        (UTCTime (..), addUTCTime, diffUTCTime, getCurrentTime)
 import           Network.MQTT.Lens
 import qualified Network.MQTT.Topic     as T
 import qualified Network.MQTT.Types     as T
@@ -54,7 +54,15 @@ retain pr@T.PublishRequest{..} Persistence{..} = do
 
     where absExp now secs = addUTCTime (fromIntegral secs) now
 
--- TODO:  Expiry needs to be adjusted based on concurrent time.
 matchRetained :: MonadIO m => Persistence -> T.Filter -> m [T.PublishRequest]
-matchRetained Persistence{..} f =
-  filter (\r -> T.match f (blToText . T._pubTopic $ r)) . map _retainMsg . Map.elems <$> liftSTM (readTVar _store)
+matchRetained Persistence{..} f = do
+  now <- liftIO getCurrentTime
+  fmap (adj now) . filter match . Map.elems <$> liftSTM (readTVar _store)
+
+  where
+    match = T.match f . blToText . T._pubTopic . _retainMsg
+    adj _ Retained{_retainExp=Nothing, _retainMsg} = _retainMsg
+    adj now Retained{_retainExp=Just e, _retainMsg} =
+      _retainMsg & properties . partsOf (traversed  . _PropMessageExpiryInterval) %~ fmap til
+      where
+        til = const . fst . properFraction $ diffUTCTime e now
