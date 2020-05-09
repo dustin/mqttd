@@ -290,3 +290,5 @@ broadcast src req@T.PublishRequest{..} = do
     maxQoS T.SubOptions{_subQoS} = if _pubQoS > _subQoS then _subQoS else _pubQoS
     mightRetain T.SubOptions{_retainAsPublished=False} = False
     mightRetain _ = _pubRetain
+
+-- TODO:  For QoS 1 and QoS 2, we need to continue retransmitting.
