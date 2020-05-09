@@ -45,7 +45,7 @@ dispatch sess@Session{..} (T.UnsubscribePkt (T.UnsubscribeRequest pid subs props
 dispatch sess@Session{..} (T.PublishPkt req) = do
   r@T.PublishRequest{..} <- resolveAliasIn sess req
   satisfyQoS _pubQoS r
-  broadcast (Just _sessionID) (blToText _pubTopic) _pubBody _pubRetain _pubQoS
+  broadcast (Just _sessionID) r
     where
       satisfyQoS T.QoS0 _ = pure ()
       satisfyQoS T.QoS1 T.PublishRequest{..} =

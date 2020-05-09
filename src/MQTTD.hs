@@ -218,8 +218,14 @@ expireSession k = do
       logDebugN ("Session without will: " <> tshow k <> " has died")
     sessionDied Session{_sessionWill=Just T.LastWill{..}} = do
       logDebugN ("Session with will " <> tshow k <> " has died")
-      broadcast Nothing (blToText _willTopic) _willMsg _willRetain _willQoS
-
+      broadcast Nothing (T.PublishRequest{
+                            T._pubDup=False,
+                            T._pubQoS=_willQoS,
+                            T._pubRetain=_willRetain,
+                            T._pubTopic=_willTopic,
+                            T._pubPktID=0,
+                            T._pubBody=_willMsg,
+                            T._pubProps=[]})
 
 unregisterClient :: (MonadLogger m, MonadUnliftIO m, MonadIO m) => BL.ByteString -> ClientID -> MQTTD m ()
 unregisterClient k mid = do
@@ -261,23 +267,20 @@ nextPktID x = do
   modifyTVar' x $ \pid -> if pid == maxBound then 1 else succ pid
   readTVar x
 
-broadcast :: MonadIO m => Maybe BL.ByteString -> T.Topic -> BL.ByteString -> Bool -> T.QoS -> MQTTD m ()
-broadcast src t m r qos = do
-  subs <- findSubs t
+broadcast :: MonadIO m => Maybe BL.ByteString -> T.PublishRequest -> MQTTD m ()
+broadcast src req@T.PublishRequest{..} = do
+  subs <- findSubs (blToText _pubTopic)
   pid <- liftSTM . nextPktID =<< asks pktID
   mapM_ (\(q, s, o) -> maybe (pure ()) (void . sendPacketIO q) (pkt s o pid)) subs
   where
     pkt sid T.SubOptions{T._noLocal=True} _
       | Just sid == src = Nothing
-    pkt _ opts pid = Just (T.PublishPkt T.PublishRequest{
-                              _pubDup=False,
-                              _pubRetain=mightRetain opts,
-                              _pubQoS=maxQoS opts,
-                              _pubTopic=textToBL t,
-                              _pubPktID=pid,
-                              _pubBody=m,
-                              _pubProps=mempty})
+    pkt _ opts pid = Just (T.PublishPkt req{
+                              T._pubDup=False,
+                              T._pubRetain=mightRetain opts,
+                              T._pubQoS=maxQoS opts,
+                              T._pubPktID=pid})
 
-    maxQoS T.SubOptions{_subQoS} = if qos > _subQoS then _subQoS else qos
+    maxQoS T.SubOptions{_subQoS} = if _pubQoS > _subQoS then _subQoS else _pubQoS
     mightRetain T.SubOptions{_retainAsPublished=False} = False
-    mightRetain _ = r
+    mightRetain _ = _pubRetain
