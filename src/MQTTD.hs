@@ -129,7 +129,7 @@ findSubs t = do
 subscribe :: MonadIO m => Session -> T.SubscribeRequest -> MQTTD m ()
 subscribe Session{..} (T.SubscribeRequest _ topics _props) = do
   let new = map (\(t,o) -> (blToText t, o)) topics
-  liftSTM $ modifyTVar' _sessionSubs (<> new)
+  liftSTM $ modifyTVar' _sessionSubs (<> new) -- TODO: Dedup subscriptions
 
 modifySession :: MonadIO m => BL.ByteString -> (Session -> Maybe Session) -> MQTTD m ()
 modifySession k f = asks sessions >>= \s -> liftSTM $ modifyTVar' s (Map.update f k)
