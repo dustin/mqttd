@@ -1,7 +1,7 @@
 module Scheduler where
 
-import           Control.Concurrent.STM (TVar, atomically, check, modifyTVar', newTVarIO, orElse, readTVar,
-                                         registerDelay, writeTVar)
+import           Control.Concurrent.STM (TVar, check, modifyTVar', newTVarIO, orElse, readTVar, registerDelay,
+                                         writeTVar)
 import           Control.Monad          (forever)
 import           Control.Monad.IO.Class (MonadIO (..))
 import           Control.Monad.Logger   (MonadLogger (..), logDebugN)
@@ -10,8 +10,7 @@ import qualified Data.Map.Strict        as Map
 import           Data.Maybe             (fromMaybe)
 import           Data.Text              (pack)
 import           Data.Time.Clock        (NominalDiffTime, UTCTime (..), diffUTCTime, getCurrentTime)
-
-import           MQTTD.Util
+import           UnliftIO               (atomically)
 
 -- This bit is just about managing a schedule of tasks.
 
@@ -38,7 +37,7 @@ newRunner :: MonadIO m => m (QueueRunner a)
 newRunner = QueueRunner <$> liftIO (newTVarIO mempty)
 
 enqueue :: (Ord a, MonadIO m) => UTCTime -> a -> QueueRunner a -> m ()
-enqueue t a QueueRunner{_tq} = liftSTM $ modifyTVar' _tq (add t a)
+enqueue t a QueueRunner{_tq} = atomically $ modifyTVar' _tq (add t a)
 
 -- | Run forever.
 run :: (MonadLogger m, MonadIO m) => (a -> m ()) -> QueueRunner a -> m ()
@@ -61,7 +60,7 @@ runOnce action QueueRunner{..} = block >> go
 
     go = do
       now <- liftIO getCurrentTime
-      todo <- liftSTM $ do
+      todo <- atomically $ do
         (todo, nq) <- ready now <$> readTVar _tq
         writeTVar _tq nq
         pure todo

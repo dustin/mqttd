@@ -30,7 +30,7 @@ import           Data.Word              (Word16)
 import           Network.MQTT.Lens
 import qualified Network.MQTT.Topic     as T
 import qualified Network.MQTT.Types     as T
-import           UnliftIO               (MonadUnliftIO (..))
+import           UnliftIO               (MonadUnliftIO (..), atomically)
 
 import           MQTTD.Retention
 import           MQTTD.Util
@@ -96,7 +96,7 @@ sleep :: MonadIO m => Int -> m ()
 sleep secs = liftIO (threadDelay (seconds secs))
 
 nextID :: MonadIO m => MQTTD m Int
-nextID = asks clientIDGen >>= \ig -> liftSTM $ modifyTVar' ig (+1) >> readTVar ig
+nextID = asks clientIDGen >>= \ig -> atomically $ modifyTVar' ig (+1) >> readTVar ig
 
 sessionCleanup :: (MonadUnliftIO m, MonadLogger m) => MQTTD m ()
 sessionCleanup = asks queueRunner >>= Scheduler.run expireSession
@@ -113,7 +113,7 @@ resolveAliasIn Session{_sessionClient=Just ConnectedClient{_clientAliasIn}} r =
 
   where
     resolve n T.PublishRequest{_pubTopic} = do
-      t <- liftSTM $ do
+      t <- atomically $ do
         when (_pubTopic /= "") $ modifyTVar' _clientAliasIn (Map.insert n _pubTopic)
         Map.findWithDefault "" n <$> readTVar _clientAliasIn
       pure $ r & pubTopic .~ t & properties %~ cleanProps
@@ -124,17 +124,17 @@ resolveAliasIn Session{_sessionClient=Just ConnectedClient{_clientAliasIn}} r =
 findSubs :: MonadIO m => T.Topic -> MQTTD m [(PktQueue, BL.ByteString, T.SubOptions)]
 findSubs t = do
   ss <- asks sessions
-  sess <- Map.elems <$> liftSTM (readTVar ss)
+  sess <- Map.elems <$> atomically (readTVar ss)
   mconcat <$> traverse sessTopic sess
 
   where
     sessTopic Session{..} = foldMap (\(m,o) -> [(_sessionChan, _sessionID, o) | T.match m t]
-                                    ) . Map.assocs <$> liftSTM (readTVar _sessionSubs)
+                                    ) . Map.assocs <$> atomically (readTVar _sessionSubs)
 
 subscribe :: MonadIO m => Session -> T.SubscribeRequest -> MQTTD m ()
 subscribe Session{..} (T.SubscribeRequest _ topics _props) = do
   let new = Map.fromList $ map (first blToText) topics
-  liftSTM $ modifyTVar' _sessionSubs (Map.union new)
+  atomically $ modifyTVar' _sessionSubs (Map.union new)
   p <- asks persistence
   mapM_ (doRetained p) topics
 
@@ -143,7 +143,7 @@ subscribe Session{..} (T.SubscribeRequest _ topics _props) = do
     doRetained p (t, ops) = mapM_ (sendOne ops) =<< matchRetained p (blToText t)
 
     sendOne opts@T.SubOptions{..} ir@T.PublishRequest{..} = do
-      pid <- liftSTM . nextPktID =<< asks pktID
+      pid <- atomically . nextPktID =<< asks pktID
       let r = ir{T._pubPktID=pid, T._pubRetain=mightRetain opts,
                  T._pubQoS = if _pubQoS > _subQoS then _subQoS else _pubQoS}
       void $ sendPacketIO _sessionChan (T.PublishPkt r)
@@ -154,7 +154,7 @@ subscribe Session{..} (T.SubscribeRequest _ topics _props) = do
 
 unsubscribe :: MonadIO m => Session -> [BL.ByteString] -> MQTTD m [T.UnsubStatus]
 unsubscribe Session{..} topics =
-  liftSTM $ do
+  atomically $ do
     m <- readTVar _sessionSubs
     let (uns, n) = foldl' (\(r,m') t -> first ((:r) . unm) $ up t m') ([], m) topics
     writeTVar _sessionSubs n
@@ -165,7 +165,7 @@ unsubscribe Session{..} topics =
       up t = Map.updateLookupWithKey (const.const $ Nothing) (blToText t)
 
 modifySession :: MonadIO m => BL.ByteString -> (Session -> Maybe Session) -> MQTTD m ()
-modifySession k f = asks sessions >>= \s -> liftSTM $ modifyTVar' s (Map.update f k)
+modifySession k f = asks sessions >>= \s -> atomically $ modifyTVar' s (Map.update f k)
 
 registerClient :: MonadIO m => T.ConnectRequest -> ClientID -> ThreadId -> MQTTD m (Session, T.SessionReuse)
 registerClient req@T.ConnectRequest{..} i o = do
@@ -173,7 +173,7 @@ registerClient req@T.ConnectRequest{..} i o = do
   ai <- liftIO $ newTVarIO mempty
   let k = _connID
       nc = ConnectedClient req o i ai
-  (o', x, ns) <- liftSTM $ do
+  (o', x, ns) <- atomically $ do
     ch <- newTBQueue 1000
     m <- readTVar c
     subz <- newTVar mempty
@@ -198,7 +198,7 @@ registerClient req@T.ConnectRequest{..} i o = do
 expireSession :: (MonadLogger m, MonadUnliftIO m, MonadIO m) => BL.ByteString -> MQTTD m ()
 expireSession k = do
   ss <- asks sessions
-  possiblyCleanup =<< liftSTM (Map.lookup k <$> readTVar ss)
+  possiblyCleanup =<< atomically (Map.lookup k <$> readTVar ss)
 
   where
     possiblyCleanup Nothing = pure ()
@@ -215,7 +215,7 @@ expireSession k = do
     expireNow = do
       now <- liftIO getCurrentTime
       ss <- asks sessions
-      kilt <- liftSTM $ do
+      kilt <- atomically $ do
         current <- Map.lookup k <$> readTVar ss
         case current ^? _Just . sessionExpires . _Just of
           Nothing -> pure Nothing
@@ -245,7 +245,7 @@ unregisterClient :: (MonadLogger m, MonadUnliftIO m, MonadIO m) => BL.ByteString
 unregisterClient k mid = do
   now <- liftIO getCurrentTime
   c <- asks sessions
-  liftSTM $ modifyTVar' c $ Map.update (up now) k
+  atomically $ modifyTVar' c $ Map.update (up now) k
   expireSession k
 
     where
@@ -265,7 +265,7 @@ sendPacket ch p = do
   pure full
 
 sendPacketIO :: MonadIO m => PktQueue -> T.MQTTPkt -> m Bool
-sendPacketIO ch = liftSTM . sendPacket ch
+sendPacketIO ch = atomically . sendPacket ch
 
 nextPktID :: TVar Word16 -> STM Word16
 nextPktID x = do
@@ -276,7 +276,7 @@ broadcast :: (MonadLogger m, MonadIO m) => Maybe BL.ByteString -> T.PublishReque
 broadcast src req@T.PublishRequest{..} = do
   asks persistence >>= retain req
   subs <- findSubs (blToText _pubTopic)
-  pid <- liftSTM . nextPktID =<< asks pktID
+  pid <- atomically . nextPktID =<< asks pktID
   mapM_ (\(q, s, o) -> maybe (pure ()) (void . sendPacketIO q) (pkt s o pid)) subs
   where
     pkt sid T.SubOptions{T._noLocal=True} _

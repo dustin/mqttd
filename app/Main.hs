@@ -23,7 +23,7 @@ import           Data.Conduit.Network.TLS (runGeneralTCPServerTLS, tlsConfig)
 import qualified Data.UUID                as UUID
 import qualified Network.WebSockets       as WS
 import           System.Random            (randomIO)
-import           UnliftIO                 (MonadUnliftIO (..), async, waitAnyCancel)
+import           UnliftIO                 (MonadUnliftIO (..), async, atomically, waitAnyCancel)
 
 import qualified Network.MQTT.Lens        as T
 import qualified Network.MQTT.Types       as T
@@ -100,7 +100,7 @@ runMQTTDConduit (src,sink) = runConduit $ do
         .| C.mapM_ (\(_,x) -> feed wdch >> dispatch sess x)
 
     processOut pl ch = runConduit $
-      C.repeatM (liftSTM $ readTBQueue ch)
+      C.repeatM (atomically $ readTBQueue ch)
       .| C.mapM (\x -> logDebugN (">> " <> tshow x) >> pure x)
       .| C.map (BL.toStrict . T.toByteString pl)
       .| sink
@@ -116,11 +116,11 @@ runMQTTDConduit (src,sink) = runConduit $ do
       pure (T.ConnPkt c{T._connID=nid} pl, Just nid)
     ensureID x = pure (x, Nothing)
 
-    feed wdch = liftSTM (writeTChan wdch True)
+    feed wdch = atomically (writeTChan wdch True)
 
     watchdog pp wdch sid t = forever $ do
       toch <- liftIO $ registerDelay pp
-      timedOut <- liftSTM $ ((check =<< readTVar toch) >> pure True) `orElse` (readTChan wdch >> pure False)
+      timedOut <- atomically $ ((check =<< readTVar toch) >> pure True) `orElse` (readTChan wdch >> pure False)
       when timedOut $ do
         logInfoN ("Client with session " <> tshow sid <> " timed out")
         liftIO $ throwTo t MQTTPingTimeout
@@ -135,7 +135,7 @@ handleWS pc = do
       bs <- liftIO $ WS.receiveData ws
       unless (BCS.null bs) $ yield bs
 
-    wsSink ws = forever $ await >>= maybe (pure ()) (\bs -> liftIO (WS.sendBinaryData ws bs))
+    wsSink ws = maybe (pure ()) (\bs -> liftIO (WS.sendBinaryData ws bs) >> wsSink ws) =<< await
 
 main :: IO ()
 main = do

@@ -1,6 +1,6 @@
 module MQTTD.Retention where
 
-import           Control.Concurrent.STM
+import           Control.Concurrent.STM (TVar, modifyTVar', newTVarIO, readTVar)
 import           Control.Lens
 import           Control.Monad          (when)
 import           Control.Monad.IO.Class (MonadIO (..))
@@ -12,7 +12,7 @@ import           Data.Time.Clock        (UTCTime (..), addUTCTime, diffUTCTime, 
 import           Network.MQTT.Lens
 import qualified Network.MQTT.Topic     as T
 import qualified Network.MQTT.Types     as T
-import           UnliftIO               (MonadUnliftIO (..))
+import           UnliftIO               (MonadUnliftIO (..), atomically)
 
 import           MQTTD.Util
 import qualified Scheduler
@@ -37,19 +37,19 @@ cleanPersistence Persistence{..} = Scheduler.run cleanup _qrunner
       cleanup k = do
         now <- liftIO getCurrentTime
         logDebugN ("Probably removing persisted item: " <> tshow k)
-        liftSTM $ do
+        atomically $ do
           r <- (_retainExp =<<) . Map.lookup k <$> readTVar _store
           when (r < Just now) $ modifyTVar' _store (Map.delete k)
 
 retain :: (MonadLogger m, MonadIO m) => T.PublishRequest -> Persistence -> m ()
 retain T.PublishRequest{_pubRetain=False} _ = pure ()
 retain T.PublishRequest{_pubTopic,_pubBody=""} Persistence{..} =
-  liftSTM $ modifyTVar' _store (Map.delete _pubTopic)
+  atomically $ modifyTVar' _store (Map.delete _pubTopic)
 retain pr@T.PublishRequest{..} Persistence{..} = do
   now <- liftIO getCurrentTime
   logDebugN ("Persisting " <> tshow _pubTopic)
   let e = pr ^? properties . folded . _PropMessageExpiryInterval . to (absExp now)
-  liftSTM $ modifyTVar' _store (Map.insert _pubTopic (Retained now e pr))
+  atomically $ modifyTVar' _store (Map.insert _pubTopic (Retained now e pr))
   maybe (pure ()) (\t -> Scheduler.enqueue t _pubTopic _qrunner) e
 
     where absExp now secs = addUTCTime (fromIntegral secs) now
@@ -57,7 +57,7 @@ retain pr@T.PublishRequest{..} Persistence{..} = do
 matchRetained :: MonadIO m => Persistence -> T.Filter -> m [T.PublishRequest]
 matchRetained Persistence{..} f = do
   now <- liftIO getCurrentTime
-  fmap (adj now) . filter match . Map.elems <$> liftSTM (readTVar _store)
+  fmap (adj now) . filter match . Map.elems <$> atomically (readTVar _store)
 
   where
     match = T.match f . blToText . T._pubTopic . _retainMsg
