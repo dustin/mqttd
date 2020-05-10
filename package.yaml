@@ -39,6 +39,7 @@ dependencies:
 - conduit
 - conduit-extra
 - network-conduit-tls
+- websockets
 - exceptions
 - unliftio
 - random

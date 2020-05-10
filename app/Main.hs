@@ -8,18 +8,20 @@ import           Control.Concurrent       (myThreadId, throwTo)
 import           Control.Concurrent.STM   (check, newTChanIO, orElse, readTBQueue, readTChan, readTVar, registerDelay,
                                            writeTChan)
 import           Control.Lens
-import           Control.Monad            (forever, void, when)
+import           Control.Monad            (forever, unless, void, when)
 import qualified Control.Monad.Catch      as E
 import           Control.Monad.IO.Class   (MonadIO (..))
 import           Control.Monad.Logger     (MonadLogger (..), logDebugN, logInfoN, runStderrLoggingT)
 import           Control.Monad.Trans      (lift)
+import qualified Data.ByteString.Char8    as BCS
 import qualified Data.ByteString.Lazy     as BL
-import           Data.Conduit             (runConduit, (.|))
+import           Data.Conduit             (ConduitT, Void, await, runConduit, yield, (.|))
 import           Data.Conduit.Attoparsec  (conduitParser, sinkParser)
 import qualified Data.Conduit.Combinators as C
 import           Data.Conduit.Network     (AppData, appSink, appSource, runTCPServer, serverSettings)
 import           Data.Conduit.Network.TLS (runGeneralTCPServerTLS, tlsConfig)
 import qualified Data.UUID                as UUID
+import qualified Network.WebSockets       as WS
 import           System.Random            (randomIO)
 import           UnliftIO                 (MonadUnliftIO (..), async, waitAnyCancel)
 
@@ -64,9 +66,14 @@ dispatch sess (T.DisconnectPkt (T.DisconnectRequest T.DiscoNormalDisconnection _
 
 dispatch _ x = fail ("unhandled: " <> show x)
 
-handleConnection :: forall m. (MonadLogger m, MonadUnliftIO m, MonadFail m, E.MonadMask m, E.MonadThrow m) => AppData -> MQTTD m ()
-handleConnection ad = runConduit $ do
-  (cpkt@(T.ConnPkt _ pl), genedID) <- ensureID =<< appSource ad .| sinkParser T.parseConnect
+type MQTTConduit m = (ConduitT () BCS.ByteString (MQTTD m) (), ConduitT BCS.ByteString Void (MQTTD m) ())
+
+handleConnection :: (MonadLogger m, MonadUnliftIO m, MonadFail m, E.MonadMask m, E.MonadThrow m) => AppData -> MQTTD m ()
+handleConnection ad = runMQTTDConduit (appSource ad, appSink ad)
+
+runMQTTDConduit :: forall m. (MonadLogger m, MonadUnliftIO m, MonadFail m, E.MonadMask m, E.MonadThrow m) => MQTTConduit m -> MQTTD m ()
+runMQTTDConduit (src,sink) = runConduit $ do
+  (cpkt@(T.ConnPkt _ pl), genedID) <- ensureID =<< src .| sinkParser T.parseConnect
   cid <- lift nextID
 
   lift $ run pl cid cpkt genedID
@@ -87,7 +94,7 @@ handleConnection ad = runConduit $ do
       i <- async $ E.finally (runIn wdch sess pl) (teardown cid req)
       void $ waitAnyCancel [i, o, w]
 
-    runIn wdch sess pl = runConduit $ appSource ad
+    runIn wdch sess pl = runConduit $ src
         .| conduitParser (T.parsePacket pl)
         .| C.mapM (\i@(_,x) -> logDebugN ("<< " <> tshow x) >> pure i)
         .| C.mapM_ (\(_,x) -> feed wdch >> dispatch sess x)
@@ -96,7 +103,7 @@ handleConnection ad = runConduit $ do
       C.repeatM (liftSTM $ readTBQueue ch)
       .| C.mapM (\x -> logDebugN (">> " <> tshow x) >> pure x)
       .| C.map (BL.toStrict . T.toByteString pl)
-      .| appSink ad
+      .| sink
 
     teardown :: ClientID -> T.ConnectRequest -> MQTTD m ()
     teardown cid c@T.ConnectRequest{..} = do
@@ -118,6 +125,18 @@ handleConnection ad = runConduit $ do
         logInfoN ("Client with session " <> tshow sid <> " timed out")
         liftIO $ throwTo t MQTTPingTimeout
 
+handleWS :: (MonadLogger m, MonadUnliftIO m, MonadFail m, E.MonadMask m, E.MonadThrow m) => WS.PendingConnection -> MQTTD m ()
+handleWS pc = do
+  conn <- liftIO $ WS.acceptRequest pc
+  runMQTTDConduit (wsSource conn, wsSink conn)
+
+  where
+    wsSource ws = forever $ do
+      bs <- liftIO $ WS.receiveData ws
+      unless (BCS.null bs) $ yield bs
+
+    wsSink ws = forever $ await >>= maybe (pure ()) (\bs -> liftIO (WS.sendBinaryData ws bs))
+
 main :: IO ()
 main = do
   e <- newEnv
@@ -130,6 +149,7 @@ main = do
     let cfile = "certificate.pem"
         kfile = "key.pem"
     sserv <- async (withRunInIO $ \unl -> runGeneralTCPServerTLS (tlsConfig "*" 8883 cfile kfile) (unl . handleConnection))
-    -- TODO:  websockets
+    -- Websockets server
+    ws <- async (withRunInIO $ \unl -> WS.runServer "0.0.0.0" 8080 (unl . handleWS))
 
-    void $ waitAnyCancel [sc, pc, serv, sserv]
+    void $ waitAnyCancel [sc, pc, serv, sserv, ws]
