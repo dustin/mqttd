@@ -1,3 +1,4 @@
+{-# LANGUAGE ConstraintKinds            #-}
 {-# LANGUAGE DerivingVia                #-}
 {-# LANGUAGE FlexibleContexts           #-}
 {-# LANGUAGE FlexibleInstances          #-}
@@ -99,7 +100,9 @@ sleep secs = liftIO (threadDelay (seconds secs))
 nextID :: MonadIO m => MQTTD m Int
 nextID = asks clientIDGen >>= \ig -> atomically $ modifyTVar' ig (+1) >> readTVar ig
 
-sessionCleanup :: (MonadUnliftIO m, MonadFail m, MonadMask m, MonadLogger m) => MQTTD m ()
+type PublishConstraint m = (MonadLogger m, MonadFail m, MonadMask m, MonadUnliftIO m, MonadIO m)
+
+sessionCleanup :: PublishConstraint m => MQTTD m ()
 sessionCleanup = asks queueRunner >>= Scheduler.run expireSession
 
 persistenceCleanup :: (MonadUnliftIO m, MonadLogger m) => MQTTD m ()
@@ -137,7 +140,7 @@ findSubs t = do
     sessTopic sess@Session{..} = foldMap (\(m,o) -> [(sess, o) | T.match m t]
                                          ) . Map.assocs <$> atomically (readTVar _sessionSubs)
 
-subscribe :: (MonadMask m, MonadUnliftIO m, MonadLogger m, MonadFail m, MonadIO m) => Session -> T.SubscribeRequest -> MQTTD m ()
+subscribe :: PublishConstraint m => Session -> T.SubscribeRequest -> MQTTD m ()
 subscribe sess@Session{..} (T.SubscribeRequest _ topics _props) = do
   let new = Map.fromList $ map (first blToText) topics
   atomically $ modifyTVar' _sessionSubs (Map.union new)
@@ -203,7 +206,7 @@ registerClient req@T.ConnectRequest{..} i o = do
                          _sessionResp=rm,
                          _sessionWill=_lastWill}, T.ExistingSession)
 
-expireSession :: (MonadLogger m, MonadMask m, MonadFail m, MonadUnliftIO m, MonadIO m) => BL.ByteString -> MQTTD m ()
+expireSession :: PublishConstraint m => BL.ByteString -> MQTTD m ()
 expireSession k = do
   ss <- asks sessions
   possiblyCleanup =<< atomically (Map.lookup k <$> readTVar ss)
@@ -283,7 +286,7 @@ nextPktID x = do
   modifyTVar' x $ \pid -> if pid == maxBound then 1 else succ pid
   readTVar x
 
-broadcast :: (MonadLogger m, MonadLogger m, MonadFail m, MonadMask m, MonadUnliftIO m, MonadIO m) => Maybe BL.ByteString -> T.PublishRequest -> MQTTD m ()
+broadcast :: PublishConstraint m => Maybe BL.ByteString -> T.PublishRequest -> MQTTD m ()
 broadcast src req@T.PublishRequest{..} = do
   asks persistence >>= retain req
   subs <- findSubs (blToText _pubTopic)
@@ -302,7 +305,7 @@ broadcast src req@T.PublishRequest{..} = do
     mightRetain T.SubOptions{_retainAsPublished=False} = False
     mightRetain _ = _pubRetain
 
-publish :: (MonadLogger m, MonadFail m, MonadMask m, MonadUnliftIO m, MonadIO m) => Session -> T.PublishRequest -> MQTTD m ()
+publish :: PublishConstraint m => Session -> T.PublishRequest -> MQTTD m ()
 publish Session{..} pkt = do
   ch <- atomically newTChan
   let pid = pkt ^. pktID

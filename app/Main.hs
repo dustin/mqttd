@@ -11,7 +11,7 @@ import           Control.Lens
 import           Control.Monad            (forever, unless, void, when)
 import qualified Control.Monad.Catch      as E
 import           Control.Monad.IO.Class   (MonadIO (..))
-import           Control.Monad.Logger     (MonadLogger (..), logDebugN, logInfoN, runStderrLoggingT)
+import           Control.Monad.Logger     (logDebugN, logInfoN, runStderrLoggingT)
 import           Control.Monad.Trans      (lift)
 import qualified Data.ByteString.Char8    as BCS
 import qualified Data.ByteString.Lazy     as BL
@@ -31,7 +31,7 @@ import qualified Network.MQTT.Types       as T
 import           MQTTD
 import           MQTTD.Util
 
-dispatch :: (MonadLogger m, MonadUnliftIO m, E.MonadMask m, MonadFail m, MonadIO m) => Session -> T.MQTTPkt -> MQTTD m ()
+dispatch :: PublishConstraint m => Session -> T.MQTTPkt -> MQTTD m ()
 
 dispatch Session{..} T.PingPkt = void $ sendPacketIO _sessionChan T.PongPkt
 
@@ -68,10 +68,10 @@ dispatch _ x = fail ("unhandled: " <> show x)
 
 type MQTTConduit m = (ConduitT () BCS.ByteString (MQTTD m) (), ConduitT BCS.ByteString Void (MQTTD m) ())
 
-handleConnection :: (MonadLogger m, MonadUnliftIO m, MonadFail m, E.MonadMask m, E.MonadThrow m) => AppData -> MQTTD m ()
+handleConnection :: PublishConstraint m => AppData -> MQTTD m ()
 handleConnection ad = runMQTTDConduit (appSource ad, appSink ad)
 
-runMQTTDConduit :: forall m. (MonadLogger m, MonadUnliftIO m, MonadFail m, E.MonadMask m, E.MonadThrow m) => MQTTConduit m -> MQTTD m ()
+runMQTTDConduit :: forall m. PublishConstraint m => MQTTConduit m -> MQTTD m ()
 runMQTTDConduit (src,sink) = runConduit $ do
   (cpkt@(T.ConnPkt _ pl), genedID) <- ensureID =<< src .| sinkParser T.parseConnect
   cid <- lift nextID
@@ -125,7 +125,7 @@ runMQTTDConduit (src,sink) = runConduit $ do
         logInfoN ("Client with session " <> tshow sid <> " timed out")
         liftIO $ throwTo t MQTTPingTimeout
 
-handleWS :: (MonadLogger m, MonadUnliftIO m, MonadFail m, E.MonadMask m, E.MonadThrow m) => WS.PendingConnection -> MQTTD m ()
+handleWS :: PublishConstraint m => WS.PendingConnection -> MQTTD m ()
 handleWS pc = do
   conn <- liftIO $ WS.acceptRequest pc
   runMQTTDConduit (wsSource conn, wsSink conn)
