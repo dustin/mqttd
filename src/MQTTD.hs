@@ -69,7 +69,7 @@ makeLenses ''Session
 
 data Env = Env {
   sessions    :: TVar (Map BL.ByteString Session),
-  pktID       :: TVar Word16,
+  lastPktID   :: TVar Word16,
   clientIDGen :: TVar ClientID,
   queueRunner :: Scheduler.QueueRunner BL.ByteString,
   persistence :: Persistence
@@ -143,7 +143,7 @@ subscribe Session{..} (T.SubscribeRequest _ topics _props) = do
     doRetained p (t, ops) = mapM_ (sendOne ops) =<< matchRetained p (blToText t)
 
     sendOne opts@T.SubOptions{..} ir@T.PublishRequest{..} = do
-      pid <- atomically . nextPktID =<< asks pktID
+      pid <- atomically . nextPktID =<< asks lastPktID
       let r = ir{T._pubPktID=pid, T._pubRetain=mightRetain opts,
                  T._pubQoS = if _pubQoS > _subQoS then _subQoS else _pubQoS}
       void $ sendPacketIO _sessionChan (T.PublishPkt r)
@@ -276,7 +276,7 @@ broadcast :: (MonadLogger m, MonadIO m) => Maybe BL.ByteString -> T.PublishReque
 broadcast src req@T.PublishRequest{..} = do
   asks persistence >>= retain req
   subs <- findSubs (blToText _pubTopic)
-  pid <- atomically . nextPktID =<< asks pktID
+  pid <- atomically . nextPktID =<< asks lastPktID
   mapM_ (\(q, s, o) -> maybe (pure ()) (void . sendPacketIO q) (pkt s o pid)) subs
   where
     pkt sid T.SubOptions{T._noLocal=True} _
