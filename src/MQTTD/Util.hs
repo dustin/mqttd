@@ -1,9 +1,8 @@
 module MQTTD.Util where
 
-import           Control.Monad.IO.Class (MonadIO (..))
-import qualified Data.ByteString.Lazy   as BL
-import           Data.Text              (Text, pack)
-import qualified Data.Text.Encoding     as TE
+import qualified Data.ByteString.Lazy as BL
+import           Data.Text            (Text, pack)
+import qualified Data.Text.Encoding   as TE
 
 textToBL :: Text -> BL.ByteString
 textToBL = BL.fromStrict . TE.encodeUtf8

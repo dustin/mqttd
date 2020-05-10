@@ -41,7 +41,7 @@ packages:
 #
 extra-deps:
 - git: https://github.com/dustin/mqtt-hs.git
-  commit: 767dfe2ce94f4000c615cee3f58db9d8fdebe097
+  commit: 9e02744795f5b1983eef12a6a27cbc5fedd93146
 - git: https://github.com/dustin/net-mqtt-lens.git
   commit: c6e74a8247348e77f84dfa6ae99f4469f2b58e9b
 - sqlite-simple-0.4.18.0@sha256:3ceea56375c0a3590c814e411a4eb86943f8d31b93b110ca159c90689b6b39e5,3002

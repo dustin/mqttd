@@ -31,11 +31,11 @@ import qualified Network.MQTT.Types       as T
 import           MQTTD
 import           MQTTD.Util
 
-dispatch :: (MonadLogger m, MonadFail m, MonadIO m) => Session -> T.MQTTPkt -> MQTTD m ()
+dispatch :: (MonadLogger m, MonadUnliftIO m, E.MonadMask m, MonadFail m, MonadIO m) => Session -> T.MQTTPkt -> MQTTD m ()
 
 dispatch Session{..} T.PingPkt = void $ sendPacketIO _sessionChan T.PongPkt
 
-dispatch _ (T.PubACKPkt _) = pure ()
+dispatch sess pkt@(T.PubACKPkt ack) = gotResponse sess (ack ^. T.pktID) pkt
 
 dispatch sess@Session{..} (T.SubscribePkt req@(T.SubscribeRequest pid subs props)) = do
   subscribe sess req

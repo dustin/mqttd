@@ -12,11 +12,11 @@
 module MQTTD where
 
 import           Control.Concurrent     (ThreadId, threadDelay, throwTo)
-import           Control.Concurrent.STM (STM, TBQueue, TVar, isFullTBQueue, modifyTVar', newTBQueue, newTVar, newTVarIO,
-                                         readTVar, writeTBQueue, writeTVar)
+import           Control.Concurrent.STM (STM, TBQueue, TChan, TVar, isFullTBQueue, modifyTVar', newTBQueue, newTChan,
+                                         newTVar, newTVarIO, readTChan, readTVar, writeTBQueue, writeTChan, writeTVar)
 import           Control.Lens
 import           Control.Monad          (unless, void, when)
-import           Control.Monad.Catch    (Exception, MonadCatch (..), MonadMask (..), MonadThrow (..))
+import           Control.Monad.Catch    (Exception, MonadCatch (..), MonadMask (..), MonadThrow (..), bracket_)
 import           Control.Monad.IO.Class (MonadIO (..))
 import           Control.Monad.Logger   (MonadLogger (..), logDebugN)
 import           Control.Monad.Reader   (MonadReader, ReaderT (..), asks, runReaderT)
@@ -30,7 +30,7 @@ import           Data.Word              (Word16)
 import           Network.MQTT.Lens
 import qualified Network.MQTT.Topic     as T
 import qualified Network.MQTT.Types     as T
-import           UnliftIO               (MonadUnliftIO (..), atomically)
+import           UnliftIO               (MonadUnliftIO (..), atomically, cancel, withAsync)
 
 import           MQTTD.Retention
 import           MQTTD.Util
@@ -60,6 +60,7 @@ data Session = Session {
   _sessionID      :: BL.ByteString,
   _sessionClient  :: Maybe ConnectedClient,
   _sessionChan    :: PktQueue,
+  _sessionResp    :: TVar (Map Word16 (TChan T.MQTTPkt)),
   _sessionSubs    :: TVar (Map T.Filter T.SubOptions),
   _sessionExpires :: Maybe UTCTime,
   _sessionWill    :: Maybe T.LastWill
@@ -98,11 +99,16 @@ sleep secs = liftIO (threadDelay (seconds secs))
 nextID :: MonadIO m => MQTTD m Int
 nextID = asks clientIDGen >>= \ig -> atomically $ modifyTVar' ig (+1) >> readTVar ig
 
-sessionCleanup :: (MonadUnliftIO m, MonadLogger m) => MQTTD m ()
+sessionCleanup :: (MonadUnliftIO m, MonadFail m, MonadMask m, MonadLogger m) => MQTTD m ()
 sessionCleanup = asks queueRunner >>= Scheduler.run expireSession
 
 persistenceCleanup :: (MonadUnliftIO m, MonadLogger m) => MQTTD m ()
 persistenceCleanup = asks persistence >>= cleanPersistence
+
+gotResponse :: MonadIO m => Session -> T.PktID -> T.MQTTPkt -> MQTTD m ()
+gotResponse Session{..} i p = atomically $ do
+  mch <- Map.lookup i <$> readTVar _sessionResp
+  maybe (pure ()) (`writeTChan` p) mch
 
 resolveAliasIn :: MonadIO m => Session -> T.PublishRequest -> m T.PublishRequest
 resolveAliasIn Session{_sessionClient=Nothing} r = pure r
@@ -121,18 +127,18 @@ resolveAliasIn Session{_sessionClient=Just ConnectedClient{_clientAliasIn}} r =
                             (T.PropTopicAlias _) -> False
                             _ -> True)
 
-findSubs :: MonadIO m => T.Topic -> MQTTD m [(PktQueue, BL.ByteString, T.SubOptions)]
+findSubs :: MonadIO m => T.Topic -> MQTTD m [(Session, T.SubOptions)]
 findSubs t = do
   ss <- asks sessions
   sess <- Map.elems <$> atomically (readTVar ss)
   mconcat <$> traverse sessTopic sess
 
   where
-    sessTopic Session{..} = foldMap (\(m,o) -> [(_sessionChan, _sessionID, o) | T.match m t]
-                                    ) . Map.assocs <$> atomically (readTVar _sessionSubs)
+    sessTopic sess@Session{..} = foldMap (\(m,o) -> [(sess, o) | T.match m t]
+                                         ) . Map.assocs <$> atomically (readTVar _sessionSubs)
 
-subscribe :: MonadIO m => Session -> T.SubscribeRequest -> MQTTD m ()
-subscribe Session{..} (T.SubscribeRequest _ topics _props) = do
+subscribe :: (MonadMask m, MonadUnliftIO m, MonadLogger m, MonadFail m, MonadIO m) => Session -> T.SubscribeRequest -> MQTTD m ()
+subscribe sess@Session{..} (T.SubscribeRequest _ topics _props) = do
   let new = Map.fromList $ map (first blToText) topics
   atomically $ modifyTVar' _sessionSubs (Map.union new)
   p <- asks persistence
@@ -146,7 +152,7 @@ subscribe Session{..} (T.SubscribeRequest _ topics _props) = do
       pid <- atomically . nextPktID =<< asks lastPktID
       let r = ir{T._pubPktID=pid, T._pubRetain=mightRetain opts,
                  T._pubQoS = if _pubQoS > _subQoS then _subQoS else _pubQoS}
-      void $ sendPacketIO _sessionChan (T.PublishPkt r)
+      publish sess r
 
         where
           mightRetain T.SubOptions{_retainAsPublished=False} = False
@@ -175,11 +181,12 @@ registerClient req@T.ConnectRequest{..} i o = do
       nc = ConnectedClient req o i ai
   (o', x, ns) <- atomically $ do
     ch <- newTBQueue 1000
+    rm <- newTVar mempty
     m <- readTVar c
     subz <- newTVar mempty
     let s = Map.lookup k m
         o' = _sessionClient =<< s
-        (ns, ruse) = maybeClean ch subz nc s
+        (ns, ruse) = maybeClean ch rm subz nc s
     writeTVar c (Map.insert k ns m)
     pure (o', ruse, ns)
   case o' of
@@ -188,14 +195,15 @@ registerClient req@T.ConnectRequest{..} i o = do
   pure (ns, x)
 
     where
-      maybeClean ch subz nc Nothing = (Session _connID (Just nc) ch subz Nothing _lastWill, T.NewSession)
-      maybeClean ch subz nc (Just s)
-        | _cleanSession = (Session _connID (Just nc) ch subz Nothing _lastWill, T.NewSession)
+      maybeClean ch rm subz nc Nothing = (Session _connID (Just nc) ch rm subz Nothing _lastWill, T.NewSession)
+      maybeClean ch rm subz nc (Just s)
+        | _cleanSession = (Session _connID (Just nc) ch rm subz Nothing _lastWill, T.NewSession)
         | otherwise = (s{_sessionClient=Just nc,
                          _sessionExpires=Nothing,
+                         _sessionResp=rm,
                          _sessionWill=_lastWill}, T.ExistingSession)
 
-expireSession :: (MonadLogger m, MonadUnliftIO m, MonadIO m) => BL.ByteString -> MQTTD m ()
+expireSession :: (MonadLogger m, MonadMask m, MonadFail m, MonadUnliftIO m, MonadIO m) => BL.ByteString -> MQTTD m ()
 expireSession k = do
   ss <- asks sessions
   possiblyCleanup =<< atomically (Map.lookup k <$> readTVar ss)
@@ -241,7 +249,7 @@ expireSession k = do
                             T._pubBody=_willMsg,
                             T._pubProps=[]})
 
-unregisterClient :: (MonadLogger m, MonadUnliftIO m, MonadIO m) => BL.ByteString -> ClientID -> MQTTD m ()
+unregisterClient :: (MonadLogger m, MonadMask m, MonadFail m, MonadUnliftIO m, MonadIO m) => BL.ByteString -> ClientID -> MQTTD m ()
 unregisterClient k mid = do
   now <- liftIO getCurrentTime
   c <- asks sessions
@@ -267,28 +275,69 @@ sendPacket ch p = do
 sendPacketIO :: MonadIO m => PktQueue -> T.MQTTPkt -> m Bool
 sendPacketIO ch = atomically . sendPacket ch
 
+sendPacketIO_ :: MonadIO m => PktQueue -> T.MQTTPkt -> m ()
+sendPacketIO_ ch = void . atomically . sendPacket ch
+
 nextPktID :: TVar Word16 -> STM Word16
 nextPktID x = do
   modifyTVar' x $ \pid -> if pid == maxBound then 1 else succ pid
   readTVar x
 
-broadcast :: (MonadLogger m, MonadIO m) => Maybe BL.ByteString -> T.PublishRequest -> MQTTD m ()
+broadcast :: (MonadLogger m, MonadLogger m, MonadFail m, MonadMask m, MonadUnliftIO m, MonadIO m) => Maybe BL.ByteString -> T.PublishRequest -> MQTTD m ()
 broadcast src req@T.PublishRequest{..} = do
   asks persistence >>= retain req
   subs <- findSubs (blToText _pubTopic)
   pid <- atomically . nextPktID =<< asks lastPktID
-  mapM_ (\(q, s, o) -> maybe (pure ()) (void . sendPacketIO q) (pkt s o pid)) subs
+  mapM_ (\(s@Session{..}, o) -> maybe (pure ()) (publish s) (pkt _sessionID o pid)) subs
   where
     pkt sid T.SubOptions{T._noLocal=True} _
       | Just sid == src = Nothing
-    pkt _ opts pid = Just (T.PublishPkt req{
-                              T._pubDup=False,
-                              T._pubRetain=mightRetain opts,
-                              T._pubQoS=maxQoS opts,
-                              T._pubPktID=pid})
+    pkt _ opts pid = Just req{
+      T._pubDup=False,
+      T._pubRetain=mightRetain opts,
+      T._pubQoS=maxQoS opts,
+      T._pubPktID=pid}
 
     maxQoS T.SubOptions{_subQoS} = if _pubQoS > _subQoS then _subQoS else _pubQoS
     mightRetain T.SubOptions{_retainAsPublished=False} = False
     mightRetain _ = _pubRetain
 
--- TODO:  For QoS 1 and QoS 2, we need to continue retransmitting.
+publish :: (MonadLogger m, MonadFail m, MonadMask m, MonadUnliftIO m, MonadIO m) => Session -> T.PublishRequest -> MQTTD m ()
+publish Session{..} pkt = do
+  ch <- atomically newTChan
+  let pid = pkt ^. pktID
+  bracket_ (observe pid ch) (ignore pid) (publishAndWait ch)
+
+    where
+      observe pid ch = atomically $ modifyTVar' _sessionResp (Map.insert pid ch)
+      ignore pid = atomically $ modifyTVar' _sessionResp (Map.delete pid)
+
+      publishAndWait _
+        | pkt ^. pubQoS == T.QoS0 = sendPacketIO_ _sessionChan (T.PublishPkt pkt)
+      publishAndWait ch   = withAsync (pub pkt) (\p -> satisfyQoS p ch (pkt ^. pubQoS))
+
+      pub p = do
+        sendPacketIO_ _sessionChan (T.PublishPkt p)
+        liftIO $ threadDelay 5000000
+        logDebugN ("Retransmitting " <> tshow p)
+        pub (p & pubDup .~ True)
+
+      satisfyQoS p ch q
+        | q == T.QoS0 = pure ()
+        | q == T.QoS1 = void $ do
+            (T.PubACKPkt (T.PubACK _ st pprops)) <- atomically $ readTChan ch
+            when (st /= 0) $ fail ("qos 1 publish error: " <> show st <> " " <> show pprops)
+        | q == T.QoS2 = waitRec
+        | otherwise = error "invalid QoS"
+
+        where
+          waitRec = do
+            rpkt <- atomically $ readTChan ch
+            case rpkt of
+              T.PubRECPkt (T.PubREC _ st recprops) -> do
+                when (st /= 0) $ fail ("qos 2 REC publish error: " <> show st <> " " <> show recprops)
+                sendPacketIO_ _sessionChan (T.PubRELPkt $ T.PubREL (pkt ^. pktID) 0 mempty)
+                cancel p -- must not publish after rel
+              T.PubCOMPPkt (T.PubCOMP _ st' compprops) ->
+                when (st' /= 0) $ fail ("qos 2 COMP publish error: " <> show st' <> " " <> show compprops)
+              wtf -> fail ("unexpected packet received in QoS2 publish: " <> show wtf)
