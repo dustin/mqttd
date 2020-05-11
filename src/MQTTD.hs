@@ -349,3 +349,53 @@ publish Session{..} pkt = do
               T.PubCOMPPkt (T.PubCOMP _ st' compprops) ->
                 when (st' /= 0) $ fail ("qos 2 COMP publish error: " <> show st' <> " " <> show compprops)
               wtf -> fail ("unexpected packet received in QoS2 publish: " <> show wtf)
+
+dispatch :: PublishConstraint m => Session -> T.MQTTPkt -> MQTTD m ()
+
+dispatch Session{..} T.PingPkt = void $ sendPacketIO _sessionChan T.PongPkt
+
+-- QoS 1 ACK (receiving client got our publish message)
+dispatch sess pkt@(T.PubACKPkt ack) = gotResponse sess (ack ^. pktID) pkt
+
+-- QoS 2 ACK (receiving client received our message)
+dispatch sess pkt@(T.PubRECPkt ack) = gotResponse sess (ack ^. pktID) pkt
+
+-- QoS 2 REL (publishing client says we can ship the message)
+dispatch Session{..} (T.PubRELPkt rel) = do
+  pkt <- atomically $ do
+    (r, m) <- Map.updateLookupWithKey (const.const $ Nothing) (rel ^. pktID) <$> readTVar _sessionQP
+    writeTVar _sessionQP m
+    _ <- sendPacket _sessionChan (T.PubCOMPPkt (T.PubCOMP (rel ^. pktID) (maybe 0x92 (const 0) r) mempty))
+    pure r
+  justM (broadcast (Just _sessionID)) pkt
+
+-- QoS 2 COMPlete (publishing client says publish is complete)
+dispatch sess pkt@(T.PubCOMPPkt ack) = gotResponse sess (ack ^. pktID) pkt
+
+dispatch sess@Session{..} (T.SubscribePkt req@(T.SubscribeRequest pid subs props)) = do
+  subscribe sess req
+  void $ sendPacketIO _sessionChan (T.SubACKPkt (T.SubscribeResponse pid (map (const (Right T.QoS0)) subs) props))
+
+dispatch sess@Session{..} (T.UnsubscribePkt (T.UnsubscribeRequest pid subs props)) = do
+  uns <- unsubscribe sess subs
+  void $ sendPacketIO _sessionChan (T.UnsubACKPkt (T.UnsubscribeResponse pid props uns))
+
+dispatch sess@Session{..} (T.PublishPkt req) = do
+  r@T.PublishRequest{..} <- resolveAliasIn sess req
+  satisfyQoS _pubQoS r
+    where
+      satisfyQoS T.QoS0 r = broadcast (Just _sessionID) r
+      satisfyQoS T.QoS1 r@T.PublishRequest{..} = do
+        sendPacketIO_ _sessionChan (T.PubACKPkt (T.PubACK _pubPktID 0 mempty))
+        broadcast (Just _sessionID) r
+      satisfyQoS T.QoS2 r@T.PublishRequest{..} = atomically $ do
+        void $ sendPacket _sessionChan (T.PubRECPkt (T.PubREC _pubPktID 0 mempty))
+        modifyTVar' _sessionQP (Map.insert _pubPktID r)
+
+dispatch sess (T.DisconnectPkt (T.DisconnectRequest T.DiscoNormalDisconnection _props)) = do
+  let Just sid = sess ^? sessionClient . _Just . clientConnReq . connID
+  modifySession sid (Just . set sessionWill Nothing)
+
+-- TODO: other disconnection types.
+
+dispatch _ x = fail ("unhandled: " <> show x)
