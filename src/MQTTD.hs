@@ -57,6 +57,7 @@ makeLenses ''ConnectedClient
 instance Show ConnectedClient where
   show ConnectedClient{..} = "ConnectedClient " <> show _clientConnReq
 
+-- TODO: Store unACKed messages and redeliver them only upon connect.
 data Session = Session {
   _sessionID      :: BL.ByteString,
   _sessionClient  :: Maybe ConnectedClient,
