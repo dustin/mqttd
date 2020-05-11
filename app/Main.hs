@@ -5,8 +5,8 @@
 module Main where
 
 import           Control.Concurrent       (myThreadId, throwTo)
-import           Control.Concurrent.STM   (check, newTChanIO, orElse, readTBQueue, readTChan, readTVar, registerDelay,
-                                           writeTChan)
+import           Control.Concurrent.STM   (check, modifyTVar', newTChanIO, orElse, readTBQueue, readTChan, readTVar,
+                                           registerDelay, writeTChan, writeTVar)
 import           Control.Lens
 import           Control.Monad            (forever, unless, void, when)
 import qualified Control.Monad.Catch      as E
@@ -20,6 +20,7 @@ import           Data.Conduit.Attoparsec  (conduitParser, sinkParser)
 import qualified Data.Conduit.Combinators as C
 import           Data.Conduit.Network     (AppData, appSink, appSource, runTCPServer, serverSettings)
 import           Data.Conduit.Network.TLS (runGeneralTCPServerTLS, tlsConfig)
+import qualified Data.Map.Strict          as Map
 import qualified Data.UUID                as UUID
 import qualified Network.WebSockets       as WS
 import           System.Random            (randomIO)
@@ -35,7 +36,23 @@ dispatch :: PublishConstraint m => Session -> T.MQTTPkt -> MQTTD m ()
 
 dispatch Session{..} T.PingPkt = void $ sendPacketIO _sessionChan T.PongPkt
 
+-- QoS 1 ACK (receiving client got our publish message)
 dispatch sess pkt@(T.PubACKPkt ack) = gotResponse sess (ack ^. T.pktID) pkt
+
+-- QoS 2 ACK (receiving client received our message)
+dispatch sess pkt@(T.PubRECPkt ack) = gotResponse sess (ack ^. T.pktID) pkt
+
+-- QoS 2 REL (publishing client says we can ship the message)
+dispatch Session{..} (T.PubRELPkt rel) = do
+  pkt <- atomically $ do
+    (r, m) <- Map.updateLookupWithKey (const.const $ Nothing) (rel ^. T.pktID) <$> readTVar _sessionQP
+    writeTVar _sessionQP m
+    _ <- sendPacket _sessionChan (T.PubCOMPPkt (T.PubCOMP (rel ^. T.pktID) (maybe 0x92 (const 0) r) mempty))
+    pure r
+  maybe (pure ()) (broadcast (Just _sessionID)) pkt
+
+-- QoS 2 COMPlete (publishing client says publish is complete)
+dispatch sess pkt@(T.PubCOMPPkt ack) = gotResponse sess (ack ^. T.pktID) pkt
 
 dispatch sess@Session{..} (T.SubscribePkt req@(T.SubscribeRequest pid subs props)) = do
   subscribe sess req
@@ -48,15 +65,14 @@ dispatch sess@Session{..} (T.UnsubscribePkt (T.UnsubscribeRequest pid subs props
 dispatch sess@Session{..} (T.PublishPkt req) = do
   r@T.PublishRequest{..} <- resolveAliasIn sess req
   satisfyQoS _pubQoS r
-  broadcast (Just _sessionID) r
     where
-      satisfyQoS T.QoS0 _ = pure ()
-      satisfyQoS T.QoS1 T.PublishRequest{..} =
-        void $ sendPacketIO _sessionChan (T.PubACKPkt (T.PubACK _pubPktID 0 _pubProps))
-      satisfyQoS T.QoS2 T.PublishRequest{..} =
-        void $ sendPacketIO _sessionChan (T.PubACKPkt (T.PubACK _pubPktID 0x80 _pubProps))
-
--- TODO:  QoS 2
+      satisfyQoS T.QoS0 r = broadcast (Just _sessionID) r
+      satisfyQoS T.QoS1 r@T.PublishRequest{..} = do
+        sendPacketIO_ _sessionChan (T.PubACKPkt (T.PubACK _pubPktID 0 mempty))
+        broadcast (Just _sessionID) r
+      satisfyQoS T.QoS2 r@T.PublishRequest{..} = atomically $ do
+        void $ sendPacket _sessionChan (T.PubRECPkt (T.PubREC _pubPktID 0 mempty))
+        modifyTVar' _sessionQP (Map.insert _pubPktID r)
 
 dispatch sess (T.DisconnectPkt (T.DisconnectRequest T.DiscoNormalDisconnection _props)) = do
   let Just sid = sess ^? sessionClient . _Just . clientConnReq . T.connID

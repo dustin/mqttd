@@ -31,7 +31,7 @@ import           Data.Word              (Word16)
 import           Network.MQTT.Lens
 import qualified Network.MQTT.Topic     as T
 import qualified Network.MQTT.Types     as T
-import           UnliftIO               (MonadUnliftIO (..), atomically, cancel, withAsync)
+import           UnliftIO               (MonadUnliftIO (..), async, atomically, cancel, withAsync)
 
 import           MQTTD.Retention
 import           MQTTD.Util
@@ -61,7 +61,8 @@ data Session = Session {
   _sessionID      :: BL.ByteString,
   _sessionClient  :: Maybe ConnectedClient,
   _sessionChan    :: PktQueue,
-  _sessionResp    :: TVar (Map Word16 (TChan T.MQTTPkt)),
+  _sessionResp    :: TVar (Map T.PktID (TChan T.MQTTPkt)),
+  _sessionQP      :: TVar (Map T.PktID (T.PublishRequest)),
   _sessionSubs    :: TVar (Map T.Filter T.SubOptions),
   _sessionExpires :: Maybe UTCTime,
   _sessionWill    :: Maybe T.LastWill
@@ -185,11 +186,12 @@ registerClient req@T.ConnectRequest{..} i o = do
   (o', x, ns) <- atomically $ do
     ch <- newTBQueue 1000
     rm <- newTVar mempty
+    q2 <- newTVar mempty
     m <- readTVar c
     subz <- newTVar mempty
     let s = Map.lookup k m
         o' = _sessionClient =<< s
-        (ns, ruse) = maybeClean ch rm subz nc s
+        (ns, ruse) = maybeClean ch rm q2 subz nc s
     writeTVar c (Map.insert k ns m)
     pure (o', ruse, ns)
   case o' of
@@ -198,9 +200,9 @@ registerClient req@T.ConnectRequest{..} i o = do
   pure (ns, x)
 
     where
-      maybeClean ch rm subz nc Nothing = (Session _connID (Just nc) ch rm subz Nothing _lastWill, T.NewSession)
-      maybeClean ch rm subz nc (Just s)
-        | _cleanSession = (Session _connID (Just nc) ch rm subz Nothing _lastWill, T.NewSession)
+      maybeClean ch rm q2 subz nc Nothing = (Session _connID (Just nc) ch rm q2 subz Nothing _lastWill, T.NewSession)
+      maybeClean ch rm q2 subz nc (Just s)
+        | _cleanSession = (Session _connID (Just nc) ch rm q2 subz Nothing _lastWill, T.NewSession)
         | otherwise = (s{_sessionClient=Just nc,
                          _sessionExpires=Nothing,
                          _sessionResp=rm,
@@ -286,6 +288,7 @@ nextPktID x = do
   modifyTVar' x $ \pid -> if pid == maxBound then 1 else succ pid
   readTVar x
 
+-- TODO:  Can this be done in STM?
 broadcast :: PublishConstraint m => Maybe BL.ByteString -> T.PublishRequest -> MQTTD m ()
 broadcast src req@T.PublishRequest{..} = do
   asks persistence >>= retain req
@@ -306,10 +309,14 @@ broadcast src req@T.PublishRequest{..} = do
     mightRetain _ = _pubRetain
 
 publish :: PublishConstraint m => Session -> T.PublishRequest -> MQTTD m ()
+publish Session{..} pkt@T.PublishRequest{_pubQoS=T.QoS0} =
+  -- QoS 0 is special-cased because it's fire-and-forget with no retries or anything.
+  sendPacketIO_ _sessionChan (T.PublishPkt pkt)
 publish Session{..} pkt = do
   ch <- atomically newTChan
   let pid = pkt ^. pktID
-  bracket_ (observe pid ch) (ignore pid) (publishAndWait ch)
+  -- TODO:  Terminate when connection dies.
+  void . async $ bracket_ (observe pid ch) (ignore pid) (publishAndWait ch)
 
     where
       observe pid ch = atomically $ modifyTVar' _sessionResp (Map.insert pid ch)
@@ -317,7 +324,7 @@ publish Session{..} pkt = do
 
       publishAndWait _
         | pkt ^. pubQoS == T.QoS0 = sendPacketIO_ _sessionChan (T.PublishPkt pkt)
-      publishAndWait ch   = withAsync (pub pkt) (\p -> satisfyQoS p ch (pkt ^. pubQoS))
+      publishAndWait ch = withAsync (pub pkt) (\p -> satisfyQoS p ch (pkt ^. pubQoS))
 
       pub p = do
         sendPacketIO_ _sessionChan (T.PublishPkt p)
