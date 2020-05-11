@@ -18,6 +18,7 @@ import qualified Data.ByteString.Lazy     as BL
 import           Data.Conduit             (ConduitT, Void, await, runConduit, yield, (.|))
 import           Data.Conduit.Attoparsec  (conduitParser, sinkParser)
 import qualified Data.Conduit.Combinators as C
+import           Data.Conduit.Network     (AppData, appSink, appSource)
 import qualified Data.UUID                as UUID
 import qualified Network.MQTT.Types       as T
 import qualified Network.WebSockets       as WS
@@ -94,3 +95,7 @@ webSocketsApp pc = do
       unless (BCS.null bs) $ yield bs
 
     wsSink ws = justM (\bs -> liftIO (WS.sendBinaryData ws bs) >> wsSink ws) =<< await
+
+
+tcpApp :: PublishConstraint m => AppData -> MQTTD m ()
+tcpApp ad = runMQTTDConduit (appSource ad, appSink ad)
