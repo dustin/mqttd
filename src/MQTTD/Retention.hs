@@ -2,7 +2,7 @@ module MQTTD.Retention where
 
 import           Control.Concurrent.STM (TVar, modifyTVar', newTVarIO, readTVar)
 import           Control.Lens
-import           Control.Monad          (when)
+import           Control.Monad          (when, (<=<))
 import           Control.Monad.IO.Class (MonadIO (..))
 import           Control.Monad.Logger   (MonadLogger (..), logDebugN)
 import qualified Data.ByteString.Lazy   as BL
@@ -12,7 +12,7 @@ import           Data.Time.Clock        (UTCTime (..), addUTCTime, diffUTCTime, 
 import           Network.MQTT.Lens
 import qualified Network.MQTT.Topic     as T
 import qualified Network.MQTT.Types     as T
-import           UnliftIO               (MonadUnliftIO (..), atomically)
+import           UnliftIO               (MonadUnliftIO (..), atomically, readTVarIO)
 
 import           MQTTD.Util
 import qualified Scheduler
@@ -38,7 +38,7 @@ cleanPersistence Persistence{..} = Scheduler.run cleanup _qrunner
         now <- liftIO getCurrentTime
         logDebugN ("Probably removing persisted item: " <> tshow k)
         atomically $ do
-          r <- (_retainExp =<<) . Map.lookup k <$> readTVar _store
+          r <- (_retainExp <=< Map.lookup k) <$> readTVar _store
           when (r < Just now) $ modifyTVar' _store (Map.delete k)
 
 retain :: (MonadLogger m, MonadIO m) => T.PublishRequest -> Persistence -> m ()
@@ -57,7 +57,7 @@ retain pr@T.PublishRequest{..} Persistence{..} = do
 matchRetained :: MonadIO m => Persistence -> T.Filter -> m [T.PublishRequest]
 matchRetained Persistence{..} f = do
   now <- liftIO getCurrentTime
-  fmap (adj now) . filter match . Map.elems <$> atomically (readTVar _store)
+  fmap (adj now) . filter match . Map.elems <$> readTVarIO _store
 
   where
     match = T.match f . blToText . T._pubTopic . _retainMsg

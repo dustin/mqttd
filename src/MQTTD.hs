@@ -31,7 +31,7 @@ import           Data.Word              (Word16)
 import           Network.MQTT.Lens
 import qualified Network.MQTT.Topic     as T
 import qualified Network.MQTT.Types     as T
-import           UnliftIO               (MonadUnliftIO (..), async, atomically, cancel, withAsync)
+import           UnliftIO               (MonadUnliftIO (..), async, atomically, cancel, readTVarIO, withAsync)
 
 import           MQTTD.Retention
 import           MQTTD.Util
@@ -62,7 +62,7 @@ data Session = Session {
   _sessionClient  :: Maybe ConnectedClient,
   _sessionChan    :: PktQueue,
   _sessionResp    :: TVar (Map T.PktID (TChan T.MQTTPkt)),
-  _sessionQP      :: TVar (Map T.PktID (T.PublishRequest)),
+  _sessionQP      :: TVar (Map T.PktID T.PublishRequest),
   _sessionSubs    :: TVar (Map T.Filter T.SubOptions),
   _sessionExpires :: Maybe UTCTime,
   _sessionWill    :: Maybe T.LastWill
@@ -110,7 +110,7 @@ persistenceCleanup :: (MonadUnliftIO m, MonadLogger m) => MQTTD m ()
 persistenceCleanup = asks persistence >>= cleanPersistence
 
 gotResponse :: MonadIO m => Session -> T.PktID -> T.MQTTPkt -> MQTTD m ()
-gotResponse Session{..} i p = atomically $ justM (`writeTChan` p) =<< Map.lookup i <$> readTVar _sessionResp
+gotResponse Session{..} i p = atomically $ justM (`writeTChan` p) . Map.lookup i =<< readTVar _sessionResp
 
 resolveAliasIn :: MonadIO m => Session -> T.PublishRequest -> m T.PublishRequest
 resolveAliasIn Session{_sessionClient=Nothing} r = pure r
@@ -132,12 +132,12 @@ resolveAliasIn Session{_sessionClient=Just ConnectedClient{_clientAliasIn}} r =
 findSubs :: MonadIO m => T.Topic -> MQTTD m [(Session, T.SubOptions)]
 findSubs t = do
   ss <- asks sessions
-  sess <- Map.elems <$> atomically (readTVar ss)
+  sess <- Map.elems <$> readTVarIO ss
   mconcat <$> traverse sessTopic sess
 
   where
     sessTopic sess@Session{..} = foldMap (\(m,o) -> [(sess, o) | T.match m t]
-                                         ) . Map.assocs <$> atomically (readTVar _sessionSubs)
+                                         ) . Map.assocs <$> readTVarIO _sessionSubs
 
 subscribe :: PublishConstraint m => Session -> T.SubscribeRequest -> MQTTD m ()
 subscribe sess@Session{..} (T.SubscribeRequest _ topics _props) = do
