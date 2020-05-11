@@ -110,9 +110,7 @@ persistenceCleanup :: (MonadUnliftIO m, MonadLogger m) => MQTTD m ()
 persistenceCleanup = asks persistence >>= cleanPersistence
 
 gotResponse :: MonadIO m => Session -> T.PktID -> T.MQTTPkt -> MQTTD m ()
-gotResponse Session{..} i p = atomically $ do
-  mch <- Map.lookup i <$> readTVar _sessionResp
-  maybe (pure ()) (`writeTChan` p) mch
+gotResponse Session{..} i p = atomically $ justM (`writeTChan` p) =<< Map.lookup i <$> readTVar _sessionResp
 
 resolveAliasIn :: MonadIO m => Session -> T.PublishRequest -> m T.PublishRequest
 resolveAliasIn Session{_sessionClient=Nothing} r = pure r
@@ -294,7 +292,7 @@ broadcast src req@T.PublishRequest{..} = do
   asks persistence >>= retain req
   subs <- findSubs (blToText _pubTopic)
   pid <- atomically . nextPktID =<< asks lastPktID
-  mapM_ (\(s@Session{..}, o) -> maybe (pure ()) (publish s) (pkt _sessionID o pid)) subs
+  mapM_ (\(s@Session{..}, o) -> justM (publish s) (pkt _sessionID o pid)) subs
   where
     pkt sid T.SubOptions{T._noLocal=True} _
       | Just sid == src = Nothing

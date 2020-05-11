@@ -50,7 +50,7 @@ retain pr@T.PublishRequest{..} Persistence{..} = do
   logDebugN ("Persisting " <> tshow _pubTopic)
   let e = pr ^? properties . folded . _PropMessageExpiryInterval . to (absExp now)
   atomically $ modifyTVar' _store (Map.insert _pubTopic (Retained now e pr))
-  maybe (pure ()) (\t -> Scheduler.enqueue t _pubTopic _qrunner) e
+  justM (\t -> Scheduler.enqueue t _pubTopic _qrunner) e
 
     where absExp now secs = addUTCTime (fromIntegral secs) now
 

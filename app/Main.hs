@@ -49,7 +49,7 @@ dispatch Session{..} (T.PubRELPkt rel) = do
     writeTVar _sessionQP m
     _ <- sendPacket _sessionChan (T.PubCOMPPkt (T.PubCOMP (rel ^. T.pktID) (maybe 0x92 (const 0) r) mempty))
     pure r
-  maybe (pure ()) (broadcast (Just _sessionID)) pkt
+  justM (broadcast (Just _sessionID)) pkt
 
 -- QoS 2 COMPlete (publishing client says publish is complete)
 dispatch sess pkt@(T.PubCOMPPkt ack) = gotResponse sess (ack ^. T.pktID) pkt
@@ -151,7 +151,7 @@ handleWS pc = do
       bs <- liftIO $ WS.receiveData ws
       unless (BCS.null bs) $ yield bs
 
-    wsSink ws = maybe (pure ()) (\bs -> liftIO (WS.sendBinaryData ws bs) >> wsSink ws) =<< await
+    wsSink ws = justM (\bs -> liftIO (WS.sendBinaryData ws bs) >> wsSink ws) =<< await
 
 main :: IO ()
 main = do
