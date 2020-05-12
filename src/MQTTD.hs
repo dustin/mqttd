@@ -193,6 +193,7 @@ registerClient req@T.ConnectRequest{..} i o = do
   pure (ns, x)
 
     where
+      -- TODO: Default expiration?
       maybeClean ch q2 subz nc Nothing = (Session _connID (Just nc) ch q2 subz Nothing _lastWill, T.NewSession)
       maybeClean ch q2 subz nc (Just s)
         | _cleanSession = (Session _connID (Just nc) ch q2 subz Nothing _lastWill, T.NewSession)
