@@ -44,7 +44,6 @@ instance Exception MQTTException
 type PktQueue = TBQueue T.MQTTPkt
 type ClientID = Int
 
--- TODO:  Outbound aliases.
 data ConnectedClient = ConnectedClient {
   _clientConnReq :: T.ConnectRequest,
   _clientThread  :: ThreadId,

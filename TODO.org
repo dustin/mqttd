@@ -1,0 +1,5 @@
+* Nice to have [0/4]
+** TODO [ ] Config file
+** TODO [ ] Outbound aliases
+** TODO [ ] Authentication
+** TODO [ ] Will delay
