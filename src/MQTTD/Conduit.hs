@@ -47,12 +47,12 @@ runMQTTDConduit (src,sink) = runConduit $ do
       (sess@Session{_sessionID, _sessionChan}, existing) <- registerClient req cid tid
       let cprops = [ T.PropTopicAliasMaximum 100 ] <> [ T.PropAssignedClientIdentifier i | Just i <- [nid] ]
       deliverConnACK pl existing cprops
-      retransmit sess
 
       wdch <- liftIO newTChanIO
       w <- async $ watchdog (3 * seconds (fromIntegral _keepAlive)) wdch _sessionID tid
       o <- async $ processOut pl _sessionChan
       i <- async $ E.finally (runIn wdch sess pl) (teardown cid req)
+      retransmit sess
       void $ waitAnyCancel [i, o, w]
 
     run _ _ pkt _ = fail ("Unhandled start packet: " <> show pkt)
