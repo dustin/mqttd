@@ -272,6 +272,9 @@ sendPacket ch p = do
   unless full $ writeTBQueue ch p
   pure full
 
+sendPacket_ :: PktQueue -> T.MQTTPkt -> STM ()
+sendPacket_ q = void . sendPacket q
+
 sendPacketIO :: MonadIO m => PktQueue -> T.MQTTPkt -> m Bool
 sendPacketIO ch = atomically . sendPacket ch
 
@@ -308,11 +311,11 @@ publish Session{..} pkt@T.PublishRequest{_pubQoS=T.QoS0} =
   sendPacketIO_ _sessionChan (T.PublishPkt pkt)
 publish Session{..} pkt = atomically $ do
   modifyTVar' _sessionQP $ Map.insert (pkt ^. pktID) pkt
-  void $ sendPacket _sessionChan (T.PublishPkt pkt)
+  sendPacket_ _sessionChan (T.PublishPkt pkt)
 
 dispatch :: PublishConstraint m => Session -> T.MQTTPkt -> MQTTD m ()
 
-dispatch Session{..} T.PingPkt = void $ sendPacketIO _sessionChan T.PongPkt
+dispatch Session{..} T.PingPkt = sendPacketIO_ _sessionChan T.PongPkt
 
 -- QoS 1 ACK (receiving client got our publish message)
 dispatch Session{..} (T.PubACKPkt ack) = atomically $ modifyTVar' _sessionQP (Map.delete (ack ^. pktID))
@@ -320,7 +323,7 @@ dispatch Session{..} (T.PubACKPkt ack) = atomically $ modifyTVar' _sessionQP (Ma
 -- QoS 2 ACK (receiving client received our message)
 dispatch Session{..} (T.PubRECPkt ack) = atomically $ do
   modifyTVar' _sessionQP (Map.delete (ack ^. pktID))
-  void $ sendPacket _sessionChan (T.PubRELPkt $ T.PubREL (ack ^. pktID) 0 mempty)
+  sendPacket_ _sessionChan (T.PubRELPkt $ T.PubREL (ack ^. pktID) 0 mempty)
 
 -- QoS 2 REL (publishing client says we can ship the message)
 dispatch Session{..} (T.PubRELPkt rel) = do
@@ -336,11 +339,11 @@ dispatch _ (T.PubCOMPPkt _) = pure ()
 
 dispatch sess@Session{..} (T.SubscribePkt req@(T.SubscribeRequest pid subs props)) = do
   subscribe sess req
-  void $ sendPacketIO _sessionChan (T.SubACKPkt (T.SubscribeResponse pid (map (const (Right T.QoS0)) subs) props))
+  sendPacketIO_ _sessionChan (T.SubACKPkt (T.SubscribeResponse pid (map (const (Right T.QoS0)) subs) props))
 
 dispatch sess@Session{..} (T.UnsubscribePkt (T.UnsubscribeRequest pid subs props)) = do
   uns <- unsubscribe sess subs
-  void $ sendPacketIO _sessionChan (T.UnsubACKPkt (T.UnsubscribeResponse pid props uns))
+  sendPacketIO_ _sessionChan (T.UnsubACKPkt (T.UnsubscribeResponse pid props uns))
 
 dispatch sess@Session{..} (T.PublishPkt req) = do
   r@T.PublishRequest{..} <- resolveAliasIn sess req
@@ -351,7 +354,7 @@ dispatch sess@Session{..} (T.PublishPkt req) = do
         sendPacketIO_ _sessionChan (T.PubACKPkt (T.PubACK _pubPktID 0 mempty))
         broadcast (Just _sessionID) r
       satisfyQoS T.QoS2 r@T.PublishRequest{..} = atomically $ do
-        void $ sendPacket _sessionChan (T.PubRECPkt (T.PubREC _pubPktID 0 mempty))
+        sendPacket_ _sessionChan (T.PubRECPkt (T.PubREC _pubPktID 0 mempty))
         modifyTVar' _sessionQP (Map.insert _pubPktID r)
 
 dispatch sess (T.DisconnectPkt (T.DisconnectRequest T.DiscoNormalDisconnection _props)) = do
