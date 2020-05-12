@@ -6,8 +6,8 @@
 module MQTTD.Conduit where
 
 import           Control.Concurrent       (myThreadId, throwTo)
-import           Control.Concurrent.STM   (check, newTChanIO, orElse, readTBQueue, readTChan, readTVar, registerDelay,
-                                           writeTChan)
+import           Control.Concurrent.STM   (check, flushTBQueue, newTChanIO, orElse, readTBQueue, readTChan, readTVar,
+                                           registerDelay, writeTBQueue, writeTChan)
 import           Control.Monad            (forever, unless, void, when)
 import qualified Control.Monad.Catch      as E
 import           Control.Monad.IO.Class   (MonadIO (..))
@@ -94,8 +94,11 @@ runMQTTDConduit (src,sink) = runConduit $ do
         liftIO $ throwTo t MQTTPingTimeout
 
     retransmit Session{..} = atomically $ do
+      mapM_ (writeTBQueue _sessionChan) =<< (filter (not . pubPkt) <$> flushTBQueue _sessionChan)
       mapM_ rt . Map.elems =<< readTVar _sessionQP
         where rt p = sendPacket _sessionChan (T.PublishPkt p{T._pubDup=True})
+              pubPkt (T.PublishPkt _) = True
+              pubPkt _                = False
 
 webSocketsApp :: PublishConstraint m => WS.PendingConnection -> MQTTD m ()
 webSocketsApp pc = do
