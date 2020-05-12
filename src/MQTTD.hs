@@ -26,7 +26,7 @@ import qualified Data.ByteString.Lazy   as BL
 import           Data.Foldable          (foldl')
 import           Data.Map.Strict        (Map)
 import qualified Data.Map.Strict        as Map
-import           Data.Time.Clock        (UTCTime (..), addUTCTime, getCurrentTime)
+import           Data.Time.Clock        (NominalDiffTime, UTCTime (..), addUTCTime, getCurrentTime)
 import           Data.Word              (Word16)
 import           Network.MQTT.Lens
 import qualified Network.MQTT.Topic     as T
@@ -193,7 +193,6 @@ registerClient req@T.ConnectRequest{..} i o = do
   pure (ns, x)
 
     where
-      -- TODO: Default expiration?
       maybeClean ch q2 subz nc Nothing = (Session _connID (Just nc) ch q2 subz Nothing _lastWill, T.NewSession)
       maybeClean ch q2 subz nc (Just s)
         | _cleanSession = (Session _connID (Just nc) ch q2 subz Nothing _lastWill, T.NewSession)
@@ -247,6 +246,9 @@ expireSession k = do
                             T._pubBody=_willMsg,
                             T._pubProps=[]})
 
+defaultSessionExp :: NominalDiffTime
+defaultSessionExp = 300
+
 unregisterClient :: (MonadLogger m, MonadMask m, MonadFail m, MonadUnliftIO m, MonadIO m) => BL.ByteString -> ClientID -> MQTTD m ()
 unregisterClient k mid = do
   now <- liftIO getCurrentTime
@@ -258,8 +260,12 @@ unregisterClient k mid = do
       up now sess@Session{_sessionClient=Just cc@ConnectedClient{_clientID=i}}
         | mid == i =
           case cc ^? clientConnReq . properties . folded . _PropSessionExpiryInterval of
-            Nothing -> Nothing
-            Just 0  -> Nothing
+            -- Default expiry
+            Nothing -> Just $ sess{_sessionExpires=Just (addUTCTime defaultSessionExp now),
+                                   _sessionClient=Nothing}
+            -- Specifically destroy now
+            Just 0 -> Nothing
+            -- Hold on for maybe a bit.
             Just x  -> Just $ sess{_sessionExpires=Just (addUTCTime (fromIntegral x) now),
                                    _sessionClient=Nothing}
       up _ s = Just s
