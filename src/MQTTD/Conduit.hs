@@ -51,13 +51,13 @@ runMQTTDConduit (src,sink) = runConduit $ do
       wdch <- liftIO newTChanIO
       w <- async $ watchdog (3 * seconds (fromIntegral _keepAlive)) wdch _sessionID tid
       o <- async $ processOut pl _sessionChan
-      i <- async $ E.finally (runIn wdch sess pl) (teardown cid req)
+      i <- async $ E.finally (processIn wdch sess pl) (teardown cid req)
       retransmit sess
       void $ waitAnyCancel [i, o, w]
 
     run _ _ pkt _ = fail ("Unhandled start packet: " <> show pkt)
 
-    runIn wdch sess pl = runConduit $ src
+    processIn wdch sess pl = runConduit $ src
         .| conduitParser (T.parsePacket pl)
         .| C.mapM (\i@(_,x) -> logDebugN ("<< " <> tshow x) >> pure i)
         .| C.mapM_ (\(_,x) -> feed wdch >> dispatch sess x)
