@@ -12,7 +12,7 @@
 
 module MQTTD where
 
-import           Control.Concurrent     (ThreadId, threadDelay, throwTo)
+import           Control.Concurrent     (ThreadId, throwTo)
 import           Control.Concurrent.STM (STM, TBQueue, TVar, isFullTBQueue, modifyTVar', newTBQueue, newTVar, newTVarIO,
                                          readTVar, writeTBQueue, writeTVar)
 import           Control.Lens
@@ -92,9 +92,6 @@ newEnv = liftIO $ Env <$> newTVarIO mempty <*> newTVarIO 1 <*> newTVarIO 0 <*> S
 
 seconds :: Num p => p -> p
 seconds = (1000000 *)
-
-sleep :: MonadIO m => Int -> m ()
-sleep secs = liftIO (threadDelay (seconds secs))
 
 nextID :: MonadIO m => MQTTD m Int
 nextID = asks clientIDGen >>= \ig -> atomically $ modifyTVar' ig (+1) >> readTVar ig
