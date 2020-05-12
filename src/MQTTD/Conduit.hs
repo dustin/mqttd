@@ -19,6 +19,7 @@ import           Data.Conduit             (ConduitT, Void, await, runConduit, yi
 import           Data.Conduit.Attoparsec  (conduitParser, sinkParser)
 import qualified Data.Conduit.Combinators as C
 import           Data.Conduit.Network     (AppData, appSink, appSource)
+import qualified Data.Map.Strict          as Map
 import qualified Data.UUID                as UUID
 import qualified Network.MQTT.Types       as T
 import qualified Network.WebSockets       as WS
@@ -45,7 +46,8 @@ runMQTTDConduit (src,sink) = runConduit $ do
       tid <- liftIO myThreadId
       (sess@Session{_sessionID, _sessionChan}, existing) <- registerClient req cid tid
       let cprops = [ T.PropTopicAliasMaximum 100 ] <> [ T.PropAssignedClientIdentifier i | Just i <- [nid] ]
-      sendPacketIO _sessionChan (T.ConnACKPkt $ T.ConnACKFlags existing T.ConnAccepted cprops)
+      deliverConnACK pl existing cprops
+      retransmit sess
 
       wdch <- liftIO newTChanIO
       w <- async $ watchdog (3 * seconds (fromIntegral _keepAlive)) wdch _sessionID tid
@@ -53,16 +55,23 @@ runMQTTDConduit (src,sink) = runConduit $ do
       i <- async $ E.finally (runIn wdch sess pl) (teardown cid req)
       void $ waitAnyCancel [i, o, w]
 
+    run _ _ pkt _ = fail ("Unhandled start packet: " <> show pkt)
+
     runIn wdch sess pl = runConduit $ src
         .| conduitParser (T.parsePacket pl)
         .| C.mapM (\i@(_,x) -> logDebugN ("<< " <> tshow x) >> pure i)
         .| C.mapM_ (\(_,x) -> feed wdch >> dispatch sess x)
 
+
+    commonOut pl = C.mapM (\x -> logDebugN (">> " <> tshow x) >> pure x)
+                   .| C.map (BL.toStrict . T.toByteString pl)
+                   .| sink
+
+    deliverConnACK pl existing cprops = runConduit $
+      yield (T.ConnACKPkt $ T.ConnACKFlags existing T.ConnAccepted cprops) .| commonOut pl
+
     processOut pl ch = runConduit $
-      C.repeatM (atomically $ readTBQueue ch)
-      .| C.mapM (\x -> logDebugN (">> " <> tshow x) >> pure x)
-      .| C.map (BL.toStrict . T.toByteString pl)
-      .| sink
+      C.repeatM (atomically $ readTBQueue ch) .| commonOut pl
 
     teardown :: ClientID -> T.ConnectRequest -> MQTTD m ()
     teardown cid c@T.ConnectRequest{..} = do
@@ -84,6 +93,10 @@ runMQTTDConduit (src,sink) = runConduit $ do
         logInfoN ("Client with session " <> tshow sid <> " timed out")
         liftIO $ throwTo t MQTTPingTimeout
 
+    retransmit Session{..} = atomically $ do
+      mapM_ rt . Map.elems =<< readTVar _sessionQP
+        where rt p = sendPacket _sessionChan (T.PublishPkt p{T._pubDup=True})
+
 webSocketsApp :: PublishConstraint m => WS.PendingConnection -> MQTTD m ()
 webSocketsApp pc = do
   conn <- liftIO $ WS.acceptRequest pc
@@ -95,7 +108,6 @@ webSocketsApp pc = do
       unless (BCS.null bs) $ yield bs
 
     wsSink ws = justM (\bs -> liftIO (WS.sendBinaryData ws bs) >> wsSink ws) =<< await
-
 
 tcpApp :: PublishConstraint m => AppData -> MQTTD m ()
 tcpApp ad = runMQTTDConduit (appSource ad, appSink ad)
