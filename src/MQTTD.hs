@@ -365,6 +365,4 @@ dispatch sess (T.DisconnectPkt (T.DisconnectRequest T.DiscoNormalDisconnection _
 
 dispatch _ (T.DisconnectPkt (T.DisconnectRequest T.DiscoDisconnectWithWill _props)) = pure ()
 
--- TODO: other disconnection types.
-
 dispatch _ x = fail ("unhandled: " <> show x)
