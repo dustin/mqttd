@@ -184,7 +184,7 @@ registerClient req@T.ConnectRequest{..} i o = do
     subz <- newTVar mempty
     let s = Map.lookup k m
         o' = _sessionClient =<< s
-        (ns, ruse) = maybeClean ch q2 subz nc s
+        (ns, ruse) = maybeClean (Session _connID (Just nc) ch q2 subz Nothing _lastWill) s
     writeTVar c (Map.insert k ns m)
     pure (o', ruse, ns)
   case o' of
@@ -193,11 +193,12 @@ registerClient req@T.ConnectRequest{..} i o = do
   pure (ns, x)
 
     where
-      maybeClean ch q2 subz nc Nothing = (Session _connID (Just nc) ch q2 subz Nothing _lastWill, T.NewSession)
-      maybeClean ch q2 subz nc (Just s)
-        | _cleanSession = (Session _connID (Just nc) ch q2 subz Nothing _lastWill, T.NewSession)
-        | otherwise = (s{_sessionClient=Just nc,
+      maybeClean ns Nothing = (ns, T.NewSession)
+      maybeClean ns (Just s)
+        | _cleanSession = (ns, T.NewSession)
+        | otherwise = (s{_sessionClient=_sessionClient ns,
                          _sessionExpires=Nothing,
+                         _sessionChan=_sessionChan ns,
                          _sessionWill=_lastWill}, T.ExistingSession)
 
 expireSession :: PublishConstraint m => BL.ByteString -> MQTTD m ()
