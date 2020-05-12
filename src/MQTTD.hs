@@ -174,13 +174,12 @@ registerClient req@T.ConnectRequest{..} i o = do
   let k = _connID
       nc = ConnectedClient req o i ai
   (o', x, ns) <- atomically $ do
-    ch <- newTBQueue 1000
-    q2 <- newTVar mempty
+    emptySession <- Session _connID (Just nc) <$> newTBQueue 1000 <*> newTVar mempty <*> newTVar mempty
+                    <*> pure Nothing <*> pure _lastWill
     m <- readTVar c
-    subz <- newTVar mempty
     let s = Map.lookup k m
         o' = _sessionClient =<< s
-        (ns, ruse) = maybeClean (Session _connID (Just nc) ch q2 subz Nothing _lastWill) s
+        (ns, ruse) = maybeClean emptySession s
     writeTVar c (Map.insert k ns m)
     pure (o', ruse, ns)
   case o' of
