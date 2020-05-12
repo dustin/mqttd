@@ -362,6 +362,8 @@ dispatch sess (T.DisconnectPkt (T.DisconnectRequest T.DiscoNormalDisconnection _
   let Just sid = sess ^? sessionClient . _Just . clientConnReq . connID
   modifySession sid (Just . set sessionWill Nothing)
 
+dispatch _ (T.DisconnectPkt (T.DisconnectRequest T.DiscoDisconnectWithWill _props)) = pure ()
+
 -- TODO: other disconnection types.
 
 dispatch _ x = fail ("unhandled: " <> show x)
