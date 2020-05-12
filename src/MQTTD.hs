@@ -281,7 +281,6 @@ nextPktID x = do
   modifyTVar' x $ \pid -> if pid == maxBound then 1 else succ pid
   readTVar x
 
--- TODO:  Can this be done in STM?
 broadcast :: PublishConstraint m => Maybe BL.ByteString -> T.PublishRequest -> MQTTD m ()
 broadcast src req@T.PublishRequest{..} = do
   asks persistence >>= retain req
