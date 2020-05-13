@@ -26,6 +26,7 @@ import qualified Data.ByteString.Lazy   as BL
 import           Data.Foldable          (foldl')
 import           Data.Map.Strict        (Map)
 import qualified Data.Map.Strict        as Map
+import           Data.Maybe             (fromMaybe)
 import           Data.Time.Clock        (NominalDiffTime, UTCTime (..), addUTCTime, getCurrentTime)
 import           Data.Word              (Word16)
 import           Network.MQTT.Lens
@@ -45,10 +46,12 @@ type PktQueue = TBQueue T.MQTTPkt
 type ClientID = Int
 
 data ConnectedClient = ConnectedClient {
-  _clientConnReq :: T.ConnectRequest,
-  _clientThread  :: ThreadId,
-  _clientID      :: ClientID,
-  _clientAliasIn :: TVar (Map Word16 BL.ByteString)
+  _clientConnReq  :: T.ConnectRequest,
+  _clientThread   :: ThreadId,
+  _clientID       :: ClientID,
+  _clientAliasIn  :: TVar (Map Word16 BL.ByteString),
+  _clientAliasOut :: TVar (Map BL.ByteString Word16),
+  _clientALeft    :: TVar Word16
   }
 
 makeLenses ''ConnectedClient
@@ -171,8 +174,10 @@ registerClient :: MonadIO m => T.ConnectRequest -> ClientID -> ThreadId -> MQTTD
 registerClient req@T.ConnectRequest{..} i o = do
   c <- asks sessions
   ai <- liftIO $ newTVarIO mempty
+  ao <- liftIO $ newTVarIO mempty
+  l <- liftIO $ newTVarIO (fromMaybe 0 (req ^? properties . folded . _PropTopicAliasMaximum))
   let k = _connID
-      nc = ConnectedClient req o i ai
+      nc = ConnectedClient req o i ai ao l
   (o', x, ns) <- atomically $ do
     emptySession <- Session _connID (Just nc) <$> newTBQueue 1000 <*> newTVar mempty <*> newTVar mempty
                     <*> pure Nothing <*> pure _lastWill
@@ -306,12 +311,23 @@ broadcast src req@T.PublishRequest{..} = do
     mightRetain _ = _pubRetain
 
 publish :: PublishConstraint m => Session -> T.PublishRequest -> MQTTD m ()
-publish Session{..} pkt@T.PublishRequest{_pubQoS=T.QoS0} =
+publish Session{..} pkt@T.PublishRequest{..} = atomically $ do
   -- QoS 0 is special-cased because it's fire-and-forget with no retries or anything.
-  sendPacketIO_ _sessionChan (T.PublishPkt pkt)
-publish Session{..} pkt = atomically $ do
-  modifyTVar' _sessionQP $ Map.insert (pkt ^. pktID) pkt
-  sendPacket_ _sessionChan (T.PublishPkt pkt)
+  when (_pubQoS /= T.QoS0) $ modifyTVar' _sessionQP $ Map.insert (pkt ^. pktID) pkt
+  p <- maybe (pure pkt) (`aliasOut` pkt) _sessionClient
+  sendPacket_ _sessionChan (T.PublishPkt p)
+
+aliasOut :: ConnectedClient -> T.PublishRequest -> STM T.PublishRequest
+aliasOut ConnectedClient{..} pkt@T.PublishRequest{..} =
+  maybe allocate existing . Map.lookup _pubTopic =<< readTVar _clientAliasOut
+    where
+      existing n = pure pkt{T._pubTopic="", T._pubProps=T.PropTopicAlias n:_pubProps}
+      allocate = readTVar _clientALeft >>= \l ->
+        if l == 0 then pure pkt
+        else do
+          modifyTVar' _clientALeft pred
+          modifyTVar' _clientAliasOut (Map.insert _pubTopic l)
+          pure pkt{T._pubProps=T.PropTopicAlias l:_pubProps}
 
 dispatch :: PublishConstraint m => Session -> T.MQTTPkt -> MQTTD m ()
 
@@ -339,7 +355,7 @@ dispatch _ (T.PubCOMPPkt _) = pure ()
 
 dispatch sess@Session{..} (T.SubscribePkt req@(T.SubscribeRequest pid subs props)) = do
   subscribe sess req
-  sendPacketIO_ _sessionChan (T.SubACKPkt (T.SubscribeResponse pid (map (const (Right T.QoS0)) subs) props))
+  sendPacketIO_ _sessionChan (T.SubACKPkt (T.SubscribeResponse pid (map (Right . T._subQoS . snd) subs) props))
 
 dispatch sess@Session{..} (T.UnsubscribePkt (T.UnsubscribeRequest pid subs props)) = do
   uns <- unsubscribe sess subs
