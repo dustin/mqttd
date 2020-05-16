@@ -44,6 +44,7 @@ dependencies:
 - unliftio
 - random
 - uuid
+- megaparsec
 
 library:
   source-dirs: src
