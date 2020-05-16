@@ -1,8 +1,8 @@
 module MQTTD.Config (Config(..), Listener(..), parseConfFile) where
 
-import           Control.Applicative        ((<|>))
 import           Control.Monad              (void)
 import           Data.Conduit.Network       (HostPreference)
+import           Data.Foldable              (asum)
 import           Data.String                (IsString (..))
 import           Data.Text                  (Text, pack)
 import           Data.Void                  (Void)
@@ -20,12 +20,12 @@ type PortNumber = Int
 data Listener = MQTTListener HostPreference PortNumber
               | MQTTSListener HostPreference PortNumber FilePath FilePath
               | WSListener ListenAddress PortNumber
-              deriving Show
+              deriving (Show, Eq)
 
 data Config = Config {
   _confDebug     :: Bool,
   _confListeners :: [Listener]
-  } deriving Show
+  } deriving (Show, Eq)
 
 sc :: Parser ()
 sc = L.space s (L.skipLineComment "#" <* space) (L.skipBlockComment "/*" "*/")
@@ -41,7 +41,7 @@ qstr :: IsString a => Parser a
 qstr = fromString <$> (char '"' >> manyTill L.charLiteral (char '"'))
 
 parseListener :: Parser Listener
-parseListener = symbol "listener" *> (try mqtt <|> try mqtts <|> ws)
+parseListener = symbol "listener" *> asum [try mqtt, try mqtts, ws]
   where
     mqtt =  symbol "mqtt"  *> (MQTTListener <$> lexeme qstr <*> lexeme L.decimal)
     mqtts = symbol "mqtts" *> (MQTTSListener <$> lexeme qstr <*> lexeme L.decimal <*> lexeme qstr <*> lexeme qstr)
