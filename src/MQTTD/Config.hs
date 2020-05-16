@@ -1,12 +1,13 @@
 module MQTTD.Config (Config(..), Listener(..), parseConfFile) where
 
 import           Control.Applicative        ((<|>))
+import           Control.Monad              (void)
 import           Data.Conduit.Network       (HostPreference)
 import           Data.String                (IsString (..))
 import           Data.Text                  (Text, pack)
 import           Data.Void                  (Void)
-import           Text.Megaparsec            (Parsec, between, endBy1, noneOf, parse, some, try)
-import           Text.Megaparsec.Char       (space)
+import           Text.Megaparsec            (Parsec, endBy1, manyTill, parse, some, takeWhile1P, try)
+import           Text.Megaparsec.Char       (char, space)
 import qualified Text.Megaparsec.Char.Lexer as L
 import           Text.Megaparsec.Error      (errorBundlePretty)
 
@@ -25,21 +26,28 @@ data Config = Config {
   _confListeners :: [Listener]
   } deriving Show
 
-spacey :: Parser a -> Parser a
-spacey f = space *> f <* space
+sc :: Parser ()
+sc = L.space s (L.skipLineComment "#" <* space) (L.skipBlockComment "/*" "*/")
+  where s = void $ takeWhile1P (Just "white space") (`elem` [' ', '\t'])
+
+lexeme :: Parser a -> Parser a
+lexeme = L.lexeme sc
+
+symbol :: Text -> Parser Text
+symbol = L.symbol sc
 
 qstr :: IsString a => Parser a
-qstr = fromString <$> (between "\"" "\"" (some $ noneOf ['"'])  <|> between "'" "'" (some $ noneOf ['\'']))
+qstr = fromString <$> (char '"' >> manyTill L.charLiteral (char '"'))
 
 parseListener :: Parser Listener
-parseListener = spacey "listener" *> (try mqtt <|> try mqtts <|> ws)
+parseListener = symbol "listener" *> (try mqtt <|> try mqtts <|> ws)
   where
-    mqtt =  spacey "mqtt"  *> (MQTTListener <$> spacey qstr <*> (space *> L.decimal))
-    mqtts = spacey "mqtts" *> (MQTTSListener <$> spacey qstr <*> spacey L.decimal <*> spacey qstr <*> (space *> qstr))
-    ws =    spacey "ws"    *> (WSListener <$> spacey qstr <*> (space *> L.decimal))
+    mqtt =  symbol "mqtt"  *> (MQTTListener <$> lexeme qstr <*> lexeme L.decimal)
+    mqtts = symbol "mqtts" *> (MQTTSListener <$> lexeme qstr <*> lexeme L.decimal <*> lexeme qstr <*> lexeme qstr)
+    ws =    symbol "ws"    *> (WSListener <$> lexeme qstr <*> lexeme L.decimal)
 
 parseConfig :: Parser Config
-parseConfig = Config <$> (parseListener `endBy1` "\n")
+parseConfig = Config <$> endBy1 (sc *> lexeme parseListener) (some "\n")
 
 parseFile :: Parser a -> String -> IO a
 parseFile f s = pack <$> readFile s >>= either (fail.errorBundlePretty) pure . parse f s
