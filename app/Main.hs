@@ -2,7 +2,7 @@ module Main where
 
 import           Control.Monad            (void)
 import           Control.Monad.Catch      (MonadMask (..))
-import           Control.Monad.Logger     (MonadLogger (..), logInfoN, runStderrLoggingT)
+import           Control.Monad.Logger     (LogLevel (..), MonadLogger (..), filterLogger, logInfoN, runStderrLoggingT)
 import           Data.Conduit.Network     (runTCPServer, serverSettings)
 import           Data.Conduit.Network.TLS (runGeneralTCPServerTLS, tlsConfig)
 import qualified Network.WebSockets       as WS
@@ -26,13 +26,16 @@ runListener (MQTTSListener a p c k) = do
 
 main :: IO ()
 main = do
-  Config{..} <- parseConfFile "mqttd.conf"
+  conf@Config{..} <- parseConfFile "mqttd.conf"
 
   e <- newEnv
-  runStderrLoggingT . runIO e $ do
+  runStderrLoggingT . logfilt conf . runIO e $ do
     sc <- async sessionCleanup
     pc <- async persistenceCleanup
 
     ls <- traverse (async . runListener) _confListeners
 
     void $ waitAnyCancel (sc:pc:ls)
+
+      where
+        logfilt Config{..} = filterLogger (\_ -> flip (if _confDebug then (>=) else (>)) LevelDebug)

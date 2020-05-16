@@ -23,6 +23,7 @@ data Listener = MQTTListener HostPreference PortNumber
               deriving Show
 
 data Config = Config {
+  _confDebug     :: Bool,
   _confListeners :: [Listener]
   } deriving Show
 
@@ -47,7 +48,7 @@ parseListener = symbol "listener" *> (try mqtt <|> try mqtts <|> ws)
     ws =    symbol "ws"    *> (WSListener <$> lexeme qstr <*> lexeme L.decimal)
 
 parseConfig :: Parser Config
-parseConfig = Config <$> endBy1 (sc *> lexeme parseListener) (some "\n")
+parseConfig = Config True <$> endBy1 (sc *> lexeme parseListener) (some "\n")
 
 parseFile :: Parser a -> String -> IO a
 parseFile f s = pack <$> readFile s >>= either (fail.errorBundlePretty) pure . parse f s
