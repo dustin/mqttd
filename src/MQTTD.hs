@@ -158,7 +158,7 @@ findSubs t = do
 subscribe :: PublishConstraint m => Session -> T.SubscribeRequest -> MQTTD m [Either T.SubErr T.QoS]
 subscribe sess@Session{..} (T.SubscribeRequest _ topics _props) = do
   let topics' = map (\(t,o) -> let t' = blToText t in
-                                 bimap (const T.SubErrNotAuthorized) (const (t', o)) $ authTopic sess t') topics
+                                 bimap (const T.SubErrNotAuthorized) (const (t', o)) $ authTopic t' _sessionACL) topics
       new = Map.fromList $ rights topics'
   atomically $ modifyTVar' _sessionSubs (Map.union new)
   p <- asks persistence
@@ -355,8 +355,8 @@ aliasOut ConnectedClient{..} pkt@T.PublishRequest{..} =
           modifyTVar' _clientAliasOut (Map.insert _pubTopic l)
           pure pkt{T._pubProps=T.PropTopicAlias l:_pubProps}
 
-authTopic :: Session -> T.Topic -> Either String ()
-authTopic Session{_sessionACL} t = foldr check (Right ()) _sessionACL
+authTopic :: T.Topic -> [ACL] -> Either String ()
+authTopic t = foldr check (Right ())
   where
     check (Allow f) o
       | T.match f t = Right ()
@@ -399,7 +399,7 @@ dispatch sess@Session{..} (T.UnsubscribePkt (T.UnsubscribeRequest pid subs props
 
 dispatch sess@Session{..} (T.PublishPkt req) = do
   r@T.PublishRequest{..} <- resolveAliasIn sess req
-  case authTopic sess (blToText _pubTopic) of
+  case authTopic (blToText _pubTopic) _sessionACL of
     Left _  -> logInfoN ("Unauthorized topic: " <> tshow _pubTopic) >> nak _pubQoS r
     Right _ -> satisfyQoS _pubQoS r
 

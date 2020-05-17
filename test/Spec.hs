@@ -4,8 +4,10 @@ import           Test.Tasty
 import           Test.Tasty.HUnit
 import           Test.Tasty.QuickCheck    as QC
 
+import           Data.Either              (isLeft, isRight)
 import qualified Data.Map.Strict          as Map
 
+import           MQTTD
 import           MQTTD.Config
 
 testConfigFiles :: Assertion
@@ -38,9 +40,23 @@ instance EqProp ListenerOptions where (=-=) = eq
 instance Arbitrary ListenerOptions where
   arbitrary = ListenerOptions <$> arbitrary
 
+testACLs :: Assertion
+testACLs = mapM_ aTest [
+  ([], "empty/stuffs", isRight),
+  ([Deny "#"], "deny", isLeft),
+  ([Allow "#"], "allow", isRight),
+  ([Allow "tmp/#", Deny "#"], "denied", isLeft),
+  ([Allow "tmp/#", Deny "#"], "tmp/ok", isRight),
+  ([Deny "tmp/#", Allow "#"], "tmp/denied", isLeft),
+  ([Deny "tmp/#", Allow "#"], "allowed", isRight)
+  ]
+  where
+    aTest (a,t,f) = assertBool (show (a, t)) $ f (authTopic t a)
+
 tests :: [TestTree]
 tests = [
   testCase "config files" testConfigFiles,
+  testCase "ACLs" testACLs,
 
   testGroup "listener properties" [
       testProperties "semigroup" (unbatch $ semigroup (undefined :: ListenerOptions, undefined :: Int)),
