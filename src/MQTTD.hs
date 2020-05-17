@@ -19,14 +19,14 @@ import           Control.Lens
 import           Control.Monad          (unless, void, when)
 import           Control.Monad.Catch    (Exception, MonadCatch (..), MonadMask (..), MonadThrow (..))
 import           Control.Monad.IO.Class (MonadIO (..))
-import           Control.Monad.Logger   (MonadLogger (..), logDebugN)
+import           Control.Monad.Logger   (MonadLogger (..), logDebugN, logInfoN)
 import           Control.Monad.Reader   (MonadReader, ReaderT (..), asks, local, runReaderT)
 import           Data.Bifunctor         (first)
 import qualified Data.ByteString.Lazy   as BL
 import           Data.Foldable          (foldl')
 import           Data.Map.Strict        (Map)
 import qualified Data.Map.Strict        as Map
-import           Data.Maybe             (fromMaybe)
+import           Data.Maybe             (fromMaybe, mapMaybe)
 import           Data.Time.Clock        (NominalDiffTime, UTCTime (..), addUTCTime, getCurrentTime)
 import           Data.Word              (Word16)
 import           Network.MQTT.Lens
@@ -34,7 +34,7 @@ import qualified Network.MQTT.Topic     as T
 import qualified Network.MQTT.Types     as T
 import           UnliftIO               (MonadUnliftIO (..), atomically, readTVarIO)
 
-import           MQTTD.Config           (User (..))
+import           MQTTD.Config           (ACL (..), User (..))
 import           MQTTD.Retention
 import           MQTTD.Util
 
@@ -63,6 +63,7 @@ instance Show ConnectedClient where
 
 data Session = Session {
   _sessionID      :: BL.ByteString,
+  _sessionACL     :: [ACL],
   _sessionClient  :: Maybe ConnectedClient,
   _sessionChan    :: PktQueue,
   _sessionQP      :: TVar (Map T.PktID T.PublishRequest),
@@ -153,16 +154,18 @@ findSubs t = do
     sessTopic sess@Session{..} = foldMap (\(m,o) -> [(sess, o) | T.match m t]
                                          ) . Map.assocs <$> readTVarIO _sessionSubs
 
-subscribe :: PublishConstraint m => Session -> T.SubscribeRequest -> MQTTD m ()
+subscribe :: PublishConstraint m => Session -> T.SubscribeRequest -> MQTTD m [Either T.SubErr T.QoS]
 subscribe sess@Session{..} (T.SubscribeRequest _ topics _props) = do
-  let new = Map.fromList $ map (first blToText) topics
+  let topics' = map (\(t,o) -> (blToText t, o, authTopic sess (blToText t))) topics
+      new = Map.fromList $ mapMaybe (\(t,o,a) -> either (const Nothing) (const $ Just (t,o)) a) topics'
   atomically $ modifyTVar' _sessionSubs (Map.union new)
   p <- asks persistence
-  mapM_ (doRetained p) topics
+  mapM_ (doRetained p) (Map.assocs new)
+  pure $ map (\(_,o,a) -> bimap (const T.SubErrNotAuthorized) (const $ T._subQoS o) a) topics'
 
   where
     doRetained _ (_, T.SubOptions{T._retainHandling=T.DoNotSendOnSubscribe}) = pure ()
-    doRetained p (t, ops) = mapM_ (sendOne ops) =<< matchRetained p (blToText t)
+    doRetained p (t, ops) = mapM_ (sendOne ops) =<< matchRetained p t
 
     sendOne opts@T.SubOptions{..} ir@T.PublishRequest{..} = do
       pid <- atomically . nextPktID =<< asks lastPktID
@@ -195,10 +198,12 @@ registerClient req@T.ConnectRequest{..} i o = do
   ai <- liftIO $ newTVarIO mempty
   ao <- liftIO $ newTVarIO mempty
   l <- liftIO $ newTVarIO (fromMaybe 0 (req ^? properties . folded . _PropTopicAliasMaximum))
+  authr <- asks (_authUsers . authorizer)
   let k = _connID
       nc = ConnectedClient req o i ai ao l
+      acl = fromMaybe [] (fmap (\(User _ _ a) -> a) . (`Map.lookup` authr) =<< _username)
   (o', x, ns) <- atomically $ do
-    emptySession <- Session _connID (Just nc) <$> newTBQueue 1000 <*> newTVar mempty <*> newTVar mempty
+    emptySession <- Session _connID acl (Just nc) <$> newTBQueue 1000 <*> newTVar mempty <*> newTVar mempty
                     <*> pure Nothing <*> pure _lastWill
     m <- readTVar c
     let s = Map.lookup k m
@@ -348,6 +353,16 @@ aliasOut ConnectedClient{..} pkt@T.PublishRequest{..} =
           modifyTVar' _clientAliasOut (Map.insert _pubTopic l)
           pure pkt{T._pubProps=T.PropTopicAlias l:_pubProps}
 
+authTopic :: Session -> T.Topic -> Either String ()
+authTopic Session{_sessionACL} t = foldr check (Right ()) _sessionACL
+  where
+    check (Allow f) o
+      | T.match f t = Right ()
+      | otherwise = o
+    check (Deny f) o
+      | T.match f t = Left "unauthorized topic"
+      | otherwise = o
+
 dispatch :: PublishConstraint m => Session -> T.MQTTPkt -> MQTTD m ()
 
 dispatch Session{..} T.PingPkt = sendPacketIO_ _sessionChan T.PongPkt
@@ -372,9 +387,9 @@ dispatch Session{..} (T.PubRELPkt rel) = do
 -- QoS 2 COMPlete (publishing client says publish is complete)
 dispatch _ (T.PubCOMPPkt _) = pure ()
 
-dispatch sess@Session{..} (T.SubscribePkt req@(T.SubscribeRequest pid subs props)) = do
-  subscribe sess req
-  sendPacketIO_ _sessionChan (T.SubACKPkt (T.SubscribeResponse pid (map (Right . T._subQoS . snd) subs) props))
+dispatch sess@Session{..} (T.SubscribePkt req@(T.SubscribeRequest pid _ props)) = do
+  r <- subscribe sess req
+  sendPacketIO_ _sessionChan (T.SubACKPkt (T.SubscribeResponse pid r props))
 
 dispatch sess@Session{..} (T.UnsubscribePkt (T.UnsubscribeRequest pid subs props)) = do
   uns <- unsubscribe sess subs
@@ -382,8 +397,17 @@ dispatch sess@Session{..} (T.UnsubscribePkt (T.UnsubscribeRequest pid subs props
 
 dispatch sess@Session{..} (T.PublishPkt req) = do
   r@T.PublishRequest{..} <- resolveAliasIn sess req
-  satisfyQoS _pubQoS r
+  case authTopic sess (blToText _pubTopic) of
+    Left _  -> logInfoN ("Unauthorized topic: " <> tshow _pubTopic) >> nak _pubQoS r
+    Right _ -> satisfyQoS _pubQoS r
+
     where
+      nak T.QoS0 _ = pure ()
+      nak T.QoS1 T.PublishRequest{..} =
+        sendPacketIO_ _sessionChan (T.PubACKPkt (T.PubACK _pubPktID 0x87 mempty))
+      nak T.QoS2 T.PublishRequest{..} =
+        sendPacketIO_ _sessionChan (T.PubRECPkt (T.PubREC _pubPktID 0x87 mempty))
+
       satisfyQoS T.QoS0 r = broadcast (Just _sessionID) r
       satisfyQoS T.QoS1 r@T.PublishRequest{..} = do
         sendPacketIO_ _sessionChan (T.PubACKPkt (T.PubACK _pubPktID 0 mempty))
