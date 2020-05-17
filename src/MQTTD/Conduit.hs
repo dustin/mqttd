@@ -21,7 +21,6 @@ import           Data.Conduit.Attoparsec  (conduitParser, sinkParser)
 import qualified Data.Conduit.Combinators as C
 import           Data.Conduit.Network     (AppData, appSink, appSource)
 import qualified Data.Map.Strict          as Map
-import           Data.Maybe               (isNothing)
 import           Data.String              (IsString (..))
 import qualified Data.UUID                as UUID
 import qualified Network.MQTT.Types       as T
@@ -30,6 +29,7 @@ import           System.Random            (randomIO)
 import           UnliftIO                 (async, atomically, waitAnyCancel)
 
 import           MQTTD
+import           MQTTD.Config
 import           MQTTD.Util
 
 type MQTTConduit m = (ConduitT () BCS.ByteString (MQTTD m) (), ConduitT BCS.ByteString Void (MQTTD m) ())
@@ -37,7 +37,11 @@ type MQTTConduit m = (ConduitT () BCS.ByteString (MQTTD m) (), ConduitT BCS.Byte
 authorize :: (MonadFail m, Monad m) => T.ConnectRequest -> MQTTD m (Either String ())
 authorize T.ConnectRequest{..} = do
   Authorizer{..} <- asks authorizer
-  pure $ when (isNothing _username && not _authAnon) $ Left "anonymous clients are not allowed"
+  pure . unless _authAnon $ do
+    uname <- maybe (Left "anonymous clients are not allowed") Right _username
+    (User _ want) <- maybe (Left "invalid username or password") Right (Map.lookup uname _authUsers)
+    pass <- maybe (Right "") Right _password
+    when (pass /= want) $ Left "invalid username or password"
 
 runMQTTDConduit :: forall m. PublishConstraint m => MQTTConduit m -> MQTTD m ()
 runMQTTDConduit (src,sink) = runConduit $ do
