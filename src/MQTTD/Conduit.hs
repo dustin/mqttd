@@ -39,7 +39,7 @@ authorize T.ConnectRequest{..} = do
   Authorizer{..} <- asks authorizer
   pure . unless _authAnon $ do
     uname <- maybe (Left "anonymous clients are not allowed") Right _username
-    (User _ want) <- maybe (Left "invalid username or password") Right (Map.lookup uname _authUsers)
+    (User _ want _) <- maybe (Left "invalid username or password") Right (Map.lookup uname _authUsers)
     pass <- maybe (Right "") Right _password
     when (pass /= want) $ Left "invalid username or password"
 

@@ -1,4 +1,4 @@
-module MQTTD.Config (Config(..), User(..),
+module MQTTD.Config (Config(..), User(..), ACL(..),
                      Listener(..), ListenerOptions(..), listenerOpts,
                      parseConfFile) where
 
@@ -11,18 +11,20 @@ import qualified Data.Map.Strict            as Map
 import           Data.String                (IsString (..))
 import           Data.Text                  (Text, pack)
 import           Data.Void                  (Void)
+import qualified Network.MQTT.Topic         as T
 import           Text.Megaparsec            (Parsec, between, choice, manyTill, option, parse, some, try)
 import           Text.Megaparsec.Char       (char, space, space1)
 import qualified Text.Megaparsec.Char.Lexer as L
 import           Text.Megaparsec.Error      (errorBundlePretty)
-
 
 type Parser = Parsec Void Text
 
 type ListenAddress = String
 type PortNumber = Int
 
-data User = User BL.ByteString BL.ByteString deriving (Show, Eq)
+data ACL = Allow T.Filter | Deny T.Filter deriving (Show, Eq)
+
+data User = User BL.ByteString BL.ByteString [ACL] deriving (Show, Eq)
 
 data ListenerOptions = ListenerOptions {
   _optAllowAnonymous :: Maybe Bool
@@ -91,6 +93,10 @@ parseListener = symbol "listener" *> (choice . map (sc' . try)) [mqtt, mqtts, ws
 
 parseUser :: Parser User
 parseUser = User <$> (symbol "user" *> lexeme qstr) <*> (symbol "password" *> lexeme qstr)
+            <*> option [] (lexeme parseACL)
+  where parseACL = symbol "acls" *> between "[" "]" (some (sc' (lexeme aclEntry)))
+        aclEntry = Allow <$> (symbol "allow" *> lexeme qstr)
+                   <|> Deny <$> (symbol "deny" *> lexeme qstr)
 
 namedList :: Text -> Parser p -> Parser [p]
 namedList s p = namedValue s $ between "[" "]" (some (sc *> lexeme p))
@@ -117,7 +123,7 @@ parseConfig = foldr up (Config False mempty mempty mempty) <$> sc' (some parseSe
     where
       up (DebugSection d) c = c{_confDebug=d}
       up (UserSection l) c@Config{..} =
-        c{_confUsers=Map.union _confUsers . Map.fromList . map (\u@(User n _) -> (n,u)) $ l}
+        c{_confUsers=Map.union _confUsers . Map.fromList . map (\u@(User n _ _) -> (n,u)) $ l}
       up (ListenerSection l) c@Config{..} = c{_confListeners=_confListeners <> l}
       up (DefaultsSection l) c = c{_confDefaults=l}
 

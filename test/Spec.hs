@@ -14,8 +14,10 @@ testConfigFiles =
       ("test.conf", Config {_confDebug = True,
                             _confDefaults = ListenerOptions (Just True),
                             _confUsers = Map.fromList [
-                               ("myuser", User "myuser" "mypw"),
-                               ("otheruser", User "otheruser" "otherpw")
+                               ("myuser", User "myuser" "mypw" []),
+                               ("otheruser", User "otheruser" "otherpw" [
+                                   Allow "tmp/#", Deny "#"
+                                   ])
                                ],
                             _confListeners = [MQTTListener "*" 1883 mempty,
                                               WSListener "*" 8080 mempty,
