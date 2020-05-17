@@ -45,6 +45,7 @@ dependencies:
 - random
 - uuid
 - megaparsec
+- checkers
 
 library:
   source-dirs: src
