@@ -22,6 +22,7 @@ import qualified Data.Conduit.Combinators as C
 import           Data.Conduit.Network     (AppData, appSink, appSource)
 import qualified Data.Map.Strict          as Map
 import           Data.Maybe               (isNothing)
+import           Data.String              (IsString (..))
 import qualified Data.UUID                as UUID
 import qualified Network.MQTT.Types       as T
 import qualified Network.WebSockets       as WS
@@ -48,8 +49,25 @@ runMQTTDConduit (src,sink) = runConduit $ do
   where
     run :: T.ProtocolLevel -> ClientID -> T.MQTTPkt -> Maybe BL.ByteString -> MQTTD m ()
     run pl cid (T.ConnPkt req@T.ConnectRequest{..} _) nid = do
-      either fail pure =<< authorize req
+      r <- authorize req
+      case r of
+        Left x  -> notAuthorized pl req x
+        Right _ -> authorized pl cid req nid
 
+    run _ _ pkt _ = fail ("Unhandled start packet: " <> show pkt)
+
+    notAuthorized pl req s = do
+      logInfoN ("Unauthorized connection: " <> tshow req)
+      runConduit $ do
+        yield (T.ConnACKPkt $ T.ConnACKFlags T.NewSession (noauth pl) []) .| commonOut pl
+        yield (T.DisconnectPkt $ T.DisconnectRequest T.DiscoNotAuthorized [
+                  T.PropReasonString (fromString s)
+                  ]) .| commonOut pl
+
+          where noauth T.Protocol311 = T.NotAuthorized
+                noauth T.Protocol50 = T.ConnNotAuthorized
+
+    authorized pl cid req@T.ConnectRequest{..} nid = do
       logInfoN ("A connection is made " <> tshow req)
       -- Register and accept the connection
       tid <- liftIO myThreadId
@@ -63,8 +81,6 @@ runMQTTDConduit (src,sink) = runConduit $ do
       i <- async $ E.finally (processIn wdch sess pl) (teardown cid req)
       retransmit sess
       void $ waitAnyCancel [i, o, w]
-
-    run _ _ pkt _ = fail ("Unhandled start packet: " <> show pkt)
 
     processIn wdch sess pl = runConduit $ src
         .| conduitParser (T.parsePacket pl)
