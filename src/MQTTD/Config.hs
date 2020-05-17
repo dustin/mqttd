@@ -19,7 +19,7 @@ type PortNumber = Int
 data User = User Text Text deriving (Show, Eq)
 
 data ListenerOptions = ListenerOptions {
-  _opt_allow_anonymous :: Bool
+  _optAllowAnonymous :: Bool
   } deriving (Eq, Show)
 
 data Listener = MQTTListener HostPreference PortNumber (Maybe ListenerOptions)
