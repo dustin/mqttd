@@ -12,13 +12,14 @@ testConfigFiles =
                                User "myuser" "mypw",
                                User "otheruser" "otherpw"
                                ],
-                            _confListeners = [MQTTListener "*" 1883,
-                                              WSListener "*" 8080,
-                                              MQTTSListener "*" 8883 "certificate.pem" "key.pem"]}),
+                            _confListeners = [MQTTListener "*" 1883 Nothing,
+                                              WSListener "*" 8080 Nothing,
+                                              MQTTSListener "*" 8883 "certificate.pem" "key.pem"
+                                              (Just (ListenerOptions False) )]}),
       ("test2.conf", Config {_confDebug = False,
                              _confUsers = [],
-                             _confListeners = [MQTTListener "*" 1883,
-                                               MQTTSListener "*" 8883 "certificate.pem" "key.pem"]})
+                             _confListeners = [MQTTListener "*" 1883 Nothing,
+                                               MQTTSListener "*" 8883 "certificate.pem" "key.pem" Nothing]})
       ]
   where
     aTest (f,w) = assertEqual f w =<< parseConfFile ("test/" <> f)

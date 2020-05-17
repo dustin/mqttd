@@ -1,4 +1,4 @@
-module MQTTD.Config (Config(..), User(..), Listener(..), parseConfFile) where
+module MQTTD.Config (Config(..), User(..), Listener(..), ListenerOptions(..), parseConfFile) where
 
 import           Control.Applicative        ((<|>))
 import           Data.Conduit.Network       (HostPreference)
@@ -22,9 +22,9 @@ data ListenerOptions = ListenerOptions {
   _opt_allow_anonymous :: Bool
   } deriving (Eq, Show)
 
-data Listener = MQTTListener HostPreference PortNumber
-              | MQTTSListener HostPreference PortNumber FilePath FilePath
-              | WSListener ListenAddress PortNumber
+data Listener = MQTTListener HostPreference PortNumber (Maybe ListenerOptions)
+              | MQTTSListener HostPreference PortNumber FilePath FilePath (Maybe ListenerOptions)
+              | WSListener ListenAddress PortNumber (Maybe ListenerOptions)
               deriving (Show, Eq)
 
 data Config = Config {
@@ -58,11 +58,13 @@ qstr :: IsString a => Parser a
 qstr = fromString <$> (char '"' >> manyTill L.charLiteral (char '"'))
 
 parseListener :: Parser Listener
-parseListener = symbol "listener" *> (choice . map (sc' . try)) [mqtt, mqtts, ws]
+parseListener = symbol "listener" *> (choice . map (sc' . try)) [mqtt, mqtts, ws] <*> o
   where
     mqtt =  symbol "mqtt"  *> (MQTTListener <$> lexeme qstr <*> lexeme L.decimal)
     mqtts = symbol "mqtts" *> (MQTTSListener <$> lexeme qstr <*> lexeme L.decimal <*> lexeme qstr <*> lexeme qstr)
     ws =    symbol "ws"    *> (WSListener <$> lexeme qstr <*> lexeme L.decimal)
+
+    o = option Nothing (Just <$> lexeme parseListenOpts)
 
 parseUser :: Parser User
 parseUser = User <$> (symbol "user" *> lexeme qstr) <*> (symbol "password" *> lexeme qstr)
@@ -74,13 +76,13 @@ namedValue :: Text -> Parser p -> Parser p
 namedValue s p = symbeq s *> lexeme p
 
 parseListenOpts :: Parser ListenerOptions
-parseListenOpts = between "{" "}" (ListenerOptions <$> sc' aListenOpt)
+parseListenOpts = between "{" "}" (ListenerOptions <$> sc' (lexeme aListenOpt))
   where
-    aListenOpt = namedValue "allow_anonmyous" parseBool
+    aListenOpt = namedValue "allow_anonymous" parseBool
 
 parseSection :: Parser Section
-parseSection = (choice . map (sc' . try)) [
-  DebugSection <$> namedValue "debug" parseBool,
+parseSection = (choice . map sc') [
+  try (DebugSection <$> namedValue "debug" parseBool),
   DefaultsSection <$> namedValue "defaults" parseListenOpts,
   UserSection <$> namedList "users" parseUser,
   ListenerSection <$> namedList "listeners" parseListener

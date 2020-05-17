@@ -14,13 +14,13 @@ import           MQTTD.Config
 import           MQTTD.Util
 
 runListener :: (MonadUnliftIO m, MonadLogger m, MonadFail m, MonadMask m) => Listener -> MQTTD m ()
-runListener (MQTTListener a p) = do
+runListener (MQTTListener a p _) = do
   logInfoN ("Starting mqtt service on " <> tshow a <> ":" <> tshow p)
   withRunInIO $ \unl -> runTCPServer (serverSettings p a) (unl . tcpApp)
-runListener (WSListener a p) = do
+runListener (WSListener a p _) = do
   logInfoN ("Starting websocket service on " <> tshow a <> ":" <> tshow p)
   withRunInIO $ \unl -> WS.runServer a p (unl . webSocketsApp)
-runListener (MQTTSListener a p c k) = do
+runListener (MQTTSListener a p c k _) = do
   logInfoN ("Starting mqtts service on " <> tshow a <> ":" <> tshow p)
   withRunInIO $ \unl -> runGeneralTCPServerTLS (tlsConfig a p c k) (unl . tcpApp)
 
