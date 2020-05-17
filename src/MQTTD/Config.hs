@@ -1,4 +1,4 @@
-module MQTTD.Config (Config(..), Listener(..), parseConfFile) where
+module MQTTD.Config (Config(..), User(..), Listener(..), parseConfFile) where
 
 import           Control.Applicative        ((<|>))
 import           Data.Conduit.Network       (HostPreference)
@@ -17,6 +17,8 @@ type Parser = Parsec Void Text
 type ListenAddress = String
 type PortNumber = Int
 
+data User = User Text Text deriving (Show, Eq)
+
 data Listener = MQTTListener HostPreference PortNumber
               | MQTTSListener HostPreference PortNumber FilePath FilePath
               | WSListener ListenAddress PortNumber
@@ -24,6 +26,7 @@ data Listener = MQTTListener HostPreference PortNumber
 
 data Config = Config {
   _confDebug     :: Bool,
+  _confUsers     :: [User],
   _confListeners :: [Listener]
   } deriving (Show, Eq)
 
@@ -52,6 +55,9 @@ parseListener = symbol "listener" *> (asum . map (sc' . try)) [mqtt, mqtts, ws]
     mqtts = symbol "mqtts" *> (MQTTSListener <$> lexeme qstr <*> lexeme L.decimal <*> lexeme qstr <*> lexeme qstr)
     ws =    symbol "ws"    *> (WSListener <$> lexeme qstr <*> lexeme L.decimal)
 
+parseUser :: Parser User
+parseUser = User <$> (symbol "user" *> lexeme qstr) <*> (symbol "password" *> lexeme qstr)
+
 namedList :: Text -> Parser p -> Parser [p]
 namedList s p = namedValue s $ between "[" "]" (some (sc *> lexeme p))
 
@@ -62,7 +68,10 @@ parseListeners :: Parser [Listener]
 parseListeners = namedList "listeners" parseListener
 
 parseConfig :: Parser Config
-parseConfig = Config <$> sc' (option False $ namedValue "debug" parseBool) <*> sc' parseListeners
+parseConfig = Config
+              <$> sc' (option False $ namedValue "debug" parseBool)
+              <*> sc' (option [] $ namedList "users" parseUser)
+              <*> sc' parseListeners
 
 parseBool :: Parser Bool
 parseBool = True <$ lexeme "true" <|> False <$ lexeme "false"
