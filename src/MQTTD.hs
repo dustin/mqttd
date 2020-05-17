@@ -21,12 +21,13 @@ import           Control.Monad.Catch    (Exception, MonadCatch (..), MonadMask (
 import           Control.Monad.IO.Class (MonadIO (..))
 import           Control.Monad.Logger   (MonadLogger (..), logDebugN, logInfoN)
 import           Control.Monad.Reader   (MonadReader, ReaderT (..), asks, local, runReaderT)
-import           Data.Bifunctor         (first)
+import           Data.Bifunctor         (first, second)
 import qualified Data.ByteString.Lazy   as BL
+import           Data.Either            (rights)
 import           Data.Foldable          (foldl')
 import           Data.Map.Strict        (Map)
 import qualified Data.Map.Strict        as Map
-import           Data.Maybe             (fromMaybe, mapMaybe)
+import           Data.Maybe             (fromMaybe)
 import           Data.Time.Clock        (NominalDiffTime, UTCTime (..), addUTCTime, getCurrentTime)
 import           Data.Word              (Word16)
 import           Network.MQTT.Lens
@@ -156,12 +157,13 @@ findSubs t = do
 
 subscribe :: PublishConstraint m => Session -> T.SubscribeRequest -> MQTTD m [Either T.SubErr T.QoS]
 subscribe sess@Session{..} (T.SubscribeRequest _ topics _props) = do
-  let topics' = map (\(t,o) -> (blToText t, o, authTopic sess (blToText t))) topics
-      new = Map.fromList $ mapMaybe (\(t,o,a) -> either (const Nothing) (const $ Just (t,o)) a) topics'
+  let topics' = map (\(t,o) -> let t' = blToText t in
+                                 bimap (const T.SubErrNotAuthorized) (const (t', o)) $ authTopic sess t') topics
+      new = Map.fromList $ rights topics'
   atomically $ modifyTVar' _sessionSubs (Map.union new)
   p <- asks persistence
   mapM_ (doRetained p) (Map.assocs new)
-  pure $ map (\(_,o,a) -> bimap (const T.SubErrNotAuthorized) (const $ T._subQoS o) a) topics'
+  pure $ map (second (T._subQoS . snd)) topics'
 
   where
     doRetained _ (_, T.SubOptions{T._retainHandling=T.DoNotSendOnSubscribe}) = pure ()
