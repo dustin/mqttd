@@ -2,11 +2,10 @@ module MQTTD.Config (Config(..), User(..), Listener(..), parseConfFile) where
 
 import           Control.Applicative        ((<|>))
 import           Data.Conduit.Network       (HostPreference)
-import           Data.Foldable              (asum)
 import           Data.String                (IsString (..))
 import           Data.Text                  (Text, pack)
 import           Data.Void                  (Void)
-import           Text.Megaparsec            (Parsec, between, manyTill, option, parse, some, try)
+import           Text.Megaparsec            (Parsec, between, choice, manyTill, option, parse, some, try)
 import           Text.Megaparsec.Char       (char, space, space1)
 import qualified Text.Megaparsec.Char.Lexer as L
 import           Text.Megaparsec.Error      (errorBundlePretty)
@@ -19,6 +18,10 @@ type PortNumber = Int
 
 data User = User Text Text deriving (Show, Eq)
 
+data ListenerOptions = ListenerOptions {
+  _opt_allow_anonymous :: Bool
+  } deriving (Eq, Show)
+
 data Listener = MQTTListener HostPreference PortNumber
               | MQTTSListener HostPreference PortNumber FilePath FilePath
               | WSListener ListenAddress PortNumber
@@ -29,6 +32,12 @@ data Config = Config {
   _confUsers     :: [User],
   _confListeners :: [Listener]
   } deriving (Show, Eq)
+
+data Section = DebugSection Bool
+             | UserSection [User]
+             | DefaultsSection ListenerOptions
+             | ListenerSection [Listener]
+             deriving Show
 
 sc :: Parser ()
 sc = L.space space1 (L.skipLineComment "#" <* space) (L.skipBlockComment "/*" "*/")
@@ -49,7 +58,7 @@ qstr :: IsString a => Parser a
 qstr = fromString <$> (char '"' >> manyTill L.charLiteral (char '"'))
 
 parseListener :: Parser Listener
-parseListener = symbol "listener" *> (asum . map (sc' . try)) [mqtt, mqtts, ws]
+parseListener = symbol "listener" *> (choice . map (sc' . try)) [mqtt, mqtts, ws]
   where
     mqtt =  symbol "mqtt"  *> (MQTTListener <$> lexeme qstr <*> lexeme L.decimal)
     mqtts = symbol "mqtts" *> (MQTTSListener <$> lexeme qstr <*> lexeme L.decimal <*> lexeme qstr <*> lexeme qstr)
@@ -62,16 +71,29 @@ namedList :: Text -> Parser p -> Parser [p]
 namedList s p = namedValue s $ between "[" "]" (some (sc *> lexeme p))
 
 namedValue :: Text -> Parser p -> Parser p
-namedValue s p = symbeq s *> p
+namedValue s p = symbeq s *> lexeme p
 
-parseListeners :: Parser [Listener]
-parseListeners = namedList "listeners" parseListener
+parseListenOpts :: Parser ListenerOptions
+parseListenOpts = between "{" "}" (ListenerOptions <$> sc' aListenOpt)
+  where
+    aListenOpt = namedValue "allow_anonmyous" parseBool
+
+parseSection :: Parser Section
+parseSection = (choice . map (sc' . try)) [
+  DebugSection <$> namedValue "debug" parseBool,
+  DefaultsSection <$> namedValue "defaults" parseListenOpts,
+  UserSection <$> namedList "users" parseUser,
+  ListenerSection <$> namedList "listeners" parseListener
+  ]
 
 parseConfig :: Parser Config
-parseConfig = Config
-              <$> sc' (option False $ namedValue "debug" parseBool)
-              <*> sc' (option [] $ namedList "users" parseUser)
-              <*> sc' parseListeners
+parseConfig = foldr up (Config False [] []) <$> sc' (some parseSection)
+
+    where
+      up (DebugSection d) c = c{_confDebug=d}
+      up (UserSection u) c@Config{..} = c{_confUsers=_confUsers <> u}
+      up (ListenerSection l) c@Config{..} = c{_confListeners=_confListeners <> l}
+      up _ c = c
 
 parseBool :: Parser Bool
 parseBool = True <$ lexeme "true" <|> False <$ lexeme "false"
