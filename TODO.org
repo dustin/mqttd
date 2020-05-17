@@ -1,3 +1,2 @@
-* Nice to have [0/2]
-** TODO Authentication
+* Nice to have [0/1]
 ** TODO Will delay
