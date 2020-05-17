@@ -1,8 +1,9 @@
 module MQTTD.Config (Config(..), User(..),
-                     Listener(..), ListenerOptions(..),
+                     Listener(..), ListenerOptions(..), listenerOpts,
                      parseConfFile) where
 
 import           Control.Applicative        ((<|>))
+import           Control.Lens
 import qualified Data.ByteString.Lazy       as BL
 import           Data.Conduit.Network       (HostPreference)
 import           Data.Map.Strict            (Map)
@@ -37,6 +38,16 @@ data Listener = MQTTListener HostPreference PortNumber ListenerOptions
               | MQTTSListener HostPreference PortNumber FilePath FilePath ListenerOptions
               | WSListener ListenAddress PortNumber ListenerOptions
               deriving (Show, Eq)
+
+listenerOpts :: Lens' Listener ListenerOptions
+listenerOpts = lens r w
+  where
+    r (MQTTListener _ _ o) = o
+    r (MQTTSListener _ _ _ _ o) = o
+    r (WSListener _ _ o) = o
+    w (MQTTListener a b _) o = MQTTListener a b o
+    w (MQTTSListener a b c d _) o = MQTTSListener a b c d o
+    w (WSListener a b _) o = WSListener a b o
 
 data Config = Config {
   _confDebug     :: Bool,

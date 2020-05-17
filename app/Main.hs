@@ -1,5 +1,6 @@
 module Main where
 
+import           Control.Lens
 import           Control.Monad            (void)
 import           Control.Monad.Catch      (MonadMask (..))
 import           Control.Monad.Logger     (LogLevel (..), MonadLogger (..), filterLogger, logInfoN, runStderrLoggingT)
@@ -14,23 +15,16 @@ import           MQTTD.Conduit
 import           MQTTD.Config
 import           MQTTD.Util
 
-applyListenerOptions :: ListenerOptions -> Authorizer -> Authorizer
-applyListenerOptions ListenerOptions{..} a@Authorizer{..} =
-  a{_authAnon=fromMaybe _authAnon _optAllowAnonymous}
-
 runListener :: (MonadUnliftIO m, MonadLogger m, MonadFail m, MonadMask m) => Listener -> MQTTD m ()
-runListener (MQTTListener a p o) = do
+runListener (MQTTListener a p _) = do
   logInfoN ("Starting mqtt service on " <> tshow a <> ":" <> tshow p)
-  modifyAuthorizer (applyListenerOptions o) $
-    withRunInIO $ \unl -> runTCPServer (serverSettings p a) (unl . tcpApp)
-runListener (WSListener a p o) = do
+  withRunInIO $ \unl -> runTCPServer (serverSettings p a) (unl . tcpApp)
+runListener (WSListener a p _) = do
   logInfoN ("Starting websocket service on " <> tshow a <> ":" <> tshow p)
-  modifyAuthorizer (applyListenerOptions o) $
-    withRunInIO $ \unl -> WS.runServer a p (unl . webSocketsApp)
-runListener (MQTTSListener a p c k o) = do
+  withRunInIO $ \unl -> WS.runServer a p (unl . webSocketsApp)
+runListener (MQTTSListener a p c k _) = do
   logInfoN ("Starting mqtts service on " <> tshow a <> ":" <> tshow p)
-  modifyAuthorizer (applyListenerOptions o) $
-    withRunInIO $ \unl -> runGeneralTCPServerTLS (tlsConfig a p c k) (unl . tcpApp)
+  withRunInIO $ \unl -> runGeneralTCPServerTLS (tlsConfig a p c k) (unl . tcpApp)
 
 main :: IO ()
 main = do
@@ -46,9 +40,14 @@ main = do
     sc <- async sessionCleanup
     pc <- async persistenceCleanup
 
-    ls <- traverse (async . runListener) _confListeners
+    ls <- traverse (async . runModified) _confListeners
 
     void $ waitAnyCancel (sc:pc:ls)
 
       where
         logfilt Config{..} = filterLogger (\_ -> flip (if _confDebug then (>=) else (>)) LevelDebug)
+
+        runModified = modifyAuthorizer . applyListenerOptions . view listenerOpts <*> runListener
+
+        applyListenerOptions ListenerOptions{..} a@Authorizer{..} =
+          a{_authAnon=fromMaybe _authAnon _optAllowAnonymous}
