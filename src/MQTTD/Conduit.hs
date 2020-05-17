@@ -12,6 +12,7 @@ import           Control.Monad            (forever, unless, void, when)
 import qualified Control.Monad.Catch      as E
 import           Control.Monad.IO.Class   (MonadIO (..))
 import           Control.Monad.Logger     (logDebugN, logInfoN)
+import           Control.Monad.Reader     (asks)
 import           Control.Monad.Trans      (lift)
 import qualified Data.ByteString.Char8    as BCS
 import qualified Data.ByteString.Lazy     as BL
@@ -20,6 +21,7 @@ import           Data.Conduit.Attoparsec  (conduitParser, sinkParser)
 import qualified Data.Conduit.Combinators as C
 import           Data.Conduit.Network     (AppData, appSink, appSource)
 import qualified Data.Map.Strict          as Map
+import           Data.Maybe               (isNothing)
 import qualified Data.UUID                as UUID
 import qualified Network.MQTT.Types       as T
 import qualified Network.WebSockets       as WS
@@ -31,6 +33,11 @@ import           MQTTD.Util
 
 type MQTTConduit m = (ConduitT () BCS.ByteString (MQTTD m) (), ConduitT BCS.ByteString Void (MQTTD m) ())
 
+authorize :: (MonadFail m, Monad m) => T.ConnectRequest -> MQTTD m (Either String ())
+authorize T.ConnectRequest{..} = do
+  Authorizer{..} <- asks authorizer
+  pure $ when (isNothing _username && not _authAnon) $ Left "anonymous clients are not allowed"
+
 runMQTTDConduit :: forall m. PublishConstraint m => MQTTConduit m -> MQTTD m ()
 runMQTTDConduit (src,sink) = runConduit $ do
   (cpkt@(T.ConnPkt _ pl), genedID) <- ensureID =<< src .| sinkParser T.parseConnect
@@ -41,6 +48,8 @@ runMQTTDConduit (src,sink) = runConduit $ do
   where
     run :: T.ProtocolLevel -> ClientID -> T.MQTTPkt -> Maybe BL.ByteString -> MQTTD m ()
     run pl cid (T.ConnPkt req@T.ConnectRequest{..} _) nid = do
+      either fail pure =<< authorize req
+
       logInfoN ("A connection is made " <> tshow req)
       -- Register and accept the connection
       tid <- liftIO myThreadId

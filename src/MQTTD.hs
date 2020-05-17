@@ -71,12 +71,20 @@ data Session = Session {
 
 makeLenses ''Session
 
+data Authorizer = Authorizer {
+  _authUsers :: Map BL.ByteString BL.ByteString,
+  _authAnon  :: Bool
+  } deriving Show
+
+makeLenses ''Authorizer
+
 data Env = Env {
   sessions    :: TVar (Map BL.ByteString Session),
   lastPktID   :: TVar Word16,
   clientIDGen :: TVar ClientID,
   queueRunner :: Scheduler.QueueRunner BL.ByteString,
-  persistence :: Persistence
+  persistence :: Persistence,
+  authorizer  :: Authorizer
   }
 
 newtype MQTTD m a = MQTTD
@@ -91,7 +99,13 @@ runIO :: (MonadIO m, MonadLogger m) => Env -> MQTTD m a -> m a
 runIO e m = runReaderT (runMQTTD m) e
 
 newEnv :: MonadIO m => m Env
-newEnv = liftIO $ Env <$> newTVarIO mempty <*> newTVarIO 1 <*> newTVarIO 0 <*> Scheduler.newRunner <*> newPersistence
+newEnv = liftIO $ Env
+         <$> newTVarIO mempty
+         <*> newTVarIO 1
+         <*> newTVarIO 0
+         <*> Scheduler.newRunner
+         <*> newPersistence
+         <*> pure (Authorizer mempty True)
 
 seconds :: Num p => p -> p
 seconds = (1000000 *)
