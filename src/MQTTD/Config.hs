@@ -1,11 +1,12 @@
 module MQTTD.Config (Config(..), Listener(..), parseConfFile) where
 
+import           Control.Applicative        ((<|>))
 import           Data.Conduit.Network       (HostPreference)
 import           Data.Foldable              (asum)
 import           Data.String                (IsString (..))
 import           Data.Text                  (Text, pack)
 import           Data.Void                  (Void)
-import           Text.Megaparsec            (Parsec, between, manyTill, parse, some, try)
+import           Text.Megaparsec            (Parsec, between, manyTill, option, parse, some, try)
 import           Text.Megaparsec.Char       (char, space, space1)
 import qualified Text.Megaparsec.Char.Lexer as L
 import           Text.Megaparsec.Error      (errorBundlePretty)
@@ -51,11 +52,20 @@ parseListener = symbol "listener" *> (asum . map (sc' . try)) [mqtt, mqtts, ws]
     mqtts = symbol "mqtts" *> (MQTTSListener <$> lexeme qstr <*> lexeme L.decimal <*> lexeme qstr <*> lexeme qstr)
     ws =    symbol "ws"    *> (WSListener <$> lexeme qstr <*> lexeme L.decimal)
 
+namedList :: Text -> Parser p -> Parser [p]
+namedList s p = namedValue s $ between "[" "]" (some (sc *> lexeme p))
+
+namedValue :: Text -> Parser p -> Parser p
+namedValue s p = symbeq s *> p
+
 parseListeners :: Parser [Listener]
-parseListeners = symbeq "listeners" *> between "[" "]" (some (sc *> lexeme parseListener))
+parseListeners = namedList "listeners" parseListener
 
 parseConfig :: Parser Config
-parseConfig = Config True <$> sc' parseListeners
+parseConfig = Config <$> sc' (option False $ namedValue "debug" parseBool) <*> sc' parseListeners
+
+parseBool :: Parser Bool
+parseBool = True <$ lexeme "true" <|> False <$ lexeme "false"
 
 parseFile :: Parser a -> String -> IO a
 parseFile f s = pack <$> readFile s >>= either (fail.errorBundlePretty) pure . parse f s

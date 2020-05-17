@@ -4,19 +4,24 @@ import           Test.Tasty.QuickCheck as QC
 
 import           MQTTD.Config
 
-testConfigParser :: Assertion
-testConfigParser = do
-  got <- parseConfFile "test/test.conf"
-  let want = Config {_confDebug = True,
-                     _confListeners = [MQTTListener "*" 1883,
-                                       WSListener "*" 8080,
-                                       MQTTSListener "*" 8883 "certificate.pem" "key.pem"]}
-  assertEqual "" want got
+testConfigFiles :: Assertion
+testConfigFiles =
+  mapM_ aTest [
+      ("test.conf", Config {_confDebug = True,
+                            _confListeners = [MQTTListener "*" 1883,
+                                              WSListener "*" 8080,
+                                              MQTTSListener "*" 8883 "certificate.pem" "key.pem"]}),
+      ("test2.conf", Config {_confDebug = False,
+                             _confListeners = [MQTTListener "*" 1883,
+                                               MQTTSListener "*" 8883 "certificate.pem" "key.pem"]})
+      ]
+  where
+    aTest (f,w) = assertEqual f w =<< parseConfFile ("test/" <> f)
 
 tests :: [TestTree]
 tests = [
-  testCase "config parsing" testConfigParser
-    ]
+  testCase "config files" testConfigFiles
+  ]
 
 main :: IO ()
 main = defaultMain $ testGroup "All Tests" tests
