@@ -34,8 +34,10 @@ import qualified Network.MQTT.Topic     as T
 import qualified Network.MQTT.Types     as T
 import           UnliftIO               (MonadUnliftIO (..), atomically, readTVarIO)
 
+import           MQTTD.Config           (User (..))
 import           MQTTD.Retention
 import           MQTTD.Util
+
 import qualified Scheduler
 
 data MQTTException = MQTTPingTimeout | MQTTDuplicate deriving Show
@@ -72,7 +74,7 @@ data Session = Session {
 makeLenses ''Session
 
 data Authorizer = Authorizer {
-  _authUsers :: Map BL.ByteString BL.ByteString,
+  _authUsers :: Map BL.ByteString User,
   _authAnon  :: Bool
   } deriving Show
 

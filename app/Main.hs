@@ -38,7 +38,7 @@ main = do
 
   let baseAuth = _confDefaults `applyListenerOptions` Authorizer{
         _authAnon = False,
-        _authUsers = mempty
+        _authUsers = _confUsers
         }
 
   e <- newEnv baseAuth

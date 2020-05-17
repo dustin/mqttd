@@ -3,7 +3,10 @@ module MQTTD.Config (Config(..), User(..),
                      parseConfFile) where
 
 import           Control.Applicative        ((<|>))
+import qualified Data.ByteString.Lazy       as BL
 import           Data.Conduit.Network       (HostPreference)
+import           Data.Map.Strict            (Map)
+import qualified Data.Map.Strict            as Map
 import           Data.String                (IsString (..))
 import           Data.Text                  (Text, pack)
 import           Data.Void                  (Void)
@@ -18,7 +21,7 @@ type Parser = Parsec Void Text
 type ListenAddress = String
 type PortNumber = Int
 
-data User = User Text Text deriving (Show, Eq)
+data User = User BL.ByteString BL.ByteString deriving (Show, Eq)
 
 data ListenerOptions = ListenerOptions {
   _optAllowAnonymous :: Maybe Bool
@@ -37,7 +40,7 @@ data Listener = MQTTListener HostPreference PortNumber ListenerOptions
 
 data Config = Config {
   _confDebug     :: Bool,
-  _confUsers     :: [User],
+  _confUsers     :: Map BL.ByteString User,
   _confListeners :: [Listener],
   _confDefaults  :: ListenerOptions
   } deriving (Show, Eq)
@@ -98,11 +101,12 @@ parseSection = (choice . map sc') [
   ]
 
 parseConfig :: Parser Config
-parseConfig = foldr up (Config False [] [] mempty) <$> sc' (some parseSection)
+parseConfig = foldr up (Config False mempty mempty mempty) <$> sc' (some parseSection)
 
     where
       up (DebugSection d) c = c{_confDebug=d}
-      up (UserSection u) c@Config{..} = c{_confUsers=_confUsers <> u}
+      up (UserSection l) c@Config{..} =
+        c{_confUsers=Map.union _confUsers . Map.fromList . map (\u@(User n _) -> (n,u)) $ l}
       up (ListenerSection l) c@Config{..} = c{_confListeners=_confListeners <> l}
       up (DefaultsSection l) c = c{_confDefaults=l}
 

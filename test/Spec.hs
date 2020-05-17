@@ -4,6 +4,8 @@ import           Test.Tasty
 import           Test.Tasty.HUnit
 import           Test.Tasty.QuickCheck    as QC
 
+import qualified Data.Map.Strict          as Map
+
 import           MQTTD.Config
 
 testConfigFiles :: Assertion
@@ -11,16 +13,16 @@ testConfigFiles =
   mapM_ aTest [
       ("test.conf", Config {_confDebug = True,
                             _confDefaults = ListenerOptions (Just True),
-                            _confUsers = [
-                               User "myuser" "mypw",
-                               User "otheruser" "otherpw"
+                            _confUsers = Map.fromList [
+                               ("myuser", User "myuser" "mypw"),
+                               ("otheruser", User "otheruser" "otherpw")
                                ],
                             _confListeners = [MQTTListener "*" 1883 mempty,
                                               WSListener "*" 8080 mempty,
                                               MQTTSListener "*" 8883 "certificate.pem" "key.pem"
                                               (ListenerOptions (Just False) )]}),
       ("test2.conf", Config {_confDebug = False,
-                             _confUsers = [],
+                             _confUsers = mempty,
                              _confDefaults = mempty,
                              _confListeners = [MQTTListener "*" 1883 mempty,
                                                MQTTSListener "*" 8883 "certificate.pem" "key.pem" mempty]})
