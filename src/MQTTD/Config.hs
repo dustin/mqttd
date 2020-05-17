@@ -109,7 +109,7 @@ parseBool :: Parser Bool
 parseBool = True <$ lexeme "true" <|> False <$ lexeme "false"
 
 parseFile :: Parser a -> String -> IO a
-parseFile f s = pack <$> readFile s >>= either (fail.errorBundlePretty) pure . parse f s
+parseFile f s = readFile s >>= (either (fail.errorBundlePretty) pure . parse f s) . pack
 
 parseConfFile :: String -> IO Config
 parseConfFile = parseFile parseConfig
