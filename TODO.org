@@ -1,4 +1,3 @@
-* Nice to have [0/3]
-** TODO Config file
+* Nice to have [0/2]
 ** TODO Authentication
 ** TODO Will delay
