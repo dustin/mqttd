@@ -20,7 +20,7 @@ import           Control.Monad          (unless, void, when)
 import           Control.Monad.Catch    (Exception, MonadCatch (..), MonadMask (..), MonadThrow (..))
 import           Control.Monad.IO.Class (MonadIO (..))
 import           Control.Monad.Logger   (MonadLogger (..), logDebugN)
-import           Control.Monad.Reader   (MonadReader, ReaderT (..), asks, runReaderT)
+import           Control.Monad.Reader   (MonadReader, ReaderT (..), asks, local, runReaderT)
 import           Data.Bifunctor         (first)
 import qualified Data.ByteString.Lazy   as BL
 import           Data.Foldable          (foldl')
@@ -98,14 +98,17 @@ instance MonadUnliftIO m => MonadUnliftIO (MQTTD m) where
 runIO :: (MonadIO m, MonadLogger m) => Env -> MQTTD m a -> m a
 runIO e m = runReaderT (runMQTTD m) e
 
-newEnv :: MonadIO m => m Env
-newEnv = liftIO $ Env
+newEnv :: MonadIO m => Authorizer -> m Env
+newEnv a = liftIO $ Env
          <$> newTVarIO mempty
          <*> newTVarIO 1
          <*> newTVarIO 0
          <*> Scheduler.newRunner
          <*> newPersistence
-         <*> pure (Authorizer mempty True)
+         <*> pure a
+
+withAuthorizer :: Monad m => Authorizer -> MQTTD m a -> MQTTD m a
+withAuthorizer a = local (\e -> e{authorizer=a})
 
 seconds :: Num p => p -> p
 seconds = (1000000 *)

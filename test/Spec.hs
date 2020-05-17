@@ -10,6 +10,7 @@ testConfigFiles :: Assertion
 testConfigFiles =
   mapM_ aTest [
       ("test.conf", Config {_confDebug = True,
+                            _confDefaults = ListenerOptions (Just True),
                             _confUsers = [
                                User "myuser" "mypw",
                                User "otheruser" "otherpw"
@@ -20,6 +21,7 @@ testConfigFiles =
                                               (ListenerOptions (Just False) )]}),
       ("test2.conf", Config {_confDebug = False,
                              _confUsers = [],
+                             _confDefaults = mempty,
                              _confListeners = [MQTTListener "*" 1883 mempty,
                                                MQTTSListener "*" 8883 "certificate.pem" "key.pem" mempty]})
       ]

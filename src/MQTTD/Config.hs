@@ -38,7 +38,8 @@ data Listener = MQTTListener HostPreference PortNumber ListenerOptions
 data Config = Config {
   _confDebug     :: Bool,
   _confUsers     :: [User],
-  _confListeners :: [Listener]
+  _confListeners :: [Listener],
+  _confDefaults  :: ListenerOptions
   } deriving (Show, Eq)
 
 data Section = DebugSection Bool
@@ -97,13 +98,13 @@ parseSection = (choice . map sc') [
   ]
 
 parseConfig :: Parser Config
-parseConfig = foldr up (Config False [] []) <$> sc' (some parseSection)
+parseConfig = foldr up (Config False [] [] mempty) <$> sc' (some parseSection)
 
     where
       up (DebugSection d) c = c{_confDebug=d}
       up (UserSection u) c@Config{..} = c{_confUsers=_confUsers <> u}
       up (ListenerSection l) c@Config{..} = c{_confListeners=_confListeners <> l}
-      up _ c = c
+      up (DefaultsSection l) c = c{_confDefaults=l}
 
 parseBool :: Parser Bool
 parseBool = True <$ lexeme "true" <|> False <$ lexeme "false"

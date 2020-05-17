@@ -5,6 +5,7 @@ import           Control.Monad.Catch      (MonadMask (..))
 import           Control.Monad.Logger     (LogLevel (..), MonadLogger (..), filterLogger, logInfoN, runStderrLoggingT)
 import           Data.Conduit.Network     (runTCPServer, serverSettings)
 import           Data.Conduit.Network.TLS (runGeneralTCPServerTLS, tlsConfig)
+import           Data.Maybe               (fromMaybe)
 import qualified Network.WebSockets       as WS
 import           UnliftIO                 (MonadUnliftIO (..), async, waitAnyCancel)
 
@@ -28,7 +29,12 @@ main :: IO ()
 main = do
   conf@Config{..} <- parseConfFile "mqttd.conf"
 
-  e <- newEnv
+  let baseAuth = Authorizer{
+        _authAnon = fromMaybe False (_optAllowAnonymous _confDefaults),
+        _authUsers = mempty
+        }
+
+  e <- newEnv baseAuth
   runStderrLoggingT . logfilt conf . runIO e $ do
     sc <- async sessionCleanup
     pc <- async persistenceCleanup
