@@ -1,13 +1,12 @@
 module MQTTD.Config (Config(..), Listener(..), parseConfFile) where
 
-import           Control.Monad              (void)
 import           Data.Conduit.Network       (HostPreference)
 import           Data.Foldable              (asum)
 import           Data.String                (IsString (..))
 import           Data.Text                  (Text, pack)
 import           Data.Void                  (Void)
-import           Text.Megaparsec            (Parsec, endBy1, manyTill, parse, some, takeWhile1P, try)
-import           Text.Megaparsec.Char       (char, space)
+import           Text.Megaparsec            (Parsec, between, manyTill, parse, some, try)
+import           Text.Megaparsec.Char       (char, space, space1)
 import qualified Text.Megaparsec.Char.Lexer as L
 import           Text.Megaparsec.Error      (errorBundlePretty)
 
@@ -28,8 +27,10 @@ data Config = Config {
   } deriving (Show, Eq)
 
 sc :: Parser ()
-sc = L.space s (L.skipLineComment "#" <* space) (L.skipBlockComment "/*" "*/")
-  where s = void $ takeWhile1P (Just "white space") (`elem` [' ', '\t'])
+sc = L.space space1 (L.skipLineComment "#" <* space) (L.skipBlockComment "/*" "*/")
+
+sc' :: Parser a -> Parser a
+sc' = (sc *>)
 
 lexeme :: Parser a -> Parser a
 lexeme = L.lexeme sc
@@ -37,18 +38,24 @@ lexeme = L.lexeme sc
 symbol :: Text -> Parser Text
 symbol = L.symbol sc
 
+symbeq :: Text -> Parser Text
+symbeq x = symbol x <* symbol "="
+
 qstr :: IsString a => Parser a
 qstr = fromString <$> (char '"' >> manyTill L.charLiteral (char '"'))
 
 parseListener :: Parser Listener
-parseListener = symbol "listener" *> asum [try mqtt, try mqtts, ws]
+parseListener = symbol "listener" *> (asum . map (sc' . try)) [mqtt, mqtts, ws]
   where
     mqtt =  symbol "mqtt"  *> (MQTTListener <$> lexeme qstr <*> lexeme L.decimal)
     mqtts = symbol "mqtts" *> (MQTTSListener <$> lexeme qstr <*> lexeme L.decimal <*> lexeme qstr <*> lexeme qstr)
     ws =    symbol "ws"    *> (WSListener <$> lexeme qstr <*> lexeme L.decimal)
 
+parseListeners :: Parser [Listener]
+parseListeners = symbeq "listeners" *> between "[" "]" (some (sc *> lexeme parseListener))
+
 parseConfig :: Parser Config
-parseConfig = Config True <$> endBy1 (sc *> lexeme parseListener) (some "\n")
+parseConfig = Config True <$> sc' parseListeners
 
 parseFile :: Parser a -> String -> IO a
 parseFile f s = pack <$> readFile s >>= either (fail.errorBundlePretty) pure . parse f s
