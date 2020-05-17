@@ -107,8 +107,8 @@ newEnv a = liftIO $ Env
          <*> newPersistence
          <*> pure a
 
-withAuthorizer :: Monad m => Authorizer -> MQTTD m a -> MQTTD m a
-withAuthorizer a = local (\e -> e{authorizer=a})
+modifyAuthorizer :: Monad m => (Authorizer -> Authorizer) -> MQTTD m a -> MQTTD m a
+modifyAuthorizer f = local (\e@Env{..} -> e{authorizer=f authorizer})
 
 seconds :: Num p => p -> p
 seconds = (1000000 *)

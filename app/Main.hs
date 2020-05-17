@@ -14,23 +14,30 @@ import           MQTTD.Conduit
 import           MQTTD.Config
 import           MQTTD.Util
 
+applyListenerOptions :: ListenerOptions -> Authorizer -> Authorizer
+applyListenerOptions ListenerOptions{..} a@Authorizer{..} =
+  a{_authAnon=fromMaybe _authAnon _optAllowAnonymous}
+
 runListener :: (MonadUnliftIO m, MonadLogger m, MonadFail m, MonadMask m) => Listener -> MQTTD m ()
-runListener (MQTTListener a p _) = do
+runListener (MQTTListener a p o) = do
   logInfoN ("Starting mqtt service on " <> tshow a <> ":" <> tshow p)
-  withRunInIO $ \unl -> runTCPServer (serverSettings p a) (unl . tcpApp)
-runListener (WSListener a p _) = do
+  modifyAuthorizer (applyListenerOptions o) $
+    withRunInIO $ \unl -> runTCPServer (serverSettings p a) (unl . tcpApp)
+runListener (WSListener a p o) = do
   logInfoN ("Starting websocket service on " <> tshow a <> ":" <> tshow p)
-  withRunInIO $ \unl -> WS.runServer a p (unl . webSocketsApp)
-runListener (MQTTSListener a p c k _) = do
+  modifyAuthorizer (applyListenerOptions o) $
+    withRunInIO $ \unl -> WS.runServer a p (unl . webSocketsApp)
+runListener (MQTTSListener a p c k o) = do
   logInfoN ("Starting mqtts service on " <> tshow a <> ":" <> tshow p)
-  withRunInIO $ \unl -> runGeneralTCPServerTLS (tlsConfig a p c k) (unl . tcpApp)
+  modifyAuthorizer (applyListenerOptions o) $
+    withRunInIO $ \unl -> runGeneralTCPServerTLS (tlsConfig a p c k) (unl . tcpApp)
 
 main :: IO ()
 main = do
   conf@Config{..} <- parseConfFile "mqttd.conf"
 
-  let baseAuth = Authorizer{
-        _authAnon = fromMaybe False (_optAllowAnonymous _confDefaults),
+  let baseAuth = _confDefaults `applyListenerOptions` Authorizer{
+        _authAnon = False,
         _authUsers = mempty
         }
 
