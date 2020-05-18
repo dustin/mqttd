@@ -27,11 +27,8 @@ instance Monoid (SubTree a) where
 modify :: Text -> ([a] -> [a]) -> SubTree a -> SubTree a
 modify top f = go (splitOn "/" top)
   where
-    go [] n@SubTree{..} = n{subs=f subs}
-    go (x:xs) n@SubTree{..} = n{children=Map.alter (fmap (go xs) . withChild) x children}
-      where
-        withChild Nothing   = Just mempty
-        withChild (Just n') = Just n'
+    go [] n@SubTree{..}     = n{subs=f subs}
+    go (x:xs) n@SubTree{..} = n{children=Map.alter (fmap (go xs) . maybe (Just mempty) Just) x children}
 
 add :: Text -> a -> SubTree a -> SubTree a
 add top i = modify top (i:)
