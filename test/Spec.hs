@@ -11,6 +11,7 @@ import           Data.Either              (isLeft, isRight)
 import           Data.List                (intercalate, sort)
 import qualified Data.Map.Strict          as Map
 import           Data.Monoid              (Sum (..))
+import           Data.Set                 (Set)
 import           Data.Text                (Text, pack)
 
 import           MQTTD
@@ -58,12 +59,14 @@ instance Arbitrary ATopic where
     ATopic . pack . intercalate "/" <$> vectorOf n seg
       where seg = choose (1, 8) >>= flip vectorOf (choose ('a', 'z'))
 
-instance Arbitrary a => Arbitrary (SubTree a) where
+instance (Monoid a, Arbitrary a, Eq a) => Arbitrary (SubTree a) where
   arbitrary = do
     topics <- choose (1, 20) >>= flip vectorOf (unTopic <$> arbitrary)
     subbers <- choose (1, 20) >>= vector
     total <- choose (1, 20)
     Sub.fromList <$> vectorOf total (liftA2 (,) (elements topics) (elements subbers))
+
+  shrink = fmap Sub.fromList . shrinkList (const []) . Sub.flatten
 
 testSubTree :: Assertion
 testSubTree =
@@ -75,7 +78,7 @@ testSubTree =
     ("a/b/x", ["#","+/+/+","a/#","a/+/+"])]
 
   where
-    someSubs = foldr (\x -> Sub.add x x) mempty [
+    someSubs = foldr (\x -> Sub.add x [x]) mempty [
       "a/b/c", "a/+/c", "a/+/+", "+/+/+", "+/b/c",
       "#", "a/#", "b/#"]
     aTest (f,w) = assertEqual (show f) (sort w) (sort $ Sub.find f someSubs)
@@ -103,12 +106,12 @@ tests = [
 
   testCase "subtree" testSubTree,
   testGroup "subtree properties" [
-      testProperty "flatten/fromList" $ roundTrips (Sub.flatten @(SubTree Int)) Sub.fromList,
-      testProperties "functor" (unbatch $ functor (undefined :: SubTree (Int, Int, Int))),
-      testProperties "foldable" (unbatch $ foldable (undefined :: SubTree (Int, Int, Sum Int, Int, Int))),
-      testProperties "traversable" (unbatch $ traversable (undefined :: SubTree (Int, Int, Sum Int))),
-      testProperties "semigroup" (unbatch $ semigroup (undefined :: SubTree Int, undefined :: Int)),
-      testProperties "monoid" (unbatch $ monoid (undefined :: SubTree Int))
+      testProperty "flatten/fromList" $ roundTrips (filter (not.null . snd) . Sub.flatten @(SubTree (Set Int))) Sub.fromList,
+      testProperties "functor" (unbatch $ functor (undefined :: SubTree ([Int], Int, Int))),
+      testProperties "foldable" (unbatch $ foldable (undefined :: SubTree (Sum Int, Sum Int, Sum Int, Sum Int, Sum Int))),
+      testProperties "traversable" (unbatch $ traversable (undefined :: SubTree (Sum Int, Sum Int, Sum Int))),
+      testProperties "semigroup" (unbatch $ semigroup (undefined :: SubTree [Int], undefined :: Int)),
+      testProperties "monoid" (unbatch $ monoid (undefined :: SubTree [Int]))
       ],
 
   testGroup "listener properties" [
