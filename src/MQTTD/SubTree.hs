@@ -1,8 +1,10 @@
+{-# LANGUAGE TupleSections #-}
+
 module MQTTD.SubTree where
 
 import           Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map
-import           Data.Text       (Text, splitOn)
+import           Data.Text       (Text, intercalate, splitOn)
 
 data SubTree a = SubTree {
   subs     :: [a],
@@ -43,3 +45,12 @@ find top = go (splitOn "/" top)
     go (x:xs) SubTree{children} = maybe [] (go xs) (Map.lookup x children)
                                <> maybe [] (go xs) (Map.lookup "+" children)
                                <> maybe [] subs    (Map.lookup "#" children)
+
+flatten :: SubTree a -> [(Text, a)]
+flatten = go []
+  where
+    go ks SubTree{..} = fmap (intercalate "/" (reverse ks),) subs
+                        <> Map.foldMapWithKey (\k sn -> go (k:ks) sn) children
+
+fromList :: [(Text, a)] -> SubTree a
+fromList = foldr (uncurry add) mempty

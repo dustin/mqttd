@@ -1,3 +1,5 @@
+{-# LANGUAGE TypeApplications #-}
+
 import           Test.QuickCheck.Checkers
 import           Test.QuickCheck.Classes
 import           Test.Tasty
@@ -61,8 +63,7 @@ instance Arbitrary a => Arbitrary (SubTree a) where
     topics <- choose (1, 20) >>= flip vectorOf (unTopic <$> arbitrary)
     subbers <- choose (1, 20) >>= vector
     total <- choose (1, 20)
-    subs <- vectorOf total (liftA2 (,) (elements topics) (elements subbers))
-    pure $ foldr (uncurry Sub.add) mempty subs
+    Sub.fromList <$> vectorOf total (liftA2 (,) (elements topics) (elements subbers))
 
 testSubTree :: Assertion
 testSubTree =
@@ -92,6 +93,9 @@ testACLs = mapM_ aTest [
   where
     aTest (a,t,f) = assertBool (show (a, t)) $ f (authTopic t a)
 
+roundTrips :: (Eq a, Show a, Arbitrary a) => (a -> b) -> (b -> a) -> a -> Property
+roundTrips t f = f.t >>= (===)
+
 tests :: [TestTree]
 tests = [
   testCase "config files" testConfigFiles,
@@ -99,6 +103,7 @@ tests = [
 
   testCase "subtree" testSubTree,
   testGroup "subtree properties" [
+      testProperty "flatten/fromList" $ roundTrips (Sub.flatten @(SubTree Int)) Sub.fromList,
       testProperties "functor" (unbatch $ functor (undefined :: SubTree (Int, Int, Int))),
       testProperties "foldable" (unbatch $ foldable (undefined :: SubTree (Int, Int, Sum Int, Int, Int))),
       testProperties "traversable" (unbatch $ traversable (undefined :: SubTree (Int, Int, Sum Int))),
