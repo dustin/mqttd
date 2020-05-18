@@ -13,7 +13,8 @@ import           Data.Text                (Text, pack)
 
 import           MQTTD
 import           MQTTD.Config
-import           MQTTD.SubTree
+import           MQTTD.SubTree            (SubTree (..))
+import qualified MQTTD.SubTree            as Sub
 
 testConfigFiles :: Assertion
 testConfigFiles =
@@ -61,7 +62,7 @@ instance Arbitrary a => Arbitrary (SubTree a) where
     subbers <- choose (1, 20) >>= vector
     total <- choose (1, 20)
     subs <- vectorOf total (liftA2 (,) (elements topics) (elements subbers))
-    pure $ foldr (uncurry addSub) (SubTree mempty mempty) subs
+    pure $ foldr (uncurry Sub.add) mempty subs
 
 testSubTree :: Assertion
 testSubTree =
@@ -73,10 +74,10 @@ testSubTree =
     ("a/b/x", ["#","+/+/+","a/#","a/+/+"])]
 
   where
-    someSubs = foldr (\x -> addSub x x) (SubTree mempty mempty) [
+    someSubs = foldr (\x -> Sub.add x x) mempty [
       "a/b/c", "a/+/c", "a/+/+", "+/+/+", "+/b/c",
       "#", "a/#", "b/#"]
-    aTest (f,w) = assertEqual (show f) (sort w) (sort $ findSubd f someSubs)
+    aTest (f,w) = assertEqual (show f) (sort w) (sort $ Sub.find f someSubs)
 
 testACLs :: Assertion
 testACLs = mapM_ aTest [
@@ -100,7 +101,9 @@ tests = [
   testGroup "subtree properties" [
       testProperties "functor" (unbatch $ functor (undefined :: SubTree (Int, Int, Int))),
       testProperties "foldable" (unbatch $ foldable (undefined :: SubTree (Int, Int, Sum Int, Int, Int))),
-      testProperties "traversable" (unbatch $ traversable (undefined :: SubTree (Int, Int, Sum Int)))
+      testProperties "traversable" (unbatch $ traversable (undefined :: SubTree (Int, Int, Sum Int))),
+      testProperties "semigroup" (unbatch $ semigroup (undefined :: SubTree Int, undefined :: Int)),
+      testProperties "monoid" (unbatch $ monoid (undefined :: SubTree Int))
       ],
 
   testGroup "listener properties" [

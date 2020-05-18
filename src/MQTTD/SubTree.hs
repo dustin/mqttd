@@ -18,23 +18,29 @@ instance Foldable SubTree where
 instance Traversable SubTree where
   traverse f SubTree{..} = SubTree <$> traverse f subs <*> (traverse.traverse) f children
 
-modifySub :: Text -> ([a] -> [a]) -> SubTree a -> SubTree a
-modifySub top f = go (splitOn "/" top)
+instance Semigroup (SubTree a) where
+  a <> b = SubTree (subs a <> subs b) (Map.unionWith (<>) (children a) (children b))
+
+instance Monoid (SubTree a) where
+  mempty = SubTree mempty mempty
+
+modify :: Text -> ([a] -> [a]) -> SubTree a -> SubTree a
+modify top f = go (splitOn "/" top)
   where
     go [] n@SubTree{..} = n{subs=f subs}
     go (x:xs) n@SubTree{..} = n{children=Map.alter (fmap (go xs) . withChild) x children}
       where
-        withChild Nothing   = Just (SubTree mempty mempty)
+        withChild Nothing   = Just mempty
         withChild (Just n') = Just n'
 
-addSub :: Text -> a -> SubTree a -> SubTree a
-addSub top i = modifySub top (i:)
+add :: Text -> a -> SubTree a -> SubTree a
+add top i = modify top (i:)
 
-unsub :: Eq a => Text -> a -> SubTree a -> SubTree a
-unsub top i = modifySub top (filter (/= i))
+remove :: Eq a => Text -> a -> SubTree a -> SubTree a
+remove top i = modify top (filter (/= i))
 
-findSubd :: Text -> SubTree a -> [a]
-findSubd top = go (splitOn "/" top)
+find :: Text -> SubTree a -> [a]
+find top = go (splitOn "/" top)
   where
     go [] SubTree{subs} = subs
     go (x:xs) SubTree{children} = maybe [] (go xs) (Map.lookup x children)
