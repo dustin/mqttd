@@ -48,3 +48,19 @@ jobs:
       with:
         name: mqttd-${{ matrix.os }}
         path: dist
+
+    - name: Build Docs
+      if: matrix.os == 'ubuntu-latest' && github.event_name == 'push'
+      run: |
+        stack --no-terminal haddock --no-haddock-deps
+        stack install
+        PKG_NAME=$(cat *.cabal | grep "name:" | sed "s/name:\s*\(.*\)/\1/")
+        mkdir -p docs && mv $(stack path --local-install-root)/doc/$PKG_NAME-*/* docs/
+
+    - name: Publish Docs
+      if: matrix.os == 'ubuntu-latest' && github.event_name == 'push'
+      uses: peaceiris/actions-gh-pages@v3
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: docs
+        enable_jekyll: false
