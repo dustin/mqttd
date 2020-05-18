@@ -15,6 +15,9 @@ instance Functor SubTree where
 instance Foldable SubTree where
   foldMap f SubTree{..} = foldMap f subs <> (foldMap.foldMap) f children
 
+instance Traversable SubTree where
+  traverse f SubTree{..} = SubTree <$> traverse f subs <*> (traverse.traverse) f children
+
 modifySub :: Text -> ([a] -> [a]) -> SubTree a -> SubTree a
 modifySub top f = go (splitOn "/" top)
   where

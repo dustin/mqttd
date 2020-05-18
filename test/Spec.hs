@@ -4,9 +4,11 @@ import           Test.Tasty
 import           Test.Tasty.HUnit
 import           Test.Tasty.QuickCheck    as QC
 
+import           Control.Applicative      (liftA2)
 import           Data.Either              (isLeft, isRight)
-import           Data.List                (sort)
+import           Data.List                (intercalate, sort)
 import qualified Data.Map.Strict          as Map
+import           Data.Monoid              (Sum (..))
 import           Data.Text                (Text, pack)
 
 import           MQTTD
@@ -45,11 +47,21 @@ instance Arbitrary ListenerOptions where
 
 instance Eq a => EqProp (SubTree a) where (=-=) = eq
 
-instance Arbitrary Text where
-  arbitrary = pack . getPrintableString <$> arbitrary
+newtype ATopic = ATopic { unTopic :: Text } deriving (Eq, Show)
+
+instance Arbitrary ATopic where
+  arbitrary = do
+    n <- choose (1, 6)
+    ATopic . pack . intercalate "/" <$> vectorOf n seg
+      where seg = choose (1, 8) >>= flip vectorOf (choose ('a', 'z'))
 
 instance Arbitrary a => Arbitrary (SubTree a) where
-  arbitrary = SubTree <$> arbitrary <*> arbitrary
+  arbitrary = do
+    topics <- choose (1, 20) >>= flip vectorOf (unTopic <$> arbitrary)
+    subbers <- choose (1, 20) >>= vector
+    total <- choose (1, 20)
+    subs <- vectorOf total (liftA2 (,) (elements topics) (elements subbers))
+    pure $ foldr (uncurry addSub) (SubTree mempty mempty) subs
 
 testSubTree :: Assertion
 testSubTree =
@@ -85,11 +97,11 @@ tests = [
   testCase "ACLs" testACLs,
 
   testCase "subtree" testSubTree,
-  {-  Arbitrary generates absurd trees right now.  I'll fix that up tomorrow.
   testGroup "subtree properties" [
-      testProperties "functor" (unbatch $ functor (undefined :: SubTree (Int, Int, Int)))
+      testProperties "functor" (unbatch $ functor (undefined :: SubTree (Int, Int, Int))),
+      testProperties "foldable" (unbatch $ foldable (undefined :: SubTree (Int, Int, Sum Int, Int, Int))),
+      testProperties "traversable" (unbatch $ traversable (undefined :: SubTree (Int, Int, Sum Int)))
       ],
-   -}
 
   testGroup "listener properties" [
       testProperties "semigroup" (unbatch $ semigroup (undefined :: ListenerOptions, undefined :: Int)),
