@@ -171,8 +171,7 @@ subscribe sess@Session{..} (T.SubscribeRequest _ topics _props) = do
   pure $ map (second (T._subQoS . snd)) topics'
 
   where
-    upSub m subs = Map.foldrWithKey (\k x -> SubTree.modify k (f x)) subs m
-      where f x = Just . maybe (Map.singleton _sessionID x) (Map.insert _sessionID x)
+    upSub m subs = Map.foldrWithKey (\k x -> SubTree.add k (Map.singleton _sessionID x)) subs m
 
     doRetained _ (_, T.SubOptions{T._retainHandling=T.DoNotSendOnSubscribe}) = pure ()
     doRetained p (t, ops) = mapM_ (sendOne ops) =<< matchRetained p t
