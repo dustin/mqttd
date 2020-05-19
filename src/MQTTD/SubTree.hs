@@ -1,4 +1,3 @@
-{-# LANGUAGE DeriveFunctor     #-}
 {-# LANGUAGE DeriveTraversable #-}
 
 module MQTTD.SubTree (
@@ -7,6 +6,7 @@ module MQTTD.SubTree (
 
 import           Data.Map.Strict    (Map)
 import qualified Data.Map.Strict    as Map
+import           Data.Maybe         (maybeToList)
 import           Data.Text          (intercalate, splitOn)
 
 import           Network.MQTT.Topic (Filter, Topic)
@@ -64,7 +64,7 @@ find top = findMap top id
 flatten :: SubTree a -> [(Filter, a)]
 flatten = Map.foldMapWithKey (\k sn -> go [k] sn) . children
   where
-    go ks SubTree{..} = [(intercalate "/" (reverse ks), s) | s <- maybe [] (:[]) subs]
+    go ks SubTree{..} = [(intercalate "/" (reverse ks), s) | s <- maybeToList subs]
                         <> Map.foldMapWithKey (\k sn -> go (k:ks) sn) children
 
 -- | Construct a SubTree from a list of filters and subscribers (assuming monoidal values).
