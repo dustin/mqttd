@@ -1,3 +1,6 @@
+{-# LANGUAGE DeriveFunctor     #-}
+{-# LANGUAGE DeriveTraversable #-}
+
 module MQTTD.SubTree (
   SubTree, empty, modify, add, find, findMap, flatten, fromList,
   ) where
@@ -12,16 +15,10 @@ import           Network.MQTT.Topic (Filter, Topic)
 data SubTree a = SubTree {
   subs     :: Maybe a,
   children :: Map Filter (SubTree a)
-  } deriving (Show, Eq)
-
-instance Functor SubTree where
-  fmap f SubTree{..} = SubTree (f <$> subs) ((fmap.fmap) f children)
+  } deriving (Show, Eq, Functor, Traversable)
 
 instance Foldable SubTree where
   foldMap f SubTree{..} = maybe mempty f subs <> (foldMap.foldMap) f children
-
-instance Traversable SubTree where
-  traverse f SubTree{..} = SubTree <$> traverse f subs <*> (traverse.traverse) f children
 
 instance Semigroup a => Semigroup (SubTree a) where
   a <> b = SubTree (subs a <> subs b) (Map.unionWith (<>) (children a) (children b))
