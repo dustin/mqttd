@@ -33,10 +33,12 @@ import           Data.Word              (Word16)
 import           Network.MQTT.Lens
 import qualified Network.MQTT.Topic     as T
 import qualified Network.MQTT.Types     as T
-import           UnliftIO               (MonadUnliftIO (..), atomically, readTVarIO)
+import           UnliftIO               (MonadUnliftIO (..), atomically)
 
 import           MQTTD.Config           (ACL (..), User (..))
 import           MQTTD.Retention
+import           MQTTD.SubTree          (SubTree)
+import qualified MQTTD.SubTree          as SubTree
 import           MQTTD.Util
 
 import qualified Scheduler
@@ -86,6 +88,7 @@ data Env = Env {
   sessions    :: TVar (Map BL.ByteString Session),
   lastPktID   :: TVar Word16,
   clientIDGen :: TVar ClientID,
+  allSubs     :: TVar (SubTree (Map BL.ByteString T.SubOptions)),
   queueRunner :: Scheduler.QueueRunner BL.ByteString,
   persistence :: Persistence,
   authorizer  :: Authorizer
@@ -107,6 +110,7 @@ newEnv a = liftIO $ Env
          <$> newTVarIO mempty
          <*> newTVarIO 1
          <*> newTVarIO 0
+         <*> newTVarIO mempty
          <*> Scheduler.newRunner
          <*> newPersistence
          <*> pure a
@@ -147,25 +151,29 @@ resolveAliasIn Session{_sessionClient=Just ConnectedClient{_clientAliasIn}} r =
 
 findSubs :: MonadIO m => T.Topic -> MQTTD m [(Session, T.SubOptions)]
 findSubs t = do
-  ss <- asks sessions
-  sess <- Map.elems <$> readTVarIO ss
-  mconcat <$> traverse sessTopic sess
-
-  where
-    sessTopic sess@Session{..} = foldMap (\(m,o) -> [(sess, o) | T.match m t]
-                                         ) . Map.assocs <$> readTVarIO _sessionSubs
+  subs <- asks allSubs
+  sess <- asks sessions
+  atomically $ do
+    sm <- readTVar sess
+    foldMap (\(sid,os) -> maybe [] (\s -> [(s,os)]) $ Map.lookup sid sm) . SubTree.findMap t Map.assocs <$> readTVar subs
 
 subscribe :: PublishConstraint m => Session -> T.SubscribeRequest -> MQTTD m [Either T.SubErr T.QoS]
 subscribe sess@Session{..} (T.SubscribeRequest _ topics _props) = do
+  subs <- asks allSubs
   let topics' = map (\(t,o) -> let t' = blToText t in
                                  bimap (const T.SubErrNotAuthorized) (const (t', o)) $ authTopic t' _sessionACL) topics
       new = Map.fromList $ rights topics'
-  atomically $ modifyTVar' _sessionSubs (Map.union new)
+  atomically $ do
+    modifyTVar' _sessionSubs (Map.union new)
+    modifyTVar' subs (upSub new)
   p <- asks persistence
   mapM_ (doRetained p) (Map.assocs new)
   pure $ map (second (T._subQoS . snd)) topics'
 
   where
+    upSub m subs = Map.foldrWithKey (\k x -> SubTree.modify k (f x)) subs m
+      where f x = Just . maybe (Map.singleton _sessionID x) (Map.insert _sessionID x)
+
     doRetained _ (_, T.SubOptions{T._retainHandling=T.DoNotSendOnSubscribe}) = pure ()
     doRetained p (t, ops) = mapM_ (sendOne ops) =<< matchRetained p t
 
@@ -179,12 +187,18 @@ subscribe sess@Session{..} (T.SubscribeRequest _ topics _props) = do
           mightRetain T.SubOptions{_retainAsPublished=False} = False
           mightRetain _ = _pubRetain
 
+removeSubs :: TVar (SubTree (Map BL.ByteString T.SubOptions)) -> BL.ByteString -> [T.Filter] -> STM ()
+removeSubs subt sid ts = modifyTVar' subt up
+  where
+    up s = foldr (\t -> SubTree.modify t (Map.delete sid <$>)) s ts
+
 unsubscribe :: MonadIO m => Session -> [BL.ByteString] -> MQTTD m [T.UnsubStatus]
-unsubscribe Session{..} topics =
+unsubscribe Session{..} topics = asks allSubs >>= \subs ->
   atomically $ do
     m <- readTVar _sessionSubs
     let (uns, n) = foldl' (\(r,m') t -> first ((:r) . unm) $ up t m') ([], m) topics
     writeTVar _sessionSubs n
+    removeSubs subs _sessionID (blToText <$> topics)
     pure (reverse uns)
 
     where
@@ -258,7 +272,13 @@ expireSession k = do
                       pure Nothing
       case kilt of
         Nothing -> logDebugN ("Nothing expired for " <> tshow k)
-        Just s  -> logDebugN ("Expired session for " <> tshow k) >> sessionDied s
+        Just s@Session{..}  -> do
+          logDebugN ("Expired session for " <> tshow k)
+          subt <- asks allSubs
+          atomically $ do
+            subs <- readTVar _sessionSubs
+            removeSubs subt _sessionID (Map.keys subs)
+          sessionDied s
 
     sessionDied Session{_sessionWill=Nothing} =
       logDebugN ("Session without will: " <> tshow k <> " has died")
