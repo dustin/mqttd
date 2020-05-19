@@ -74,11 +74,11 @@ flatten :: SubTree a -> [(Filter, a)]
 -- | Construct a SubTree from a list of filters and subscribers (assuming
 --   monoidal values).
 fromList :: Monoid a => [(Filter, a)] -> SubTree a
+instance Data.Traversable.Traversable MQTTD.SubTree.SubTree
+instance GHC.Base.Functor MQTTD.SubTree.SubTree
 instance GHC.Classes.Eq a => GHC.Classes.Eq (MQTTD.SubTree.SubTree a)
 instance GHC.Show.Show a => GHC.Show.Show (MQTTD.SubTree.SubTree a)
-instance GHC.Base.Functor MQTTD.SubTree.SubTree
 instance Data.Foldable.Foldable MQTTD.SubTree.SubTree
-instance Data.Traversable.Traversable MQTTD.SubTree.SubTree
 instance GHC.Base.Semigroup a => GHC.Base.Semigroup (MQTTD.SubTree.SubTree a)
 instance GHC.Base.Monoid a => GHC.Base.Monoid (MQTTD.SubTree.SubTree a)
 
@@ -170,10 +170,11 @@ Authorizer :: Map ByteString User -> Bool -> Authorizer
 authUsers :: Lens' Authorizer (Map ByteString User)
 authAnon :: Lens' Authorizer Bool
 data Env
-Env :: TVar (Map ByteString Session) -> TVar Word16 -> TVar ClientID -> QueueRunner ByteString -> Persistence -> Authorizer -> Env
+Env :: TVar (Map ByteString Session) -> TVar Word16 -> TVar ClientID -> TVar (SubTree (Map ByteString SubOptions)) -> QueueRunner ByteString -> Persistence -> Authorizer -> Env
 [sessions] :: Env -> TVar (Map ByteString Session)
 [lastPktID] :: Env -> TVar Word16
 [clientIDGen] :: Env -> TVar ClientID
+[allSubs] :: Env -> TVar (SubTree (Map ByteString SubOptions))
 [queueRunner] :: Env -> QueueRunner ByteString
 [persistence] :: Env -> Persistence
 [authorizer] :: Env -> Authorizer
@@ -191,6 +192,7 @@ persistenceCleanup :: (MonadUnliftIO m, MonadLogger m) => MQTTD m ()
 resolveAliasIn :: MonadIO m => Session -> PublishRequest -> m PublishRequest
 findSubs :: MonadIO m => Topic -> MQTTD m [(Session, SubOptions)]
 subscribe :: PublishConstraint m => Session -> SubscribeRequest -> MQTTD m [Either SubErr QoS]
+removeSubs :: TVar (SubTree (Map ByteString SubOptions)) -> ByteString -> [Filter] -> STM ()
 unsubscribe :: MonadIO m => Session -> [ByteString] -> MQTTD m [UnsubStatus]
 modifySession :: MonadIO m => ByteString -> (Session -> Maybe Session) -> MQTTD m ()
 registerClient :: MonadIO m => ConnectRequest -> ClientID -> ThreadId -> MQTTD m (Session, SessionReuse)
