@@ -63,7 +63,7 @@ instance (Monoid a, Arbitrary a, Eq a) => Arbitrary (SubTree a) where
   arbitrary = do
     topics <- choose (1, 20) >>= flip vectorOf (unTopic <$> arbitrary)
     subbers <- choose (1, 20) >>= vector
-    total <- choose (1, 20)
+    total <- choose (1, 50)
     Sub.fromList <$> vectorOf total (liftA2 (,) (elements topics) (elements subbers))
 
   shrink = fmap Sub.fromList . shrinkList (const []) . Sub.flatten

@@ -1,5 +1,5 @@
 module MQTTD.SubTree (
-  SubTree, modify, add, find, findMap, flatten, fromList
+  SubTree, empty, modify, add, find, findMap, flatten, fromList,
   ) where
 
 import           Data.Map.Strict    (Map)
@@ -26,22 +26,29 @@ instance Traversable SubTree where
 instance Semigroup a => Semigroup (SubTree a) where
   a <> b = SubTree (subs a <> subs b) (Map.unionWith (<>) (children a) (children b))
 
+-- | An empty SubTree.
+--
+-- This exists in addition to `mempty` so one can create a SubTree for
+-- a values that are not monoidal.
+empty :: SubTree a
+empty = SubTree Nothing mempty
+
 instance Monoid a => Monoid (SubTree a) where
-  mempty = SubTree mempty mempty
+  mempty = empty
 
 -- | Modify a subscription for the given filter.
 --
 -- This will create structure along the path and will not clean up any
 -- unused structure.
-modify :: Monoid a => Filter -> (Maybe a -> Maybe a) -> SubTree a -> SubTree a
+modify :: Filter -> (Maybe a -> Maybe a) -> SubTree a -> SubTree a
 modify top f = go (splitOn "/" top)
   where
     go [] n@SubTree{..}     = n{subs=f subs}
-    go (x:xs) n@SubTree{..} = n{children=Map.alter (fmap (go xs) . maybe (Just mempty) Just) x children}
+    go (x:xs) n@SubTree{..} = n{children=Map.alter (fmap (go xs) . maybe (Just empty) Just) x children}
 
 -- | Add a value at the given filter path.
 add :: Monoid a => Filter -> a -> SubTree a -> SubTree a
-add top i = modify top (Just . (i<>) . maybe mempty id)
+add top i = modify top (fmap (i<>) . maybe (Just mempty) Just)
 
 -- | Find all matching subscribers
 findMap :: Monoid m => Topic -> (a -> m) -> SubTree a -> m
@@ -63,6 +70,6 @@ flatten = Map.foldMapWithKey (\k sn -> go [k] sn) . children
     go ks SubTree{..} = [(intercalate "/" (reverse ks), s) | s <- maybe [] (:[]) subs]
                         <> Map.foldMapWithKey (\k sn -> go (k:ks) sn) children
 
--- | Construct a SubTree from a list of filters and subscribers.
+-- | Construct a SubTree from a list of filters and subscribers (assuming monoidal values).
 fromList :: Monoid a => [(Filter, a)] -> SubTree a
 fromList = foldr (uncurry add) mempty
