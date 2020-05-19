@@ -47,11 +47,17 @@ module MQTTD.SubTree
 -- | MQTT Topic Subscription tree.
 data SubTree a
 
+-- | An empty SubTree.
+--   
+--   This exists in addition to <a>mempty</a> so one can create a SubTree
+--   for a values that are not monoidal.
+empty :: SubTree a
+
 -- | Modify a subscription for the given filter.
 --   
 --   This will create structure along the path and will not clean up any
 --   unused structure.
-modify :: Monoid a => Filter -> (a -> a) -> SubTree a -> SubTree a
+modify :: Filter -> (Maybe a -> Maybe a) -> SubTree a -> SubTree a
 
 -- | Add a value at the given filter path.
 add :: Monoid a => Filter -> a -> SubTree a -> SubTree a
@@ -62,11 +68,11 @@ find :: Monoid a => Topic -> SubTree a -> a
 -- | Find all matching subscribers
 findMap :: Monoid m => Topic -> (a -> m) -> SubTree a -> m
 
--- | flatten a SubTree to a list of (topic,a) pairs. Note this will return
---   <a>mempty</a> in paths along subscription paths.
+-- | flatten a SubTree to a list of (topic,a) pairs.
 flatten :: SubTree a -> [(Filter, a)]
 
--- | Construct a SubTree from a list of filters and subscribers.
+-- | Construct a SubTree from a list of filters and subscribers (assuming
+--   monoidal values).
 fromList :: Monoid a => [(Filter, a)] -> SubTree a
 instance GHC.Classes.Eq a => GHC.Classes.Eq (MQTTD.SubTree.SubTree a)
 instance GHC.Show.Show a => GHC.Show.Show (MQTTD.SubTree.SubTree a)
