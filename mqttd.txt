@@ -82,50 +82,7 @@ instance Data.Foldable.Foldable MQTTD.SubTree.SubTree
 instance GHC.Base.Semigroup a => GHC.Base.Semigroup (MQTTD.SubTree.SubTree a)
 instance GHC.Base.Monoid a => GHC.Base.Monoid (MQTTD.SubTree.SubTree a)
 
-module MQTTD.Util
-textToBL :: Text -> ByteString
-blToText :: ByteString -> Text
-tshow :: Show a => a -> Text
-justM :: Monad m => (a -> m ()) -> Maybe a -> m ()
-
-module Scheduler
-type TimedQueue a = Map UTCTime [a]
-add :: Ord a => UTCTime -> a -> TimedQueue a -> TimedQueue a
-ready :: UTCTime -> TimedQueue a -> ([a], TimedQueue a)
-next :: TimedQueue a -> Maybe UTCTime
-newtype QueueRunner a
-QueueRunner :: TVar (TimedQueue a) -> QueueRunner a
-[_tq] :: QueueRunner a -> TVar (TimedQueue a)
-newRunner :: MonadIO m => m (QueueRunner a)
-enqueue :: (Ord a, MonadIO m) => UTCTime -> a -> QueueRunner a -> m ()
-
--- | Run forever.
-run :: (MonadLogger m, MonadIO m) => (a -> m ()) -> QueueRunner a -> m ()
-
--- | Block until an item might be ready and then run (and remove) all ready
---   items. This will sometimes run 0 items. It shouldn't ever run any
---   items that are scheduled for the future, and it shouldn't forget any
---   items that are ready.
-runOnce :: (MonadLogger m, MonadIO m) => (a -> m ()) -> QueueRunner a -> m ()
-diffTimeToMicros :: NominalDiffTime -> Int
-
-module MQTTD.Retention
-data Retained
-Retained :: UTCTime -> Maybe UTCTime -> PublishRequest -> Retained
-[_retainTS] :: Retained -> UTCTime
-[_retainExp] :: Retained -> Maybe UTCTime
-[_retainMsg] :: Retained -> PublishRequest
-data Persistence
-Persistence :: TVar (Map ByteString Retained) -> QueueRunner ByteString -> Persistence
-[_store] :: Persistence -> TVar (Map ByteString Retained)
-[_qrunner] :: Persistence -> QueueRunner ByteString
-newPersistence :: MonadIO m => m Persistence
-cleanPersistence :: (MonadLogger m, MonadUnliftIO m) => Persistence -> m ()
-retain :: (MonadLogger m, MonadIO m) => PublishRequest -> Persistence -> m ()
-matchRetained :: MonadIO m => Persistence -> Filter -> m [PublishRequest]
-instance GHC.Show.Show MQTTD.Retention.Retained
-
-module MQTTD
+module MQTTD.Types
 data MQTTException
 MQTTPingTimeout :: MQTTException
 MQTTDuplicate :: MQTTException
@@ -169,14 +126,63 @@ Authorizer :: Map ByteString User -> Bool -> Authorizer
 [_authAnon] :: Authorizer -> Bool
 authUsers :: Lens' Authorizer (Map ByteString User)
 authAnon :: Lens' Authorizer Bool
+instance GHC.Show.Show MQTTD.Types.Authorizer
+instance GHC.Show.Show MQTTD.Types.ConnectedClient
+instance GHC.Show.Show MQTTD.Types.MQTTException
+instance GHC.Exception.Type.Exception MQTTD.Types.MQTTException
+
+module MQTTD.Util
+textToBL :: Text -> ByteString
+blToText :: ByteString -> Text
+tshow :: Show a => a -> Text
+justM :: Monad m => (a -> m ()) -> Maybe a -> m ()
+
+module Scheduler
+type TimedQueue a = Map UTCTime [a]
+add :: Ord a => UTCTime -> a -> TimedQueue a -> TimedQueue a
+ready :: UTCTime -> TimedQueue a -> ([a], TimedQueue a)
+next :: TimedQueue a -> Maybe UTCTime
+newtype QueueRunner a
+QueueRunner :: TVar (TimedQueue a) -> QueueRunner a
+[_tq] :: QueueRunner a -> TVar (TimedQueue a)
+newRunner :: MonadIO m => m (QueueRunner a)
+enqueue :: (Ord a, MonadIO m) => UTCTime -> a -> QueueRunner a -> m ()
+
+-- | Run forever.
+run :: (MonadLogger m, MonadIO m) => (a -> m ()) -> QueueRunner a -> m ()
+
+-- | Block until an item might be ready and then run (and remove) all ready
+--   items. This will sometimes run 0 items. It shouldn't ever run any
+--   items that are scheduled for the future, and it shouldn't forget any
+--   items that are ready.
+runOnce :: (MonadLogger m, MonadIO m) => (a -> m ()) -> QueueRunner a -> m ()
+diffTimeToMicros :: NominalDiffTime -> Int
+
+module MQTTD.Retention
+data Retained
+Retained :: UTCTime -> Maybe UTCTime -> PublishRequest -> Retained
+[_retainTS] :: Retained -> UTCTime
+[_retainExp] :: Retained -> Maybe UTCTime
+[_retainMsg] :: Retained -> PublishRequest
+data Retainer
+Retainer :: TVar (Map ByteString Retained) -> QueueRunner ByteString -> Retainer
+[_store] :: Retainer -> TVar (Map ByteString Retained)
+[_qrunner] :: Retainer -> QueueRunner ByteString
+newRetainer :: MonadIO m => m Retainer
+cleanRetainer :: (MonadLogger m, MonadUnliftIO m) => Retainer -> m ()
+retain :: (MonadLogger m, MonadIO m) => PublishRequest -> Retainer -> m ()
+matchRetained :: MonadIO m => Retainer -> Filter -> m [PublishRequest]
+instance GHC.Show.Show MQTTD.Retention.Retained
+
+module MQTTD
 data Env
-Env :: TVar (Map ByteString Session) -> TVar Word16 -> TVar ClientID -> TVar (SubTree (Map ByteString SubOptions)) -> QueueRunner ByteString -> Persistence -> Authorizer -> Env
+Env :: TVar (Map ByteString Session) -> TVar Word16 -> TVar ClientID -> TVar (SubTree (Map ByteString SubOptions)) -> QueueRunner ByteString -> Retainer -> Authorizer -> Env
 [sessions] :: Env -> TVar (Map ByteString Session)
 [lastPktID] :: Env -> TVar Word16
 [clientIDGen] :: Env -> TVar ClientID
 [allSubs] :: Env -> TVar (SubTree (Map ByteString SubOptions))
 [queueRunner] :: Env -> QueueRunner ByteString
-[persistence] :: Env -> Persistence
+[retainer] :: Env -> Retainer
 [authorizer] :: Env -> Authorizer
 newtype MQTTD m a
 MQTTD :: ReaderT Env m a -> MQTTD m a
@@ -188,7 +194,7 @@ seconds :: Num p => p -> p
 nextID :: MonadIO m => MQTTD m Int
 type PublishConstraint m = (MonadLogger m, MonadFail m, MonadMask m, MonadUnliftIO m, MonadIO m)
 sessionCleanup :: PublishConstraint m => MQTTD m ()
-persistenceCleanup :: (MonadUnliftIO m, MonadLogger m) => MQTTD m ()
+retainerCleanup :: (MonadUnliftIO m, MonadLogger m) => MQTTD m ()
 resolveAliasIn :: MonadIO m => Session -> PublishRequest -> m PublishRequest
 findSubs :: MonadIO m => Topic -> MQTTD m [(Session, SubOptions)]
 subscribe :: PublishConstraint m => Session -> SubscribeRequest -> MQTTD m [Either SubErr QoS]
@@ -203,6 +209,7 @@ sendPacket :: PktQueue -> MQTTPkt -> STM Bool
 sendPacket_ :: PktQueue -> MQTTPkt -> STM ()
 sendPacketIO :: MonadIO m => PktQueue -> MQTTPkt -> m Bool
 sendPacketIO_ :: MonadIO m => PktQueue -> MQTTPkt -> m ()
+modifyTVarRet :: TVar a -> (a -> a) -> STM a
 nextPktID :: TVar Word16 -> STM Word16
 broadcast :: PublishConstraint m => Maybe ByteString -> PublishRequest -> MQTTD m ()
 publish :: PublishConstraint m => Session -> PublishRequest -> MQTTD m ()
@@ -220,10 +227,6 @@ instance GHC.Base.Monad m => GHC.Base.Monad (MQTTD.MQTTD m)
 instance GHC.Base.Functor m => GHC.Base.Functor (MQTTD.MQTTD m)
 instance GHC.Base.Applicative m => GHC.Base.Applicative (MQTTD.MQTTD m)
 instance Control.Monad.IO.Unlift.MonadUnliftIO m => Control.Monad.IO.Unlift.MonadUnliftIO (MQTTD.MQTTD m)
-instance GHC.Show.Show MQTTD.Authorizer
-instance GHC.Show.Show MQTTD.ConnectedClient
-instance GHC.Show.Show MQTTD.MQTTException
-instance GHC.Exception.Type.Exception MQTTD.MQTTException
 
 module MQTTD.Conduit
 type MQTTConduit m = (ConduitT () ByteString (MQTTD m) (), ConduitT ByteString Void (MQTTD m) ())
