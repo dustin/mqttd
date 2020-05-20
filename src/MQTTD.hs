@@ -5,22 +5,19 @@
 {-# LANGUAGE GeneralisedNewtypeDeriving #-}
 {-# LANGUAGE LambdaCase                 #-}
 {-# LANGUAGE ScopedTypeVariables        #-}
-{-# LANGUAGE StandaloneDeriving         #-}
-{-# LANGUAGE TemplateHaskell            #-}
-{-# LANGUAGE TypeApplications           #-}
 {-# LANGUAGE UndecidableInstances       #-}
 
 module MQTTD where
 
 import           Control.Concurrent     (ThreadId, throwTo)
-import           Control.Concurrent.STM (STM, TBQueue, TVar, isFullTBQueue, modifyTVar', newTBQueue, newTVar, newTVarIO,
+import           Control.Concurrent.STM (STM, TVar, isFullTBQueue, modifyTVar', newTBQueue, newTVar, newTVarIO,
                                          readTVar, writeTBQueue, writeTVar)
 import           Control.Lens
 import           Control.Monad          (unless, void, when)
-import           Control.Monad.Catch    (Exception, MonadCatch (..), MonadMask (..), MonadThrow (..))
+import           Control.Monad.Catch    (MonadCatch (..), MonadMask (..), MonadThrow (..))
 import           Control.Monad.IO.Class (MonadIO (..))
 import           Control.Monad.Logger   (MonadLogger (..), logDebugN, logInfoN)
-import           Control.Monad.Reader   (MonadReader, ReaderT (..), asks, local, runReaderT)
+import           Control.Monad.Reader   (MonadReader (..), ReaderT (..), asks, local)
 import           Data.Bifunctor         (first, second)
 import qualified Data.ByteString.Lazy   as BL
 import           Data.Either            (rights)
@@ -28,7 +25,7 @@ import           Data.Foldable          (foldl')
 import           Data.Map.Strict        (Map)
 import qualified Data.Map.Strict        as Map
 import           Data.Maybe             (fromMaybe)
-import           Data.Time.Clock        (NominalDiffTime, UTCTime (..), addUTCTime, getCurrentTime)
+import           Data.Time.Clock        (NominalDiffTime, addUTCTime, getCurrentTime)
 import           Data.Word              (Word16)
 import           Network.MQTT.Lens
 import qualified Network.MQTT.Topic     as T
@@ -39,50 +36,10 @@ import           MQTTD.Config           (ACL (..), User (..))
 import           MQTTD.Retention
 import           MQTTD.SubTree          (SubTree)
 import qualified MQTTD.SubTree          as SubTree
+import           MQTTD.Types
 import           MQTTD.Util
 
 import qualified Scheduler
-
-data MQTTException = MQTTPingTimeout | MQTTDuplicate deriving Show
-
-instance Exception MQTTException
-
-type PktQueue = TBQueue T.MQTTPkt
-type ClientID = Int
-
-data ConnectedClient = ConnectedClient {
-  _clientConnReq  :: T.ConnectRequest,
-  _clientThread   :: ThreadId,
-  _clientID       :: ClientID,
-  _clientAliasIn  :: TVar (Map Word16 BL.ByteString),
-  _clientAliasOut :: TVar (Map BL.ByteString Word16),
-  _clientALeft    :: TVar Word16
-  }
-
-makeLenses ''ConnectedClient
-
-instance Show ConnectedClient where
-  show ConnectedClient{..} = "ConnectedClient " <> show _clientConnReq
-
-data Session = Session {
-  _sessionID      :: BL.ByteString,
-  _sessionACL     :: [ACL],
-  _sessionClient  :: Maybe ConnectedClient,
-  _sessionChan    :: PktQueue,
-  _sessionQP      :: TVar (Map T.PktID T.PublishRequest),
-  _sessionSubs    :: TVar (Map T.Filter T.SubOptions),
-  _sessionExpires :: Maybe UTCTime,
-  _sessionWill    :: Maybe T.LastWill
-  }
-
-makeLenses ''Session
-
-data Authorizer = Authorizer {
-  _authUsers :: Map BL.ByteString User,
-  _authAnon  :: Bool
-  } deriving Show
-
-makeLenses ''Authorizer
 
 data Env = Env {
   sessions    :: TVar (Map BL.ByteString Session),

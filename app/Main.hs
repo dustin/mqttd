@@ -13,6 +13,7 @@ import           UnliftIO                 (MonadUnliftIO (..), async, waitAnyCan
 import           MQTTD
 import           MQTTD.Conduit
 import           MQTTD.Config
+import           MQTTD.Types
 import           MQTTD.Util
 
 runListener :: (MonadUnliftIO m, MonadLogger m, MonadFail m, MonadMask m) => Listener -> MQTTD m ()
