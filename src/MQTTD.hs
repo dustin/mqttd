@@ -79,7 +79,7 @@ seconds :: Num p => p -> p
 seconds = (1000000 *)
 
 nextID :: MonadIO m => MQTTD m Int
-nextID = asks clientIDGen >>= \ig -> atomically $ modifyTVar' ig (+1) >> readTVar ig
+nextID = asks clientIDGen >>= \ig -> atomically $ modifyTVarRet ig (+1)
 
 type PublishConstraint m = (MonadLogger m, MonadFail m, MonadMask m, MonadUnliftIO m, MonadIO m)
 
@@ -288,10 +288,11 @@ sendPacketIO ch = atomically . sendPacket ch
 sendPacketIO_ :: MonadIO m => PktQueue -> T.MQTTPkt -> m ()
 sendPacketIO_ ch = void . atomically . sendPacket ch
 
+modifyTVarRet :: TVar a -> (a -> a) -> STM a
+modifyTVarRet v f = modifyTVar' v f >> readTVar v
+
 nextPktID :: TVar Word16 -> STM Word16
-nextPktID x = do
-  modifyTVar' x $ \pid -> if pid == maxBound then 1 else succ pid
-  readTVar x
+nextPktID x = modifyTVarRet x $ \pid -> if pid == maxBound then 1 else succ pid
 
 broadcast :: PublishConstraint m => Maybe BL.ByteString -> T.PublishRequest -> MQTTD m ()
 broadcast src req@T.PublishRequest{..} = do
