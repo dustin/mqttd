@@ -47,7 +47,7 @@ data Env = Env {
   clientIDGen :: TVar ClientID,
   allSubs     :: TVar (SubTree (Map BL.ByteString T.SubOptions)),
   queueRunner :: Scheduler.QueueRunner BL.ByteString,
-  persistence :: Persistence,
+  retainer    :: Retainer,
   authorizer  :: Authorizer
   }
 
@@ -69,7 +69,7 @@ newEnv a = liftIO $ Env
          <*> newTVarIO 0
          <*> newTVarIO mempty
          <*> Scheduler.newRunner
-         <*> newPersistence
+         <*> newRetainer
          <*> pure a
 
 modifyAuthorizer :: Monad m => (Authorizer -> Authorizer) -> MQTTD m a -> MQTTD m a
@@ -86,8 +86,8 @@ type PublishConstraint m = (MonadLogger m, MonadFail m, MonadMask m, MonadUnlift
 sessionCleanup :: PublishConstraint m => MQTTD m ()
 sessionCleanup = asks queueRunner >>= Scheduler.run expireSession
 
-persistenceCleanup :: (MonadUnliftIO m, MonadLogger m) => MQTTD m ()
-persistenceCleanup = asks persistence >>= cleanPersistence
+retainerCleanup :: (MonadUnliftIO m, MonadLogger m) => MQTTD m ()
+retainerCleanup = asks retainer >>= cleanRetainer
 
 resolveAliasIn :: MonadIO m => Session -> T.PublishRequest -> m T.PublishRequest
 resolveAliasIn Session{_sessionClient=Nothing} r = pure r
@@ -123,7 +123,7 @@ subscribe sess@Session{..} (T.SubscribeRequest _ topics _props) = do
   atomically $ do
     modifyTVar' _sessionSubs (Map.union new)
     modifyTVar' subs (upSub new)
-  p <- asks persistence
+  p <- asks retainer
   mapM_ (doRetained p) (Map.assocs new)
   pure $ map (second (T._subQoS . snd)) topics'
 
@@ -295,7 +295,7 @@ nextPktID x = do
 
 broadcast :: PublishConstraint m => Maybe BL.ByteString -> T.PublishRequest -> MQTTD m ()
 broadcast src req@T.PublishRequest{..} = do
-  asks persistence >>= retain req
+  asks retainer >>= retain req
   subs <- findSubs (blToText _pubTopic)
   pid <- atomically . nextPktID =<< asks lastPktID
   mapM_ (\(s@Session{..}, o) -> justM (publish s) (pkt _sessionID o pid)) subs

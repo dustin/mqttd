@@ -39,7 +39,7 @@ main = do
   e <- newEnv baseAuth
   runStderrLoggingT . logfilt conf . runIO e $ do
     sc <- async sessionCleanup
-    pc <- async persistenceCleanup
+    pc <- async retainerCleanup
 
     ls <- traverse (async . runModified) _confListeners
 

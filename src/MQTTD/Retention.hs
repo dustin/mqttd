@@ -23,16 +23,16 @@ data Retained = Retained {
   _retainMsg :: T.PublishRequest
   } deriving Show
 
-data Persistence = Persistence {
+data Retainer = Retainer {
   _store   :: TVar (Map BL.ByteString Retained),
   _qrunner :: Scheduler.QueueRunner BL.ByteString
   }
 
-newPersistence :: MonadIO m => m Persistence
-newPersistence = Persistence <$> liftIO (newTVarIO mempty) <*> Scheduler.newRunner
+newRetainer :: MonadIO m => m Retainer
+newRetainer = Retainer <$> liftIO (newTVarIO mempty) <*> Scheduler.newRunner
 
-cleanPersistence :: (MonadLogger m, MonadUnliftIO m) => Persistence -> m ()
-cleanPersistence Persistence{..} = Scheduler.run cleanup _qrunner
+cleanRetainer :: (MonadLogger m, MonadUnliftIO m) => Retainer -> m ()
+cleanRetainer Retainer{..} = Scheduler.run cleanup _qrunner
     where
       cleanup k = do
         now <- liftIO getCurrentTime
@@ -41,11 +41,11 @@ cleanPersistence Persistence{..} = Scheduler.run cleanup _qrunner
           r <- (_retainExp <=< Map.lookup k) <$> readTVar _store
           when (r < Just now) $ modifyTVar' _store (Map.delete k)
 
-retain :: (MonadLogger m, MonadIO m) => T.PublishRequest -> Persistence -> m ()
+retain :: (MonadLogger m, MonadIO m) => T.PublishRequest -> Retainer -> m ()
 retain T.PublishRequest{_pubRetain=False} _ = pure ()
-retain T.PublishRequest{_pubTopic,_pubBody=""} Persistence{..} =
+retain T.PublishRequest{_pubTopic,_pubBody=""} Retainer{..} =
   atomically $ modifyTVar' _store (Map.delete _pubTopic)
-retain pr@T.PublishRequest{..} Persistence{..} = do
+retain pr@T.PublishRequest{..} Retainer{..} = do
   now <- liftIO getCurrentTime
   logDebugN ("Persisting " <> tshow _pubTopic)
   let e = pr ^? properties . folded . _PropMessageExpiryInterval . to (absExp now)
@@ -54,8 +54,8 @@ retain pr@T.PublishRequest{..} Persistence{..} = do
 
     where absExp now secs = addUTCTime (fromIntegral secs) now
 
-matchRetained :: MonadIO m => Persistence -> T.Filter -> m [T.PublishRequest]
-matchRetained Persistence{..} f = do
+matchRetained :: MonadIO m => Retainer -> T.Filter -> m [T.PublishRequest]
+matchRetained Retainer{..} f = do
   now <- liftIO getCurrentTime
   fmap (adj now) . filter match . Map.elems <$> readTVarIO _store
 
