@@ -38,7 +38,7 @@ main = do
         _authUsers = _confUsers
         }
 
-  withConnection "mqttd.db" $ \db -> do
+  withConnection (_persistenceDBPath _confPersist) $ \db -> do
     initDB db
     e <- newEnv baseAuth db
     runStderrLoggingT . logfilt conf . runIO e $ do

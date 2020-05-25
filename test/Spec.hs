@@ -33,12 +33,14 @@ testConfigFiles =
                             _confListeners = [MQTTListener "*" 1883 mempty,
                                               WSListener "*" 8080 mempty,
                                               MQTTSListener "*" 8883 "certificate.pem" "key.pem"
-                                              (ListenerOptions (Just False) )]}),
+                                              (ListenerOptions (Just False) )],
+                            _confPersist = PersistenceConfig "mqttd.db"}),
       ("test2.conf", Config {_confDebug = False,
                              _confUsers = mempty,
                              _confDefaults = mempty,
                              _confListeners = [MQTTListener "*" 1883 mempty,
-                                               MQTTSListener "*" 8883 "certificate.pem" "key.pem" mempty]})
+                                               MQTTSListener "*" 8883 "certificate.pem" "key.pem" mempty],
+                             _confPersist = PersistenceConfig ":memory:"})
       ]
   where
     aTest (f,w) = assertEqual f w =<< parseConfFile ("test/" <> f)

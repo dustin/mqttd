@@ -1,4 +1,4 @@
-module MQTTD.Config (Config(..), User(..), ACL(..),
+module MQTTD.Config (Config(..), User(..), ACL(..), PersistenceConfig(..),
                      Listener(..), ListenerOptions(..), listenerOpts,
                      parseConfFile) where
 
@@ -51,17 +51,21 @@ listenerOpts = lens r w
     w (MQTTSListener a b c d _) o = MQTTSListener a b c d o
     w (WSListener a b _) o = WSListener a b o
 
+newtype PersistenceConfig = PersistenceConfig { _persistenceDBPath :: FilePath } deriving (Show, Eq)
+
 data Config = Config {
   _confDebug     :: Bool,
   _confUsers     :: Map BL.ByteString User,
   _confListeners :: [Listener],
-  _confDefaults  :: ListenerOptions
+  _confDefaults  :: ListenerOptions,
+  _confPersist   :: PersistenceConfig
   } deriving (Show, Eq)
 
 data Section = DebugSection Bool
              | UserSection [User]
              | DefaultsSection ListenerOptions
              | ListenerSection [Listener]
+             | PersistenceSection PersistenceConfig
              deriving Show
 
 sc :: Parser ()
@@ -109,16 +113,22 @@ parseListenOpts = between "{" "}" (ListenerOptions <$> sc' (lexeme aListenOpt))
   where
     aListenOpt = namedValue "allow_anonymous" (Just <$> parseBool)
 
+parsePersistence :: Parser PersistenceConfig
+parsePersistence = between "{" "}" (PersistenceConfig <$> sc' (lexeme aListenOpt))
+  where
+    aListenOpt = namedValue "db" (lexeme qstr)
+
 parseSection :: Parser Section
 parseSection = (choice . map sc') [
   try (DebugSection <$> namedValue "debug" parseBool),
   DefaultsSection <$> namedValue "defaults" parseListenOpts,
   UserSection <$> namedList "users" parseUser,
-  ListenerSection <$> namedList "listeners" parseListener
+  ListenerSection <$> namedList "listeners" parseListener,
+  PersistenceSection <$> namedValue "persistence" parsePersistence
   ]
 
 parseConfig :: Parser Config
-parseConfig = foldr up (Config False mempty mempty mempty) <$> sc' (some parseSection)
+parseConfig = foldr up (Config False mempty mempty mempty (PersistenceConfig ":memory:")) <$> sc' (some parseSection)
 
     where
       up (DebugSection d) c = c{_confDebug=d}
@@ -126,6 +136,7 @@ parseConfig = foldr up (Config False mempty mempty mempty) <$> sc' (some parseSe
         c{_confUsers=Map.union _confUsers . Map.fromList . map (\u@(User n _ _) -> (n,u)) $ l}
       up (ListenerSection l) c@Config{..} = c{_confListeners=_confListeners <> l}
       up (DefaultsSection l) c = c{_confDefaults=l}
+      up (PersistenceSection l) c = c{_confPersist=l}
 
 parseBool :: Parser Bool
 parseBool = True <$ lexeme "true" <|> False <$ lexeme "false"
