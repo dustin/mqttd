@@ -1,4 +1,5 @@
 {-# LANGUAGE BlockArguments    #-}
+{-# LANGUAGE FlexibleContexts  #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE QuasiQuotes       #-}
 {-# LANGUAGE RecordWildCards   #-}
@@ -7,9 +8,12 @@
 
 module MQTTD.DB where
 
-import           Control.Concurrent.STM          (newTBQueueIO, newTVarIO, readTVarIO)
+import           Control.Concurrent.STM          (TBQueue, check, flushTBQueue, isEmptyTBQueue, newTBQueueIO, newTVarIO,
+                                                  readTVarIO)
 import           Control.Lens
+import           Control.Monad                   (forever)
 import           Control.Monad.IO.Class          (MonadIO (..))
+import           Control.Monad.Logger            (MonadLogger (..), logDebugN)
 import qualified Data.Attoparsec.ByteString.Lazy as A
 import qualified Data.ByteString.Lazy            as BL
 import qualified Data.Map.Strict                 as Map
@@ -19,15 +23,23 @@ import           Data.Time.Clock                 (addUTCTime, getCurrentTime)
 import           Database.SQLite.Simple          hiding (bind, close)
 import           Database.SQLite.Simple.ToField
 import           Text.RawString.QQ               (r)
+import           UnliftIO                        (atomically, writeTBQueue)
 
 import qualified Network.MQTT.Lens               as T
 import qualified Network.MQTT.Topic              as T
 import qualified Network.MQTT.Types              as T
 
 import           MQTTD.Types
+import           MQTTD.Util
 
 class Monad m => HasDBConnection m where
   dbConn :: m Connection
+  dbQueue :: m (TBQueue DBOperation)
+
+data DBOperation = DeleteSession SessionID
+                 | StoreSession Session
+                 | DeleteRetained BLTopic
+                 | StoreRetained Retained
 
 initQueries :: [(Int, Query)]
 initQueries = [
@@ -58,29 +70,66 @@ initDB db = do
   mapM_ (execute_ db) ["pragma foreign_keys = ON"]
   initTables db
 
+runOperations :: (HasDBConnection m, MonadIO m, MonadLogger m) => m ()
+runOperations = do
+  db <- dbConn
+  q <- dbQueue
+  forever $ go db q
+    where
+      go db q = do
+        ops <- atomically $ do
+          check . not =<< isEmptyTBQueue q
+          flushTBQueue q
+        store ops
+          where
+            store ops = do
+              logDebugN ("Storing a batch of " <> tshow (length ops) <> " operations")
+              liftIO . withTransaction db $
+                mapM_ store1 ops
+            store1 (DeleteSession i) = deleteSessionL db i
+            store1 (DeleteRetained i) = deleteRetainedL db i
+            store1 (StoreSession i) = storeSessionL db i
+            store1 (StoreRetained i) = storeRetainedL db i
+
+writeDBQueue :: (HasDBConnection m, MonadIO m) => DBOperation -> m ()
+writeDBQueue o = dbQueue >>= \q -> writeTBQueueIO q o
+  where
+    writeTBQueueIO q = liftIO . atomically . writeTBQueue q
+
+deleteSessionL :: MonadIO m => Connection -> SessionID -> m ()
+deleteSessionL db sid = liftIO $ execute db "delete from sessions where session_id = ?" (Only sid)
+
 deleteSession :: (HasDBConnection m, MonadIO m) => SessionID -> m ()
-deleteSession sid = liftIO . del =<< dbConn
-  where del db = execute db "delete from sessions where session_id = ?" (Only sid)
+deleteSession = writeDBQueue . DeleteSession
+
+deleteRetained :: (HasDBConnection m, MonadIO m) => BLTopic -> m ()
+deleteRetained = writeDBQueue . DeleteRetained
+
+deleteRetainedL :: MonadIO m => Connection -> BLTopic -> m ()
+deleteRetainedL db k = liftIO $ execute db "delete from persisted where topic = ?" (Only k)
 
 storeSession :: (HasDBConnection m, MonadIO m) => Session -> m ()
-storeSession Session{..} = liftIO . up =<< dbConn
-  where up db = withTransaction db do
-          -- TODO:  For a session with an already-absolute expiry, try to expire at the right time.
-          execute db [r|insert into sessions (session_id, expiry) values (?, ?)
-                          on conflict (session_id)
-                             do update
-                                set expiry = excluded.expiry|] (_sessionID, (fst . properFraction $ sto) :: Int)
+storeSession = writeDBQueue . StoreSession
 
-          execute db "delete from session_subs where session_id = ?" (Only _sessionID)
-          executeMany db [r|insert into session_subs
-                            (session_id, topic, retain_handling, retain_as_published, no_local, qos)
-                            values (?, ?, ?, ?, ?, ?)|] =<< subs
+storeSessionL :: MonadIO m => Connection -> Session -> m ()
+storeSessionL db Session{..} = liftIO $ do
+  -- TODO:  For a session with an already-absolute expiry, try to expire at the right time.
+  execute db [r|insert into sessions (session_id, expiry) values (?, ?)
+                 on conflict (session_id)
+                 do update
+                   set expiry = excluded.expiry|] (_sessionID, (fst . properFraction $ sto) :: Int)
 
-        subs = Map.foldMapWithKey (\t T.SubOptions{..} -> [(_sessionID, t, show _retainHandling,
-                                                            _retainAsPublished, _noLocal, fromEnum _subQoS)])
-                           <$> readTVarIO _sessionSubs
+  execute db "delete from session_subs where session_id = ?" (Only _sessionID)
+  executeMany db [r|insert into session_subs
+                    (session_id, topic, retain_handling, retain_as_published, no_local, qos)
+                     values (?, ?, ?, ?, ?, ?)|] =<< subs
 
-        sto = fromMaybe defaultSessionExp (_sessionClient ^? _Just . clientConnReq . T.properties . folded . T._PropSessionExpiryInterval . to fromIntegral)
+  where
+    subs = Map.foldMapWithKey (\t T.SubOptions{..} -> [(_sessionID, t, show _retainHandling,
+                                                        _retainAsPublished, _noLocal, fromEnum _subQoS)])
+           <$> readTVarIO _sessionSubs
+
+    sto = fromMaybe defaultSessionExp (_sessionClient ^? _Just . clientConnReq . T.properties . folded . T._PropSessionExpiryInterval . to fromIntegral)
 
 data StoredSub = StoredSub {
   _ss_sessID :: SessionID,
@@ -159,20 +208,19 @@ instance FromRow Retained where
                             (A.Done _ p) -> p
 
 storeRetained :: (HasDBConnection m, MonadIO m) => Retained -> m ()
-storeRetained p = liftIO . (up (T._pubBody . _retainMsg $ p)) =<< dbConn
-  where up "" db = execute db "delete from persisted where topic = ?" (Only (T._pubTopic . _retainMsg $ p))
-        up _ db = execute db [r|insert into persisted (topic, qos, value, properties, stored, expires) values (?,?,?,?,?,?)
-                               on conflict (topic)
-                                 do update
-                                   set qos = excluded.qos,
-                                       value = excluded.value,
-                                       properties = excluded.properties,
-                                       stored = excluded.stored,
-                                       expires = excluded.expires|] p
+storeRetained = writeDBQueue . StoreRetained
 
-deleteRetained :: (HasDBConnection m, MonadIO m) => BLTopic -> m ()
-deleteRetained k = liftIO . del =<< dbConn
-  where del db = execute db "delete from persisted where topic = ?" (Only k)
+storeRetainedL :: MonadIO m => Connection -> Retained -> m ()
+storeRetainedL db p = liftIO $ up (T._pubBody . _retainMsg $ p)
+  where up "" = execute db "delete from persisted where topic = ?" (Only (T._pubTopic . _retainMsg $ p))
+        up _ = execute db [r|insert into persisted (topic, qos, value, properties, stored, expires) values (?,?,?,?,?,?)
+                             on conflict (topic)
+                               do update
+                                 set qos = excluded.qos,
+                                     value = excluded.value,
+                                     properties = excluded.properties,
+                                     stored = excluded.stored,
+                                     expires = excluded.expires|] p
 
 loadRetained :: (HasDBConnection m, MonadIO m) => m [Retained]
 loadRetained = liftIO . fetch =<< dbConn

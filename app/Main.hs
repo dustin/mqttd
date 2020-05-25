@@ -44,12 +44,13 @@ main = do
     runStderrLoggingT . logfilt conf . runIO e $ do
       sc <- async sessionCleanup
       pc <- async retainerCleanup
+      dba <- async runOperations
       restoreSessions
       restoreRetained
 
       ls <- traverse (async . runModified) _confListeners
 
-      void $ waitAnyCancel (sc:pc:ls)
+      void $ waitAnyCancel (sc:pc:dba:ls)
 
         where
           logfilt Config{..} = filterLogger (\_ -> flip (if _confDebug then (>=) else (>)) LevelDebug)

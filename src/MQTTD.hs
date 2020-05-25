@@ -10,8 +10,8 @@
 module MQTTD where
 
 import           Control.Concurrent     (ThreadId, throwTo)
-import           Control.Concurrent.STM (STM, TVar, isFullTBQueue, modifyTVar', newTBQueue, newTVar, newTVarIO,
-                                         readTVar, writeTBQueue, writeTVar)
+import           Control.Concurrent.STM (STM, TBQueue, TVar, isFullTBQueue, modifyTVar', newTBQueue, newTBQueueIO,
+                                         newTVar, newTVarIO, readTVar, writeTBQueue, writeTVar)
 import           Control.Lens
 import           Control.Monad          (unless, void, when)
 import           Control.Monad.Catch    (MonadCatch (..), MonadMask (..), MonadThrow (..))
@@ -50,7 +50,8 @@ data Env = Env {
   queueRunner  :: Scheduler.QueueRunner SessionID,
   retainer     :: Retainer,
   authorizer   :: Authorizer,
-  dbConnection :: Connection
+  dbConnection :: Connection,
+  dbQ          :: TBQueue DBOperation
   }
 
 newtype MQTTD m a = MQTTD
@@ -63,6 +64,7 @@ instance MonadUnliftIO m => MonadUnliftIO (MQTTD m) where
 
 instance (Monad m, MonadReader Env m) => HasDBConnection m where
   dbConn = asks dbConnection
+  dbQueue = asks dbQ
 
 runIO :: (MonadIO m, MonadLogger m) => Env -> MQTTD m a -> m a
 runIO e m = runReaderT (runMQTTD m) e
@@ -77,6 +79,7 @@ newEnv a d = liftIO $ Env
          <*> newRetainer
          <*> pure a
          <*> pure d
+         <*> newTBQueueIO 100
 
 modifyAuthorizer :: Monad m => (Authorizer -> Authorizer) -> MQTTD m a -> MQTTD m a
 modifyAuthorizer f = local (\e@Env{..} -> e{authorizer=f authorizer})
@@ -129,10 +132,10 @@ restoreSessions = do
   atomically $ do
     writeTVar sessv (Map.fromList . map (\s@Session{..} -> (_sessionID, s)) $ ss)
     writeTVar subv subs
-  mapM_ expireSession (map _sessionID ss)
+  mapM_ (expireSession . _sessionID) ss
 
   where
-    flatSubs :: MonadIO m => Session -> m [(T.Filter, (Map SessionID T.SubOptions))]
+    flatSubs :: MonadIO m => Session -> m [(T.Filter, Map SessionID T.SubOptions)]
     flatSubs Session{..} = Map.foldMapWithKey (\k v -> [(k, Map.singleton _sessionID v)]) <$> readTVarIO _sessionSubs
 
 restoreRetained :: MonadIO m => MQTTD m ()

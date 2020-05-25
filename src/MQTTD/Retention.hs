@@ -53,8 +53,7 @@ retain pr@T.PublishRequest{..} Retainer{..} = do
   justM (\t -> Scheduler.enqueue t _pubTopic _qrunner) e
 
 restoreRetained :: (MonadIO m, HasDBConnection m) => Retainer -> m ()
-restoreRetained Retainer{..} = do
-  mapM_ keep =<< loadRetained
+restoreRetained Retainer{..} = mapM_ keep =<< loadRetained
   where
     keep r@Retained{..} = do
       let top = r ^. retainMsg . pubTopic
