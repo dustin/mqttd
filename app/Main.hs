@@ -7,12 +7,14 @@ import           Control.Monad.Logger     (LogLevel (..), MonadLogger (..), filt
 import           Data.Conduit.Network     (runTCPServer, serverSettings)
 import           Data.Conduit.Network.TLS (runGeneralTCPServerTLS, tlsConfig)
 import           Data.Maybe               (fromMaybe)
+import           Database.SQLite.Simple   hiding (bind, close)
 import qualified Network.WebSockets       as WS
 import           UnliftIO                 (MonadUnliftIO (..), async, waitAnyCancel)
 
 import           MQTTD
 import           MQTTD.Conduit
 import           MQTTD.Config
+import           MQTTD.DB
 import           MQTTD.Types
 import           MQTTD.Util
 
@@ -36,19 +38,23 @@ main = do
         _authUsers = _confUsers
         }
 
-  e <- newEnv baseAuth
-  runStderrLoggingT . logfilt conf . runIO e $ do
-    sc <- async sessionCleanup
-    pc <- async retainerCleanup
+  withConnection "mqttd.db" $ \db -> do
+    initDB db
+    e <- newEnv baseAuth db
+    runStderrLoggingT . logfilt conf . runIO e $ do
+      sc <- async sessionCleanup
+      pc <- async retainerCleanup
+      restoreSessions
+      restoreRetained
 
-    ls <- traverse (async . runModified) _confListeners
+      ls <- traverse (async . runModified) _confListeners
 
-    void $ waitAnyCancel (sc:pc:ls)
+      void $ waitAnyCancel (sc:pc:ls)
 
-      where
-        logfilt Config{..} = filterLogger (\_ -> flip (if _confDebug then (>=) else (>)) LevelDebug)
+        where
+          logfilt Config{..} = filterLogger (\_ -> flip (if _confDebug then (>=) else (>)) LevelDebug)
 
-        runModified = modifyAuthorizer . applyListenerOptions . view listenerOpts <*> runListener
+          runModified = modifyAuthorizer . applyListenerOptions . view listenerOpts <*> runListener
 
-        applyListenerOptions ListenerOptions{..} a@Authorizer{..} =
-          a{_authAnon=fromMaybe _authAnon _optAllowAnonymous}
+          applyListenerOptions ListenerOptions{..} a@Authorizer{..} =
+            a{_authAnon=fromMaybe _authAnon _optAllowAnonymous}

@@ -18,7 +18,7 @@ import           Control.Lens
 import           Control.Monad.Catch    (Exception)
 import qualified Data.ByteString.Lazy   as BL
 import           Data.Map.Strict        (Map)
-import           Data.Time.Clock        (UTCTime (..))
+import           Data.Time.Clock        (NominalDiffTime, UTCTime (..))
 import           Data.Word              (Word16)
 import qualified Network.MQTT.Topic     as T
 import qualified Network.MQTT.Types     as T
@@ -59,9 +59,20 @@ data Session = Session {
 
 makeLenses ''Session
 
+defaultSessionExp :: NominalDiffTime
+defaultSessionExp = 300
+
 data Authorizer = Authorizer {
   _authUsers :: Map BL.ByteString User,
   _authAnon  :: Bool
   } deriving Show
 
 makeLenses ''Authorizer
+
+data Retained = Retained {
+  _retainTS  :: UTCTime,
+  _retainExp :: Maybe UTCTime,
+  _retainMsg :: T.PublishRequest
+  } deriving Show
+
+makeLenses ''Retained

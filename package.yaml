@@ -46,6 +46,9 @@ dependencies:
 - uuid
 - megaparsec
 - checkers
+- sqlite-simple
+- raw-strings-qq
+- attoparsec
 
 library:
   source-dirs: src

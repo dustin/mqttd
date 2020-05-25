@@ -21,18 +21,20 @@ import           Control.Monad.Reader   (MonadReader (..), ReaderT (..), asks, l
 import           Data.Bifunctor         (first, second)
 import qualified Data.ByteString.Lazy   as BL
 import           Data.Either            (rights)
-import           Data.Foldable          (foldl')
+import           Data.Foldable          (fold, foldl')
 import           Data.Map.Strict        (Map)
 import qualified Data.Map.Strict        as Map
 import           Data.Maybe             (fromMaybe)
-import           Data.Time.Clock        (NominalDiffTime, addUTCTime, getCurrentTime)
+import           Data.Time.Clock        (addUTCTime, getCurrentTime)
 import           Data.Word              (Word16)
+import           Database.SQLite.Simple (Connection)
 import           Network.MQTT.Lens
 import qualified Network.MQTT.Topic     as T
 import qualified Network.MQTT.Types     as T
-import           UnliftIO               (MonadUnliftIO (..), atomically)
+import           UnliftIO               (MonadUnliftIO (..), atomically, readTVarIO)
 
 import           MQTTD.Config           (ACL (..), User (..))
+import           MQTTD.DB
 import           MQTTD.Retention
 import           MQTTD.SubTree          (SubTree)
 import qualified MQTTD.SubTree          as SubTree
@@ -42,13 +44,14 @@ import           MQTTD.Util
 import qualified Scheduler
 
 data Env = Env {
-  sessions    :: TVar (Map BL.ByteString Session),
-  lastPktID   :: TVar Word16,
-  clientIDGen :: TVar ClientID,
-  allSubs     :: TVar (SubTree (Map BL.ByteString T.SubOptions)),
-  queueRunner :: Scheduler.QueueRunner BL.ByteString,
-  retainer    :: Retainer,
-  authorizer  :: Authorizer
+  sessions     :: TVar (Map BL.ByteString Session),
+  lastPktID    :: TVar Word16,
+  clientIDGen  :: TVar ClientID,
+  allSubs      :: TVar (SubTree (Map BL.ByteString T.SubOptions)),
+  queueRunner  :: Scheduler.QueueRunner BL.ByteString,
+  retainer     :: Retainer,
+  authorizer   :: Authorizer,
+  dbConnection :: Connection
   }
 
 newtype MQTTD m a = MQTTD
@@ -59,11 +62,14 @@ newtype MQTTD m a = MQTTD
 instance MonadUnliftIO m => MonadUnliftIO (MQTTD m) where
   withRunInIO inner = MQTTD $ withRunInIO $ \run -> inner (run . runMQTTD)
 
+instance (Monad m, MonadReader Env m) => HasDBConnection m where
+  dbConn = asks dbConnection
+
 runIO :: (MonadIO m, MonadLogger m) => Env -> MQTTD m a -> m a
 runIO e m = runReaderT (runMQTTD m) e
 
-newEnv :: MonadIO m => Authorizer -> m Env
-newEnv a = liftIO $ Env
+newEnv :: MonadIO m => Authorizer -> Connection -> m Env
+newEnv a d = liftIO $ Env
          <$> newTVarIO mempty
          <*> newTVarIO 1
          <*> newTVarIO 0
@@ -71,6 +77,7 @@ newEnv a = liftIO $ Env
          <*> Scheduler.newRunner
          <*> newRetainer
          <*> pure a
+         <*> pure d
 
 modifyAuthorizer :: Monad m => (Authorizer -> Authorizer) -> MQTTD m a -> MQTTD m a
 modifyAuthorizer f = local (\e@Env{..} -> e{authorizer=f authorizer})
@@ -114,6 +121,24 @@ findSubs t = do
     sm <- readTVar sess
     foldMap (\(sid,os) -> maybe [] (\s -> [(s,os)]) $ Map.lookup sid sm) . SubTree.findMap t Map.assocs <$> readTVar subs
 
+restoreSessions :: PublishConstraint m => MQTTD m ()
+restoreSessions = do
+  ss <- loadSessions
+  subs <- SubTree.fromList . fold <$> traverse flatSubs ss
+  sessv <- asks sessions
+  subv <- asks allSubs
+  atomically $ do
+    writeTVar sessv (Map.fromList . map (\s@Session{..} -> (_sessionID, s)) $ ss)
+    writeTVar subv subs
+  mapM_ expireSession (map _sessionID ss)
+
+  where
+    flatSubs :: MonadIO m => Session -> m [(T.Filter, (Map BL.ByteString T.SubOptions))]
+    flatSubs Session{..} = Map.foldMapWithKey (\k v -> [(k, Map.singleton _sessionID v)]) <$> readTVarIO _sessionSubs
+
+restoreRetained :: MonadIO m => MQTTD m ()
+restoreRetained = asks retainer >>= MQTTD.Retention.restoreRetained
+
 subscribe :: PublishConstraint m => Session -> T.SubscribeRequest -> MQTTD m [Either T.SubErr T.QoS]
 subscribe sess@Session{..} (T.SubscribeRequest _ topics _props) = do
   subs <- asks allSubs
@@ -125,6 +150,7 @@ subscribe sess@Session{..} (T.SubscribeRequest _ topics _props) = do
     modifyTVar' subs (upSub new)
   p <- asks retainer
   mapM_ (doRetained p) (Map.assocs new)
+  storeSession sess
   pure $ map (second (T._subQoS . snd)) topics'
 
   where
@@ -234,6 +260,7 @@ expireSession k = do
           atomically $ do
             subs <- readTVar _sessionSubs
             removeSubs subt _sessionID (Map.keys subs)
+          deleteSession _sessionID
           sessionDied s
 
     sessionDied Session{_sessionWill=Nothing} =
@@ -248,9 +275,6 @@ expireSession k = do
                             T._pubPktID=0,
                             T._pubBody=_willMsg,
                             T._pubProps=[]})
-
-defaultSessionExp :: NominalDiffTime
-defaultSessionExp = 300
 
 unregisterClient :: (MonadLogger m, MonadMask m, MonadFail m, MonadUnliftIO m, MonadIO m) => BL.ByteString -> ClientID -> MQTTD m ()
 unregisterClient k mid = do
