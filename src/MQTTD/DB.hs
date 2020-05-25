@@ -58,7 +58,7 @@ initDB db = do
   mapM_ (execute_ db) ["pragma foreign_keys = ON"]
   initTables db
 
-deleteSession :: (HasDBConnection m, MonadIO m) => BL.ByteString -> m ()
+deleteSession :: (HasDBConnection m, MonadIO m) => SessionID -> m ()
 deleteSession sid = liftIO . del =<< dbConn
   where del db = execute db "delete from sessions where session_id = ?" (Only sid)
 
@@ -83,7 +83,7 @@ storeSession Session{..} = liftIO . up =<< dbConn
         sto = fromMaybe defaultSessionExp (_sessionClient ^? _Just . clientConnReq . T.properties . folded . T._PropSessionExpiryInterval . to fromIntegral)
 
 data StoredSub = StoredSub {
-  _ss_sessID :: BL.ByteString,
+  _ss_sessID :: SessionID,
   _ss_topic  :: T.Filter,
   _ss_opts   :: T.SubOptions
   }
@@ -170,7 +170,7 @@ storeRetained p = liftIO . (up (T._pubBody . _retainMsg $ p)) =<< dbConn
                                        stored = excluded.stored,
                                        expires = excluded.expires|] p
 
-deleteRetained :: (HasDBConnection m, MonadIO m) => BL.ByteString -> m ()
+deleteRetained :: (HasDBConnection m, MonadIO m) => BLTopic -> m ()
 deleteRetained k = liftIO . del =<< dbConn
   where del db = execute db "delete from persisted where topic = ?" (Only k)
 

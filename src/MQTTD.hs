@@ -19,7 +19,6 @@ import           Control.Monad.IO.Class (MonadIO (..))
 import           Control.Monad.Logger   (MonadLogger (..), logDebugN, logInfoN)
 import           Control.Monad.Reader   (MonadReader (..), ReaderT (..), asks, local)
 import           Data.Bifunctor         (first, second)
-import qualified Data.ByteString.Lazy   as BL
 import           Data.Either            (rights)
 import           Data.Foldable          (fold, foldl')
 import           Data.Map.Strict        (Map)
@@ -44,11 +43,11 @@ import           MQTTD.Util
 import qualified Scheduler
 
 data Env = Env {
-  sessions     :: TVar (Map BL.ByteString Session),
+  sessions     :: TVar (Map SessionID Session),
   lastPktID    :: TVar Word16,
   clientIDGen  :: TVar ClientID,
-  allSubs      :: TVar (SubTree (Map BL.ByteString T.SubOptions)),
-  queueRunner  :: Scheduler.QueueRunner BL.ByteString,
+  allSubs      :: TVar (SubTree (Map SessionID T.SubOptions)),
+  queueRunner  :: Scheduler.QueueRunner SessionID,
   retainer     :: Retainer,
   authorizer   :: Authorizer,
   dbConnection :: Connection
@@ -133,7 +132,7 @@ restoreSessions = do
   mapM_ expireSession (map _sessionID ss)
 
   where
-    flatSubs :: MonadIO m => Session -> m [(T.Filter, (Map BL.ByteString T.SubOptions))]
+    flatSubs :: MonadIO m => Session -> m [(T.Filter, (Map SessionID T.SubOptions))]
     flatSubs Session{..} = Map.foldMapWithKey (\k v -> [(k, Map.singleton _sessionID v)]) <$> readTVarIO _sessionSubs
 
 restoreRetained :: MonadIO m => MQTTD m ()
@@ -169,12 +168,12 @@ subscribe sess@Session{..} (T.SubscribeRequest _ topics _props) = do
           mightRetain T.SubOptions{_retainAsPublished=False} = False
           mightRetain _ = _pubRetain
 
-removeSubs :: TVar (SubTree (Map BL.ByteString T.SubOptions)) -> BL.ByteString -> [T.Filter] -> STM ()
+removeSubs :: TVar (SubTree (Map SessionID T.SubOptions)) -> SessionID -> [T.Filter] -> STM ()
 removeSubs subt sid ts = modifyTVar' subt up
   where
     up s = foldr (\t -> SubTree.modify t (Map.delete sid <$>)) s ts
 
-unsubscribe :: MonadIO m => Session -> [BL.ByteString] -> MQTTD m [T.UnsubStatus]
+unsubscribe :: MonadIO m => Session -> [BLFilter] -> MQTTD m [T.UnsubStatus]
 unsubscribe Session{..} topics = asks allSubs >>= \subs ->
   atomically $ do
     m <- readTVar _sessionSubs
@@ -187,7 +186,7 @@ unsubscribe Session{..} topics = asks allSubs >>= \subs ->
       unm = maybe T.UnsubNoSubscriptionExisted (const T.UnsubSuccess)
       up t = Map.updateLookupWithKey (const.const $ Nothing) (blToText t)
 
-modifySession :: MonadIO m => BL.ByteString -> (Session -> Maybe Session) -> MQTTD m ()
+modifySession :: MonadIO m => SessionID -> (Session -> Maybe Session) -> MQTTD m ()
 modifySession k f = asks sessions >>= \s -> atomically $ modifyTVar' s (Map.update f k)
 
 registerClient :: MonadIO m => T.ConnectRequest -> ClientID -> ThreadId -> MQTTD m (Session, T.SessionReuse)
@@ -223,7 +222,7 @@ registerClient req@T.ConnectRequest{..} i o = do
                          _sessionChan=_sessionChan ns,
                          _sessionWill=_lastWill}, T.ExistingSession)
 
-expireSession :: PublishConstraint m => BL.ByteString -> MQTTD m ()
+expireSession :: PublishConstraint m => SessionID -> MQTTD m ()
 expireSession k = do
   ss <- asks sessions
   possiblyCleanup =<< atomically (Map.lookup k <$> readTVar ss)
@@ -276,7 +275,7 @@ expireSession k = do
                             T._pubBody=_willMsg,
                             T._pubProps=[]})
 
-unregisterClient :: (MonadLogger m, MonadMask m, MonadFail m, MonadUnliftIO m, MonadIO m) => BL.ByteString -> ClientID -> MQTTD m ()
+unregisterClient :: (MonadLogger m, MonadMask m, MonadFail m, MonadUnliftIO m, MonadIO m) => SessionID -> ClientID -> MQTTD m ()
 unregisterClient k mid = do
   now <- liftIO getCurrentTime
   c <- asks sessions
@@ -318,7 +317,7 @@ modifyTVarRet v f = modifyTVar' v f >> readTVar v
 nextPktID :: TVar Word16 -> STM Word16
 nextPktID x = modifyTVarRet x $ \pid -> if pid == maxBound then 1 else succ pid
 
-broadcast :: PublishConstraint m => Maybe BL.ByteString -> T.PublishRequest -> MQTTD m ()
+broadcast :: PublishConstraint m => Maybe SessionID -> T.PublishRequest -> MQTTD m ()
 broadcast src req@T.PublishRequest{..} = do
   asks retainer >>= retain req
   subs <- findSubs (blToText _pubTopic)

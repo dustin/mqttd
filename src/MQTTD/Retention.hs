@@ -5,7 +5,6 @@ import           Control.Lens
 import           Control.Monad          (when, (<=<))
 import           Control.Monad.IO.Class (MonadIO (..))
 import           Control.Monad.Logger   (MonadLogger (..), logDebugN)
-import qualified Data.ByteString.Lazy   as BL
 import           Data.Map.Strict        (Map)
 import qualified Data.Map.Strict        as Map
 import           Data.Time.Clock        (UTCTime (..), addUTCTime, diffUTCTime, getCurrentTime)
@@ -20,8 +19,8 @@ import           MQTTD.Util
 import qualified Scheduler
 
 data Retainer = Retainer {
-  _store   :: TVar (Map BL.ByteString Retained),
-  _qrunner :: Scheduler.QueueRunner BL.ByteString
+  _store   :: TVar (Map BLTopic Retained),
+  _qrunner :: Scheduler.QueueRunner BLTopic
   }
 
 newRetainer :: MonadIO m => m Retainer

@@ -31,6 +31,9 @@ instance Exception MQTTException
 
 type PktQueue = TBQueue T.MQTTPkt
 type ClientID = Int
+type SessionID = BL.ByteString
+type BLTopic = BL.ByteString
+type BLFilter = BL.ByteString
 
 data ConnectedClient = ConnectedClient {
   _clientConnReq  :: T.ConnectRequest,
@@ -47,7 +50,7 @@ instance Show ConnectedClient where
   show ConnectedClient{..} = "ConnectedClient " <> show _clientConnReq
 
 data Session = Session {
-  _sessionID      :: BL.ByteString,
+  _sessionID      :: SessionID,
   _sessionACL     :: [ACL],
   _sessionClient  :: Maybe ConnectedClient,
   _sessionChan    :: PktQueue,

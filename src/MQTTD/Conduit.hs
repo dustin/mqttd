@@ -52,7 +52,7 @@ runMQTTDConduit (src,sink) = runConduit $ do
   lift $ run pl cid cpkt genedID
 
   where
-    run :: T.ProtocolLevel -> ClientID -> T.MQTTPkt -> Maybe BL.ByteString -> MQTTD m ()
+    run :: T.ProtocolLevel -> ClientID -> T.MQTTPkt -> Maybe SessionID -> MQTTD m ()
     run pl cid (T.ConnPkt req@T.ConnectRequest{..} _) nid = do
       r <- authorize req
       case r of
