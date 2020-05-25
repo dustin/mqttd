@@ -9,16 +9,20 @@
 
 module MQTTD.Config
 data Config
-Config :: Bool -> Map ByteString User -> [Listener] -> ListenerOptions -> Config
+Config :: Bool -> Map ByteString User -> [Listener] -> ListenerOptions -> PersistenceConfig -> Config
 [_confDebug] :: Config -> Bool
 [_confUsers] :: Config -> Map ByteString User
 [_confListeners] :: Config -> [Listener]
 [_confDefaults] :: Config -> ListenerOptions
+[_confPersist] :: Config -> PersistenceConfig
 data User
 User :: ByteString -> ByteString -> [ACL] -> User
 data ACL
 Allow :: Filter -> ACL
 Deny :: Filter -> ACL
+newtype PersistenceConfig
+PersistenceConfig :: FilePath -> PersistenceConfig
+[_persistenceDBPath] :: PersistenceConfig -> FilePath
 data Listener
 MQTTListener :: HostPreference -> PortNumber -> ListenerOptions -> Listener
 MQTTSListener :: HostPreference -> PortNumber -> FilePath -> FilePath -> ListenerOptions -> Listener
@@ -31,6 +35,8 @@ parseConfFile :: String -> IO Config
 instance GHC.Show.Show MQTTD.Config.Section
 instance GHC.Classes.Eq MQTTD.Config.Config
 instance GHC.Show.Show MQTTD.Config.Config
+instance GHC.Classes.Eq MQTTD.Config.PersistenceConfig
+instance GHC.Show.Show MQTTD.Config.PersistenceConfig
 instance GHC.Classes.Eq MQTTD.Config.Listener
 instance GHC.Show.Show MQTTD.Config.Listener
 instance GHC.Show.Show MQTTD.Config.ListenerOptions
@@ -120,16 +126,47 @@ sessionExpires :: Lens' Session (Maybe UTCTime)
 sessionClient :: Lens' Session (Maybe ConnectedClient)
 sessionChan :: Lens' Session PktQueue
 sessionACL :: Lens' Session [ACL]
+defaultSessionExp :: NominalDiffTime
 data Authorizer
 Authorizer :: Map ByteString User -> Bool -> Authorizer
 [_authUsers] :: Authorizer -> Map ByteString User
 [_authAnon] :: Authorizer -> Bool
 authUsers :: Lens' Authorizer (Map ByteString User)
 authAnon :: Lens' Authorizer Bool
+data Retained
+Retained :: UTCTime -> Maybe UTCTime -> PublishRequest -> Retained
+[_retainTS] :: Retained -> UTCTime
+[_retainExp] :: Retained -> Maybe UTCTime
+[_retainMsg] :: Retained -> PublishRequest
+retainTS :: Lens' Retained UTCTime
+retainMsg :: Lens' Retained PublishRequest
+retainExp :: Lens' Retained (Maybe UTCTime)
+instance GHC.Show.Show MQTTD.Types.Retained
 instance GHC.Show.Show MQTTD.Types.Authorizer
 instance GHC.Show.Show MQTTD.Types.ConnectedClient
 instance GHC.Show.Show MQTTD.Types.MQTTException
 instance GHC.Exception.Type.Exception MQTTD.Types.MQTTException
+
+module MQTTD.DB
+class Monad m => HasDBConnection m
+dbConn :: HasDBConnection m => m Connection
+initQueries :: [(Int, Query)]
+initTables :: Connection -> IO ()
+initDB :: Connection -> IO ()
+deleteSession :: (HasDBConnection m, MonadIO m) => ByteString -> m ()
+storeSession :: (HasDBConnection m, MonadIO m) => Session -> m ()
+data StoredSub
+StoredSub :: ByteString -> Filter -> SubOptions -> StoredSub
+[_ss_sessID] :: StoredSub -> ByteString
+[_ss_topic] :: StoredSub -> Filter
+[_ss_opts] :: StoredSub -> SubOptions
+loadSessions :: (HasDBConnection m, MonadIO m) => m [Session]
+storeRetained :: (HasDBConnection m, MonadIO m) => Retained -> m ()
+deleteRetained :: (HasDBConnection m, MonadIO m) => ByteString -> m ()
+loadRetained :: (HasDBConnection m, MonadIO m) => m [Retained]
+instance Database.SQLite.Simple.FromRow.FromRow MQTTD.DB.StoredSub
+instance Database.SQLite.Simple.ToRow.ToRow MQTTD.Types.Retained
+instance Database.SQLite.Simple.FromRow.FromRow MQTTD.Types.Retained
 
 module MQTTD.Util
 textToBL :: Text -> ByteString
@@ -159,24 +196,21 @@ runOnce :: (MonadLogger m, MonadIO m) => (a -> m ()) -> QueueRunner a -> m ()
 diffTimeToMicros :: NominalDiffTime -> Int
 
 module MQTTD.Retention
-data Retained
-Retained :: UTCTime -> Maybe UTCTime -> PublishRequest -> Retained
-[_retainTS] :: Retained -> UTCTime
-[_retainExp] :: Retained -> Maybe UTCTime
-[_retainMsg] :: Retained -> PublishRequest
 data Retainer
 Retainer :: TVar (Map ByteString Retained) -> QueueRunner ByteString -> Retainer
 [_store] :: Retainer -> TVar (Map ByteString Retained)
 [_qrunner] :: Retainer -> QueueRunner ByteString
 newRetainer :: MonadIO m => m Retainer
-cleanRetainer :: (MonadLogger m, MonadUnliftIO m) => Retainer -> m ()
-retain :: (MonadLogger m, MonadIO m) => PublishRequest -> Retainer -> m ()
+cleanRetainer :: (MonadLogger m, HasDBConnection m, MonadUnliftIO m) => Retainer -> m ()
+retain :: (MonadLogger m, HasDBConnection m, MonadIO m) => PublishRequest -> Retainer -> m ()
+restoreRetained :: (MonadIO m, HasDBConnection m) => Retainer -> m ()
 matchRetained :: MonadIO m => Retainer -> Filter -> m [PublishRequest]
-instance GHC.Show.Show MQTTD.Retention.Retained
+absExp :: Integral a => UTCTime -> a -> UTCTime
+relExp :: Integral p => UTCTime -> UTCTime -> p
 
 module MQTTD
 data Env
-Env :: TVar (Map ByteString Session) -> TVar Word16 -> TVar ClientID -> TVar (SubTree (Map ByteString SubOptions)) -> QueueRunner ByteString -> Retainer -> Authorizer -> Env
+Env :: TVar (Map ByteString Session) -> TVar Word16 -> TVar ClientID -> TVar (SubTree (Map ByteString SubOptions)) -> QueueRunner ByteString -> Retainer -> Authorizer -> Connection -> Env
 [sessions] :: Env -> TVar (Map ByteString Session)
 [lastPktID] :: Env -> TVar Word16
 [clientIDGen] :: Env -> TVar ClientID
@@ -184,11 +218,12 @@ Env :: TVar (Map ByteString Session) -> TVar Word16 -> TVar ClientID -> TVar (Su
 [queueRunner] :: Env -> QueueRunner ByteString
 [retainer] :: Env -> Retainer
 [authorizer] :: Env -> Authorizer
+[dbConnection] :: Env -> Connection
 newtype MQTTD m a
 MQTTD :: ReaderT Env m a -> MQTTD m a
 [runMQTTD] :: MQTTD m a -> ReaderT Env m a
 runIO :: (MonadIO m, MonadLogger m) => Env -> MQTTD m a -> m a
-newEnv :: MonadIO m => Authorizer -> m Env
+newEnv :: MonadIO m => Authorizer -> Connection -> m Env
 modifyAuthorizer :: Monad m => (Authorizer -> Authorizer) -> MQTTD m a -> MQTTD m a
 seconds :: Num p => p -> p
 nextID :: MonadIO m => MQTTD m Int
@@ -197,13 +232,14 @@ sessionCleanup :: PublishConstraint m => MQTTD m ()
 retainerCleanup :: (MonadUnliftIO m, MonadLogger m) => MQTTD m ()
 resolveAliasIn :: MonadIO m => Session -> PublishRequest -> m PublishRequest
 findSubs :: MonadIO m => Topic -> MQTTD m [(Session, SubOptions)]
+restoreSessions :: PublishConstraint m => MQTTD m ()
+restoreRetained :: MonadIO m => MQTTD m ()
 subscribe :: PublishConstraint m => Session -> SubscribeRequest -> MQTTD m [Either SubErr QoS]
 removeSubs :: TVar (SubTree (Map ByteString SubOptions)) -> ByteString -> [Filter] -> STM ()
 unsubscribe :: MonadIO m => Session -> [ByteString] -> MQTTD m [UnsubStatus]
 modifySession :: MonadIO m => ByteString -> (Session -> Maybe Session) -> MQTTD m ()
 registerClient :: MonadIO m => ConnectRequest -> ClientID -> ThreadId -> MQTTD m (Session, SessionReuse)
 expireSession :: PublishConstraint m => ByteString -> MQTTD m ()
-defaultSessionExp :: NominalDiffTime
 unregisterClient :: (MonadLogger m, MonadMask m, MonadFail m, MonadUnliftIO m, MonadIO m) => ByteString -> ClientID -> MQTTD m ()
 sendPacket :: PktQueue -> MQTTPkt -> STM Bool
 sendPacket_ :: PktQueue -> MQTTPkt -> STM ()
@@ -227,6 +263,7 @@ instance GHC.Base.Monad m => GHC.Base.Monad (MQTTD.MQTTD m)
 instance GHC.Base.Functor m => GHC.Base.Functor (MQTTD.MQTTD m)
 instance GHC.Base.Applicative m => GHC.Base.Applicative (MQTTD.MQTTD m)
 instance Control.Monad.IO.Unlift.MonadUnliftIO m => Control.Monad.IO.Unlift.MonadUnliftIO (MQTTD.MQTTD m)
+instance (GHC.Base.Monad m, Control.Monad.Reader.Class.MonadReader MQTTD.Env m) => MQTTD.DB.HasDBConnection m
 
 module MQTTD.Conduit
 type MQTTConduit m = (ConduitT () ByteString (MQTTD m) (), ConduitT ByteString Void (MQTTD m) ())
