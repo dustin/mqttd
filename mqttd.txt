@@ -94,6 +94,9 @@ MQTTPingTimeout :: MQTTException
 MQTTDuplicate :: MQTTException
 type PktQueue = TBQueue MQTTPkt
 type ClientID = Int
+type SessionID = ByteString
+type BLTopic = ByteString
+type BLFilter = ByteString
 data ConnectedClient
 ConnectedClient :: ConnectRequest -> ThreadId -> ClientID -> TVar (Map Word16 ByteString) -> TVar (Map ByteString Word16) -> TVar Word16 -> ConnectedClient
 [_clientConnReq] :: ConnectedClient -> ConnectRequest
@@ -109,8 +112,8 @@ clientAliasOut :: Lens' ConnectedClient (TVar (Map ByteString Word16))
 clientAliasIn :: Lens' ConnectedClient (TVar (Map Word16 ByteString))
 clientALeft :: Lens' ConnectedClient (TVar Word16)
 data Session
-Session :: ByteString -> [ACL] -> Maybe ConnectedClient -> PktQueue -> TVar (Map PktID PublishRequest) -> TVar (Map Filter SubOptions) -> Maybe UTCTime -> Maybe LastWill -> Session
-[_sessionID] :: Session -> ByteString
+Session :: SessionID -> [ACL] -> Maybe ConnectedClient -> PktQueue -> TVar (Map PktID PublishRequest) -> TVar (Map Filter SubOptions) -> Maybe UTCTime -> Maybe LastWill -> Session
+[_sessionID] :: Session -> SessionID
 [_sessionACL] :: Session -> [ACL]
 [_sessionClient] :: Session -> Maybe ConnectedClient
 [_sessionChan] :: Session -> PktQueue
@@ -121,7 +124,7 @@ Session :: ByteString -> [ACL] -> Maybe ConnectedClient -> PktQueue -> TVar (Map
 sessionWill :: Lens' Session (Maybe LastWill)
 sessionSubs :: Lens' Session (TVar (Map Filter SubOptions))
 sessionQP :: Lens' Session (TVar (Map PktID PublishRequest))
-sessionID :: Lens' Session ByteString
+sessionID :: Lens' Session SessionID
 sessionExpires :: Lens' Session (Maybe UTCTime)
 sessionClient :: Lens' Session (Maybe ConnectedClient)
 sessionChan :: Lens' Session PktQueue
@@ -147,32 +150,44 @@ instance GHC.Show.Show MQTTD.Types.ConnectedClient
 instance GHC.Show.Show MQTTD.Types.MQTTException
 instance GHC.Exception.Type.Exception MQTTD.Types.MQTTException
 
-module MQTTD.DB
-class Monad m => HasDBConnection m
-dbConn :: HasDBConnection m => m Connection
-initQueries :: [(Int, Query)]
-initTables :: Connection -> IO ()
-initDB :: Connection -> IO ()
-deleteSession :: (HasDBConnection m, MonadIO m) => ByteString -> m ()
-storeSession :: (HasDBConnection m, MonadIO m) => Session -> m ()
-data StoredSub
-StoredSub :: ByteString -> Filter -> SubOptions -> StoredSub
-[_ss_sessID] :: StoredSub -> ByteString
-[_ss_topic] :: StoredSub -> Filter
-[_ss_opts] :: StoredSub -> SubOptions
-loadSessions :: (HasDBConnection m, MonadIO m) => m [Session]
-storeRetained :: (HasDBConnection m, MonadIO m) => Retained -> m ()
-deleteRetained :: (HasDBConnection m, MonadIO m) => ByteString -> m ()
-loadRetained :: (HasDBConnection m, MonadIO m) => m [Retained]
-instance Database.SQLite.Simple.FromRow.FromRow MQTTD.DB.StoredSub
-instance Database.SQLite.Simple.ToRow.ToRow MQTTD.Types.Retained
-instance Database.SQLite.Simple.FromRow.FromRow MQTTD.Types.Retained
-
 module MQTTD.Util
 textToBL :: Text -> ByteString
 blToText :: ByteString -> Text
 tshow :: Show a => a -> Text
 justM :: Monad m => (a -> m ()) -> Maybe a -> m ()
+
+module MQTTD.DB
+class Monad m => HasDBConnection m
+dbConn :: HasDBConnection m => m Connection
+dbQueue :: HasDBConnection m => m (TBQueue DBOperation)
+data DBOperation
+DeleteSession :: SessionID -> DBOperation
+StoreSession :: Session -> DBOperation
+DeleteRetained :: BLTopic -> DBOperation
+StoreRetained :: Retained -> DBOperation
+initQueries :: [(Int, Query)]
+initTables :: Connection -> IO ()
+initDB :: Connection -> IO ()
+runOperations :: (HasDBConnection m, MonadIO m, MonadLogger m) => m ()
+writeDBQueue :: (HasDBConnection m, MonadIO m) => DBOperation -> m ()
+deleteSessionL :: MonadIO m => Connection -> SessionID -> m ()
+deleteSession :: (HasDBConnection m, MonadIO m) => SessionID -> m ()
+deleteRetained :: (HasDBConnection m, MonadIO m) => BLTopic -> m ()
+deleteRetainedL :: MonadIO m => Connection -> BLTopic -> m ()
+storeSession :: (HasDBConnection m, MonadIO m) => Session -> m ()
+storeSessionL :: MonadIO m => Connection -> Session -> m ()
+data StoredSub
+StoredSub :: SessionID -> Filter -> SubOptions -> StoredSub
+[_ss_sessID] :: StoredSub -> SessionID
+[_ss_topic] :: StoredSub -> Filter
+[_ss_opts] :: StoredSub -> SubOptions
+loadSessions :: (HasDBConnection m, MonadIO m) => m [Session]
+storeRetained :: (HasDBConnection m, MonadIO m) => Retained -> m ()
+storeRetainedL :: MonadIO m => Connection -> Retained -> m ()
+loadRetained :: (HasDBConnection m, MonadIO m) => m [Retained]
+instance Database.SQLite.Simple.FromRow.FromRow MQTTD.DB.StoredSub
+instance Database.SQLite.Simple.ToRow.ToRow MQTTD.Types.Retained
+instance Database.SQLite.Simple.FromRow.FromRow MQTTD.Types.Retained
 
 module Scheduler
 type TimedQueue a = Map UTCTime [a]
@@ -197,9 +212,9 @@ diffTimeToMicros :: NominalDiffTime -> Int
 
 module MQTTD.Retention
 data Retainer
-Retainer :: TVar (Map ByteString Retained) -> QueueRunner ByteString -> Retainer
-[_store] :: Retainer -> TVar (Map ByteString Retained)
-[_qrunner] :: Retainer -> QueueRunner ByteString
+Retainer :: TVar (Map BLTopic Retained) -> QueueRunner BLTopic -> Retainer
+[_store] :: Retainer -> TVar (Map BLTopic Retained)
+[_qrunner] :: Retainer -> QueueRunner BLTopic
 newRetainer :: MonadIO m => m Retainer
 cleanRetainer :: (MonadLogger m, HasDBConnection m, MonadUnliftIO m) => Retainer -> m ()
 retain :: (MonadLogger m, HasDBConnection m, MonadIO m) => PublishRequest -> Retainer -> m ()
@@ -210,15 +225,16 @@ relExp :: Integral p => UTCTime -> UTCTime -> p
 
 module MQTTD
 data Env
-Env :: TVar (Map ByteString Session) -> TVar Word16 -> TVar ClientID -> TVar (SubTree (Map ByteString SubOptions)) -> QueueRunner ByteString -> Retainer -> Authorizer -> Connection -> Env
-[sessions] :: Env -> TVar (Map ByteString Session)
+Env :: TVar (Map SessionID Session) -> TVar Word16 -> TVar ClientID -> TVar (SubTree (Map SessionID SubOptions)) -> QueueRunner SessionID -> Retainer -> Authorizer -> Connection -> TBQueue DBOperation -> Env
+[sessions] :: Env -> TVar (Map SessionID Session)
 [lastPktID] :: Env -> TVar Word16
 [clientIDGen] :: Env -> TVar ClientID
-[allSubs] :: Env -> TVar (SubTree (Map ByteString SubOptions))
-[queueRunner] :: Env -> QueueRunner ByteString
+[allSubs] :: Env -> TVar (SubTree (Map SessionID SubOptions))
+[queueRunner] :: Env -> QueueRunner SessionID
 [retainer] :: Env -> Retainer
 [authorizer] :: Env -> Authorizer
 [dbConnection] :: Env -> Connection
+[dbQ] :: Env -> TBQueue DBOperation
 newtype MQTTD m a
 MQTTD :: ReaderT Env m a -> MQTTD m a
 [runMQTTD] :: MQTTD m a -> ReaderT Env m a
@@ -235,19 +251,19 @@ findSubs :: MonadIO m => Topic -> MQTTD m [(Session, SubOptions)]
 restoreSessions :: PublishConstraint m => MQTTD m ()
 restoreRetained :: MonadIO m => MQTTD m ()
 subscribe :: PublishConstraint m => Session -> SubscribeRequest -> MQTTD m [Either SubErr QoS]
-removeSubs :: TVar (SubTree (Map ByteString SubOptions)) -> ByteString -> [Filter] -> STM ()
-unsubscribe :: MonadIO m => Session -> [ByteString] -> MQTTD m [UnsubStatus]
-modifySession :: MonadIO m => ByteString -> (Session -> Maybe Session) -> MQTTD m ()
+removeSubs :: TVar (SubTree (Map SessionID SubOptions)) -> SessionID -> [Filter] -> STM ()
+unsubscribe :: MonadIO m => Session -> [BLFilter] -> MQTTD m [UnsubStatus]
+modifySession :: MonadIO m => SessionID -> (Session -> Maybe Session) -> MQTTD m ()
 registerClient :: MonadIO m => ConnectRequest -> ClientID -> ThreadId -> MQTTD m (Session, SessionReuse)
-expireSession :: PublishConstraint m => ByteString -> MQTTD m ()
-unregisterClient :: (MonadLogger m, MonadMask m, MonadFail m, MonadUnliftIO m, MonadIO m) => ByteString -> ClientID -> MQTTD m ()
+expireSession :: PublishConstraint m => SessionID -> MQTTD m ()
+unregisterClient :: (MonadLogger m, MonadMask m, MonadFail m, MonadUnliftIO m, MonadIO m) => SessionID -> ClientID -> MQTTD m ()
 sendPacket :: PktQueue -> MQTTPkt -> STM Bool
 sendPacket_ :: PktQueue -> MQTTPkt -> STM ()
 sendPacketIO :: MonadIO m => PktQueue -> MQTTPkt -> m Bool
 sendPacketIO_ :: MonadIO m => PktQueue -> MQTTPkt -> m ()
 modifyTVarRet :: TVar a -> (a -> a) -> STM a
 nextPktID :: TVar Word16 -> STM Word16
-broadcast :: PublishConstraint m => Maybe ByteString -> PublishRequest -> MQTTD m ()
+broadcast :: PublishConstraint m => Maybe SessionID -> PublishRequest -> MQTTD m ()
 publish :: PublishConstraint m => Session -> PublishRequest -> MQTTD m ()
 aliasOut :: ConnectedClient -> PublishRequest -> STM PublishRequest
 authTopic :: Topic -> [ACL] -> Either String ()
