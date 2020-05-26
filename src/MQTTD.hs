@@ -141,8 +141,8 @@ restoreSessions = do
 restoreRetained :: MonadIO m => MQTTD m ()
 restoreRetained = asks retainer >>= MQTTD.Retention.restoreRetained
 
-subscribe :: PublishConstraint m => Session -> T.SubscribeRequest -> MQTTD m [Either T.SubErr T.QoS]
-subscribe sess@Session{..} (T.SubscribeRequest _ topics _props) = do
+subscribe :: PublishConstraint m => Session -> T.SubscribeRequest -> MQTTD m ()
+subscribe sess@Session{..} (T.SubscribeRequest pid topics props) = do
   subs <- asks allSubs
   let topics' = map (\(t,o) -> let t' = blToText t in
                                  bimap (const T.SubErrNotAuthorized) (const (t', o)) $ authTopic t' _sessionACL) topics
@@ -150,10 +150,11 @@ subscribe sess@Session{..} (T.SubscribeRequest _ topics _props) = do
   atomically $ do
     modifyTVar' _sessionSubs (Map.union new)
     modifyTVar' subs (upSub new)
+    let r = map (second (T._subQoS . snd)) topics'
+    sendPacket_ _sessionChan (T.SubACKPkt (T.SubscribeResponse pid r props))
   p <- asks retainer
   mapM_ (doRetained p) (Map.assocs new)
   storeSession sess
-  pure $ map (second (T._subQoS . snd)) topics'
 
   where
     upSub m subs = Map.foldrWithKey (\k x -> SubTree.add k (Map.singleton _sessionID x)) subs m
@@ -162,14 +163,14 @@ subscribe sess@Session{..} (T.SubscribeRequest _ topics _props) = do
     doRetained p (t, ops) = mapM_ (sendOne ops) =<< matchRetained p t
 
     sendOne opts@T.SubOptions{..} ir@T.PublishRequest{..} = do
-      pid <- atomically . nextPktID =<< asks lastPktID
-      let r = ir{T._pubPktID=pid, T._pubRetain=mightRetain opts,
+      pid' <- atomically . nextPktID =<< asks lastPktID
+      let r = ir{T._pubPktID=pid', T._pubRetain=mightRetain opts,
                  T._pubQoS = if _pubQoS > _subQoS then _subQoS else _pubQoS}
       publish sess r
 
         where
           mightRetain T.SubOptions{_retainAsPublished=False} = False
-          mightRetain _ = _pubRetain
+          mightRetain _                                      = _pubRetain
 
 removeSubs :: TVar (SubTree (Map SessionID T.SubOptions)) -> SessionID -> [T.Filter] -> STM ()
 removeSubs subt sid ts = modifyTVar' subt up
@@ -337,7 +338,7 @@ broadcast src req@T.PublishRequest{..} = do
 
     maxQoS T.SubOptions{_subQoS} = if _pubQoS > _subQoS then _subQoS else _pubQoS
     mightRetain T.SubOptions{_retainAsPublished=False} = False
-    mightRetain _ = _pubRetain
+    mightRetain _                                      = _pubRetain
 
 publish :: PublishConstraint m => Session -> T.PublishRequest -> MQTTD m ()
 publish Session{..} pkt@T.PublishRequest{..} = atomically $ do
@@ -392,9 +393,9 @@ dispatch Session{..} (T.PubRELPkt rel) = do
 -- QoS 2 COMPlete (publishing client says publish is complete)
 dispatch _ (T.PubCOMPPkt _) = pure ()
 
-dispatch sess@Session{..} (T.SubscribePkt req@(T.SubscribeRequest pid _ props)) = do
-  r <- subscribe sess req
-  sendPacketIO_ _sessionChan (T.SubACKPkt (T.SubscribeResponse pid r props))
+-- Subscribe response is sent from the `subscribe` action because the
+-- interaction is a bit complicated.
+dispatch sess@Session{..} (T.SubscribePkt req) = subscribe sess req
 
 dispatch sess@Session{..} (T.UnsubscribePkt (T.UnsubscribeRequest pid subs props)) = do
   uns <- unsubscribe sess subs
