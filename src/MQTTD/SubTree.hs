@@ -7,7 +7,7 @@ module MQTTD.SubTree (
 import           Data.Map.Strict    (Map)
 import qualified Data.Map.Strict    as Map
 import           Data.Maybe         (maybeToList)
-import           Data.Text          (intercalate, splitOn)
+import           Data.Text          (intercalate, isPrefixOf, splitOn)
 
 import           Network.MQTT.Topic (Filter, Topic)
 
@@ -49,12 +49,15 @@ add top i = modify top (fmap (i<>) . maybe (Just mempty) Just)
 
 -- | Find all matching subscribers
 findMap :: Monoid m => Topic -> (a -> m) -> SubTree a -> m
-findMap top f = go (splitOn "/" top)
+findMap top f = go mwc (splitOn "/" top)
   where
-    go [] SubTree{subs} = maybe mempty f subs
-    go (x:xs) SubTree{children} = maybe mempty (go xs)                 (Map.lookup x children)
-                               <> maybe mempty (go xs)                 (Map.lookup "+" children)
-                               <> maybe mempty (maybe mempty f . subs) (Map.lookup "#" children)
+    go _ [] SubTree{subs} = maybe mempty f subs
+    go d (x:xs) SubTree{children} = maybe mempty (go id xs)                 (Map.lookup x children)
+                                    <> maybe mempty (go id xs)              (d $ Map.lookup "+" children)
+                                    <> maybe mempty (maybe mempty f . subs) (d $ Map.lookup "#" children)
+    mwc deeper
+      | "$" `isPrefixOf` top = Nothing
+      | otherwise = deeper
 
 -- | Find subscribers of a given topic.
 find :: Monoid a => Topic -> SubTree a -> a

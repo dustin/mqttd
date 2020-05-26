@@ -77,12 +77,13 @@ testSubTree =
     ("a/d/c", ["a/+/c", "a/+/+", "+/+/+", "#", "a/#"]),
     ("b/b/c", ["+/+/+", "+/b/c", "#", "b/#"]),
     ("b/real", ["#", "b/#"]),
-    ("a/b/x", ["#","+/+/+","a/#","a/+/+"])]
+    ("a/b/x", ["#","+/+/+","a/#","a/+/+"]),
+    ("$special/case", ["$special/#"])]
 
   where
     someSubs = foldr (\x -> Sub.add x [x]) mempty [
       "a/b/c", "a/+/c", "a/+/+", "+/+/+", "+/b/c",
-      "#", "a/#", "b/#"]
+      "#", "a/#", "b/#", "$special/#"]
     aTest (f,w) = assertEqual (show f) (sort w) (sort $ Sub.find f someSubs)
 
 testACLs :: Assertion
