@@ -276,7 +276,7 @@ expireSession k = do
                             T._pubTopic=_willTopic,
                             T._pubPktID=0,
                             T._pubBody=_willMsg,
-                            T._pubProps=[]})
+                            T._pubProps=_willProps})
 
 unregisterClient :: (MonadLogger m, MonadMask m, MonadFail m, MonadUnliftIO m, MonadIO m) => SessionID -> ClientID -> MQTTD m ()
 unregisterClient k mid = do
