@@ -44,7 +44,14 @@ data DBOperation = DeleteSession SessionID
 initQueries :: [(Int, Query)]
 initQueries = [
   (1, [r|create table if not exists
-         sessions (session_id text primary key, expiry integer)|]),
+         sessions (session_id text primary key,
+         expiry integer,
+         will_topic text,
+         will_retain bool,
+         will_qos integer,
+         will_body blob,
+         will_props blob
+         )|]),
   (1, [r|create table if not exists
          session_subs (session_id text, topic text,
                        retain_handling text,
@@ -111,13 +118,33 @@ deleteRetainedL db k = liftIO $ execute db "delete from persisted where topic = 
 storeSession :: (HasDBConnection m, MonadIO m) => Session -> m ()
 storeSession = writeDBQueue . StoreSession
 
+instance ToRow Session where
+  toRow s@Session{..} = [
+    toField _sessionID,
+    toField ((fst . properFraction $ sto) :: Int),
+    toField (s ^? sessionWill . _Just . T.willTopic),
+    toField (s ^? sessionWill . _Just . T.willRetain),
+    toField (s ^? sessionWill . _Just . T.willQoS . to fromEnum),
+    toField (s ^? sessionWill . _Just . T.willMsg),
+    toField (s ^? sessionWill . _Just . T.willProps . to (T.bsProps T.Protocol50))
+    ]
+    where
+      sto = fromMaybe defaultSessionExp (_sessionClient ^? _Just . clientConnReq . T.properties . folded . T._PropSessionExpiryInterval . to fromIntegral)
+
 storeSessionL :: MonadIO m => Connection -> Session -> m ()
-storeSessionL db Session{..} = liftIO $ do
+storeSessionL db sess@Session{..} = liftIO $ do
   -- TODO:  For a session with an already-absolute expiry, try to expire at the right time.
-  execute db [r|insert into sessions (session_id, expiry) values (?, ?)
+  execute db [r|insert into sessions (session_id, expiry,
+                                      will_topic, will_retain,
+                                      will_qos, will_body, will_props) values (?, ?, ?, ?, ?, ?, ?)
                  on conflict (session_id)
                  do update
-                   set expiry = excluded.expiry|] (_sessionID, (fst . properFraction $ sto) :: Int)
+                   set expiry = excluded.expiry,
+                       will_topic = excluded.will_topic,
+                       will_retain = excluded.will_retain,
+                       will_qos = excluded.will_qos,
+                       will_body = excluded.will_body,
+                       will_props = excluded.will_props|] sess
 
   execute db "delete from session_subs where session_id = ?" (Only _sessionID)
   executeMany db [r|insert into session_subs
@@ -128,8 +155,6 @@ storeSessionL db Session{..} = liftIO $ do
     subs = Map.foldMapWithKey (\t T.SubOptions{..} -> [(_sessionID, t, show _retainHandling,
                                                         _retainAsPublished, _noLocal, fromEnum _subQoS)])
            <$> readTVarIO _sessionSubs
-
-    sto = fromMaybe defaultSessionExp (_sessionClient ^? _Just . clientConnReq . T.properties . folded . T._PropSessionExpiryInterval . to fromIntegral)
 
 data StoredSub = StoredSub {
   _ss_sessID :: SessionID,
@@ -155,23 +180,54 @@ instance FromRow StoredSub where
         rhFromStr "DoNotSendOnSubscribe" = T.DoNotSendOnSubscribe
         rhFromStr x = error ("Invalid retain handling: " <> show x)
 
+data StoredSession = StoredSession {
+  _sts_sessionID  :: SessionID,
+  _sts_expiry     :: Int,
+  _sts_willTopic  :: Maybe BLTopic,
+  _sts_willRetain :: Maybe Bool,
+  _sts_willQoS    :: Maybe T.QoS,
+  _sts_willBody   :: Maybe BL.ByteString,
+  _sts_willProps  :: [T.Property]
+  }
+
+instance FromRow StoredSession where
+  fromRow = StoredSession
+            <$> field
+            <*> field
+            <*> field
+            <*> field
+            <*> (fmap toEnum <$> field)
+            <*> field
+            <*> fmap props field
+
+      where
+        props :: Maybe BL.ByteString -> [T.Property]
+        props Nothing = []
+        props (Just ps) = case A.parse (T.parseProperties T.Protocol50) ps of
+                            A.Fail{}     -> []
+                            (A.Done _ p) -> p
+
 loadSessions :: (HasDBConnection m, MonadIO m) => m [Session]
 loadSessions = liftIO . fetch =<< dbConn
   where fetch db = withTransaction db do
           now <- getCurrentTime
           ssubs <- query_ db "select session_id, topic, retain_handling, retain_as_published, no_local, qos from session_subs"
           let subs = Map.fromListWith (<>) . map (\StoredSub{..} -> (_ss_sessID, [(_ss_topic, _ss_opts)])) $ ssubs
-          traverse (mkSessions now subs) =<< query_ db "select session_id, expiry from sessions"
+          traverse (mkSessions now subs) =<< query_ db "select session_id, expiry, will_topic, will_retain, will_qos, will_body, will_props from sessions"
 
-        mkSessions now subs (_sessionID, expires) = do
+        mkSessions now subs StoredSession{..} = do
           let _sessionACL = mempty
               _sessionClient = Nothing
-              _sessionWill = Nothing -- TODO:  Probably want to implement will here
-              _sessionExpires = Just (addUTCTime (fromIntegral @Int expires) now)
+              _sessionWill = will
+              _sessionExpires = Just (addUTCTime (fromIntegral _sts_expiry) now)
+              _sessionID = _sts_sessionID
           _sessionChan <- newTBQueueIO 1000
           _sessionQP <- newTVarIO mempty
           _sessionSubs <- newTVarIO $ Map.fromList (Map.findWithDefault [] _sessionID subs)
           pure Session{..}
+
+            where will = T.LastWill <$> _sts_willRetain <*> _sts_willQoS
+                         <*> _sts_willTopic <*> _sts_willBody <*> pure _sts_willProps
 
 instance ToRow Retained where
   toRow Retained{_retainTS, _retainExp, _retainMsg} = [
