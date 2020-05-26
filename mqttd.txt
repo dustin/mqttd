@@ -181,11 +181,22 @@ StoredSub :: SessionID -> Filter -> SubOptions -> StoredSub
 [_ss_sessID] :: StoredSub -> SessionID
 [_ss_topic] :: StoredSub -> Filter
 [_ss_opts] :: StoredSub -> SubOptions
+data StoredSession
+StoredSession :: SessionID -> Int -> Maybe BLTopic -> Maybe Bool -> Maybe QoS -> Maybe ByteString -> [Property] -> StoredSession
+[_sts_sessionID] :: StoredSession -> SessionID
+[_sts_expiry] :: StoredSession -> Int
+[_sts_willTopic] :: StoredSession -> Maybe BLTopic
+[_sts_willRetain] :: StoredSession -> Maybe Bool
+[_sts_willQoS] :: StoredSession -> Maybe QoS
+[_sts_willBody] :: StoredSession -> Maybe ByteString
+[_sts_willProps] :: StoredSession -> [Property]
 loadSessions :: (HasDBConnection m, MonadIO m) => m [Session]
 storeRetained :: (HasDBConnection m, MonadIO m) => Retained -> m ()
 storeRetainedL :: MonadIO m => Connection -> Retained -> m ()
 loadRetained :: (HasDBConnection m, MonadIO m) => m [Retained]
+instance Database.SQLite.Simple.FromRow.FromRow MQTTD.DB.StoredSession
 instance Database.SQLite.Simple.FromRow.FromRow MQTTD.DB.StoredSub
+instance Database.SQLite.Simple.ToRow.ToRow MQTTD.Types.Session
 instance Database.SQLite.Simple.ToRow.ToRow MQTTD.Types.Retained
 instance Database.SQLite.Simple.FromRow.FromRow MQTTD.Types.Retained
 
