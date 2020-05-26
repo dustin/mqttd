@@ -91,7 +91,7 @@ instance GHC.Base.Monoid a => GHC.Base.Monoid (MQTTD.SubTree.SubTree a)
 module MQTTD.Types
 data MQTTException
 MQTTPingTimeout :: MQTTException
-MQTTDuplicate :: MQTTException
+MQTTDuplicate :: SessionID -> MQTTException
 type PktQueue = TBQueue MQTTPkt
 type ClientID = Int
 type SessionID = ByteString
