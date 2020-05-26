@@ -261,7 +261,7 @@ resolveAliasIn :: MonadIO m => Session -> PublishRequest -> m PublishRequest
 findSubs :: MonadIO m => Topic -> MQTTD m [(Session, SubOptions)]
 restoreSessions :: PublishConstraint m => MQTTD m ()
 restoreRetained :: MonadIO m => MQTTD m ()
-subscribe :: PublishConstraint m => Session -> SubscribeRequest -> MQTTD m [Either SubErr QoS]
+subscribe :: PublishConstraint m => Session -> SubscribeRequest -> MQTTD m ()
 removeSubs :: TVar (SubTree (Map SessionID SubOptions)) -> SessionID -> [Filter] -> STM ()
 unsubscribe :: MonadIO m => Session -> [BLFilter] -> MQTTD m [UnsubStatus]
 modifySession :: MonadIO m => SessionID -> (Session -> Maybe Session) -> MQTTD m ()
