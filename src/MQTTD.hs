@@ -213,7 +213,7 @@ registerClient req@T.ConnectRequest{..} i o = do
     pure (o', ruse, ns)
   case o' of
     Nothing                  -> pure ()
-    Just ConnectedClient{..} -> liftIO $ throwTo _clientThread MQTTDuplicate
+    Just ConnectedClient{..} -> liftIO $ throwTo _clientThread (MQTTDuplicate _connID)
   pure (ns, x)
 
     where

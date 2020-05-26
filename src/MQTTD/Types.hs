@@ -25,7 +25,8 @@ import qualified Network.MQTT.Types     as T
 
 import           MQTTD.Config           (ACL (..), User (..))
 
-data MQTTException = MQTTPingTimeout | MQTTDuplicate deriving Show
+data MQTTException = MQTTPingTimeout | MQTTDuplicate SessionID
+  deriving Show
 
 instance Exception MQTTException
 
