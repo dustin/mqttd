@@ -47,7 +47,7 @@ retain pr@T.PublishRequest{..} Retainer{..} = do
   now <- liftIO getCurrentTime
   logDebugN ("Persisting " <> tshow _pubTopic)
   let e = pr ^? properties . folded . _PropMessageExpiryInterval . to (absExp now)
-      ret = (Retained now e pr)
+      ret = Retained now e pr
   atomically $ modifyTVar' _store (Map.insert _pubTopic ret)
   storeRetained ret
   justM (\t -> Scheduler.enqueue t _pubTopic _qrunner) e
