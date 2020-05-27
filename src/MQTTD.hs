@@ -24,6 +24,7 @@ import           Data.Foldable          (fold, foldl')
 import           Data.Map.Strict        (Map)
 import qualified Data.Map.Strict        as Map
 import           Data.Maybe             (fromMaybe, isJust)
+import           Data.Monoid            (Sum (..))
 import           Data.Time.Clock        (addUTCTime, getCurrentTime)
 import           Data.Word              (Word16)
 import           Database.SQLite.Simple (Connection)
@@ -111,6 +112,7 @@ publishStats = forever (pubStats >> sleep 15)
 
     pubStats = do
       pubClients
+      pubSubs
       pubRetained
       pubCounters
 
@@ -133,6 +135,10 @@ publishStats = forever (pubStats >> sleep 15)
       r <- asks retainer
       m <- readTVarIO (_store r)
       pub "$SYS/broker/retained messages/count" (length m)
+
+    pubSubs = do
+      m <- readTVarIO =<< asks allSubs
+      pub "$SYS/broker/subscriptions/count" (getSum $ foldMap (Sum . length) m)
 
     pubCounters = do
       m <- retrieveStats =<< asks statStore
