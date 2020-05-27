@@ -9,11 +9,11 @@
 
 module MQTTD where
 
-import           Control.Concurrent     (ThreadId, throwTo)
+import           Control.Concurrent     (ThreadId, threadDelay, throwTo)
 import           Control.Concurrent.STM (STM, TBQueue, TVar, isFullTBQueue, modifyTVar', newTBQueue, newTBQueueIO,
                                          newTVar, newTVarIO, readTVar, writeTBQueue, writeTVar)
 import           Control.Lens
-import           Control.Monad          (unless, void, when)
+import           Control.Monad          (forever, unless, void, when)
 import           Control.Monad.Catch    (MonadCatch (..), MonadMask (..), MonadThrow (..))
 import           Control.Monad.IO.Class (MonadIO (..))
 import           Control.Monad.Logger   (MonadLogger (..), logDebugN, logInfoN)
@@ -23,7 +23,7 @@ import           Data.Either            (rights)
 import           Data.Foldable          (fold, foldl')
 import           Data.Map.Strict        (Map)
 import qualified Data.Map.Strict        as Map
-import           Data.Maybe             (fromMaybe)
+import           Data.Maybe             (fromMaybe, isJust)
 import           Data.Time.Clock        (addUTCTime, getCurrentTime)
 import           Data.Word              (Word16)
 import           Database.SQLite.Simple (Connection)
@@ -97,6 +97,35 @@ sessionCleanup = asks queueRunner >>= Scheduler.run expireSession
 
 retainerCleanup :: (MonadUnliftIO m, MonadLogger m) => MQTTD m ()
 retainerCleanup = asks retainer >>= cleanRetainer
+
+publishStats :: PublishConstraint m => MQTTD m ()
+publishStats = forever (pubStats >> sleep 15)
+  where
+    sleep = liftIO . threadDelay . seconds
+
+    pubStats = do
+      pubClients
+      pubRetained
+
+    pub k v = broadcast Nothing (T.PublishRequest {
+                                    T._pubDup=False,
+                                    T._pubQoS=T.QoS2,
+                                    T._pubRetain=True,
+                                    T._pubTopic=k,
+                                    T._pubPktID=0,
+                                    T._pubBody=textToBL . tshow $ v,
+                                    T._pubProps=[T.PropMessageExpiryInterval 60]})
+
+    pubClients = do
+      ssv <- asks sessions
+      ss <- readTVarIO ssv
+      pub "$SYS/broker/clients/total" (length ss)
+      pub "$SYS/broker/clients/connected" (length . filter (isJust . _sessionClient) . Map.elems $ ss)
+
+    pubRetained = do
+      r <- asks retainer
+      m <- readTVarIO (_store r)
+      pub "$SYS/broker/retained messages/count" (length m)
 
 resolveAliasIn :: MonadIO m => Session -> T.PublishRequest -> m T.PublishRequest
 resolveAliasIn Session{_sessionClient=Nothing} r = pure r
