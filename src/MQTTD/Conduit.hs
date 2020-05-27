@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleContexts    #-}
 {-# LANGUAGE OverloadedStrings   #-}
 {-# LANGUAGE RankNTypes          #-}
 {-# LANGUAGE RecordWildCards     #-}
@@ -30,6 +31,7 @@ import           UnliftIO                 (async, atomically, waitAnyCancel)
 
 import           MQTTD
 import           MQTTD.Config
+import           MQTTD.Stats
 import           MQTTD.Types
 import           MQTTD.Util
 
@@ -45,13 +47,15 @@ authorize T.ConnectRequest{..} = do
     when (pass /= want) $ Left "invalid username or password"
 
 runMQTTDConduit :: forall m. PublishConstraint m => MQTTConduit m -> MQTTD m ()
-runMQTTDConduit (src,sink) = runConduit $ do
-  (cpkt@(T.ConnPkt _ pl), genedID) <- ensureID =<< src .| sinkParser T.parseConnect
+runMQTTDConduit (src, sink) = runConduit $ do
+  (cpkt@(T.ConnPkt _ pl), genedID) <- ensureID =<< commonIn .| sinkParser T.parseConnect
   cid <- lift nextID
 
   lift $ run pl cid cpkt genedID
 
   where
+    count s x = asks statStore >>= incrementStat s (fromIntegral $ BCS.length x) >> pure x
+
     run :: T.ProtocolLevel -> ClientID -> T.MQTTPkt -> Maybe SessionID -> MQTTD m ()
     run pl cid (T.ConnPkt req@T.ConnectRequest{..} _) nid = do
       r <- authorize req
@@ -87,14 +91,17 @@ runMQTTDConduit (src,sink) = runConduit $ do
       retransmit sess
       void $ waitAnyCancel [i, o, w]
 
-    processIn wdch sess pl = runConduit $ src
+    processIn wdch sess pl = runConduit $ commonIn
         .| conduitParser (T.parsePacket pl)
         .| C.mapM (\i@(_,x) -> logDebugN ("<< " <> tshow x) >> pure i)
         .| C.mapM_ (\(_,x) -> feed wdch >> dispatch sess x)
 
 
+    commonIn = src .| C.mapM (count StatBytesRcvd)
+
     commonOut pl = C.mapM (\x -> logDebugN (">> " <> tshow x) >> pure x)
                    .| C.map (BL.toStrict . T.toByteString pl)
+                   .| C.mapM (count StatBytesSent)
                    .| sink
 
     deliverConnACK pl existing cprops = runConduit $

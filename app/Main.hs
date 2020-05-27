@@ -46,12 +46,13 @@ main = do
       pc <- async retainerCleanup
       dba <- async runOperations
       st <- async publishStats
+      as <- async applyStats
       restoreSessions
       restoreRetained
 
       ls <- traverse (async . runModified) _confListeners
 
-      void $ waitAnyCancel (sc:pc:dba:st:ls)
+      void $ waitAnyCancel (sc:pc:dba:st:as:ls)
 
         where
           logfilt Config{..} = filterLogger (\_ -> flip (if _confDebug then (>=) else (>)) LevelDebug)

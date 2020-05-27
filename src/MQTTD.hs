@@ -35,6 +35,7 @@ import           UnliftIO               (MonadUnliftIO (..), atomically, readTVa
 import           MQTTD.Config           (ACL (..), User (..))
 import           MQTTD.DB
 import           MQTTD.Retention
+import           MQTTD.Stats
 import           MQTTD.SubTree          (SubTree)
 import qualified MQTTD.SubTree          as SubTree
 import           MQTTD.Types
@@ -51,7 +52,8 @@ data Env = Env {
   retainer     :: Retainer,
   authorizer   :: Authorizer,
   dbConnection :: Connection,
-  dbQ          :: TBQueue DBOperation
+  dbQ          :: TBQueue DBOperation,
+  statStore    :: StatStore
   }
 
 newtype MQTTD m a = MQTTD
@@ -80,6 +82,7 @@ newEnv a d = liftIO $ Env
          <*> pure a
          <*> pure d
          <*> newTBQueueIO 100
+         <*> newStatStore
 
 modifyAuthorizer :: Monad m => (Authorizer -> Authorizer) -> MQTTD m a -> MQTTD m a
 modifyAuthorizer f = local (\e@Env{..} -> e{authorizer=f authorizer})
@@ -98,6 +101,9 @@ sessionCleanup = asks queueRunner >>= Scheduler.run expireSession
 retainerCleanup :: (MonadUnliftIO m, MonadLogger m) => MQTTD m ()
 retainerCleanup = asks retainer >>= cleanRetainer
 
+applyStats :: (MonadUnliftIO m, MonadLogger m) => MQTTD m ()
+applyStats = asks statStore >>= MQTTD.Stats.applyStats
+
 publishStats :: PublishConstraint m => MQTTD m ()
 publishStats = forever (pubStats >> sleep 15)
   where
@@ -106,6 +112,7 @@ publishStats = forever (pubStats >> sleep 15)
     pubStats = do
       pubClients
       pubRetained
+      pubCounters
 
     pub k v = broadcast Nothing (T.PublishRequest {
                                     T._pubDup=False,
@@ -126,6 +133,10 @@ publishStats = forever (pubStats >> sleep 15)
       r <- asks retainer
       m <- readTVarIO (_store r)
       pub "$SYS/broker/retained messages/count" (length m)
+
+    pubCounters = do
+      m <- retrieveStats =<< asks statStore
+      mapM_ (\(k, v) -> pub (statKeyName k) v) (Map.assocs m)
 
 resolveAliasIn :: MonadIO m => Session -> T.PublishRequest -> m T.PublishRequest
 resolveAliasIn Session{_sessionClient=Nothing} r = pure r
@@ -370,11 +381,12 @@ broadcast src req@T.PublishRequest{..} = do
     mightRetain _                                      = _pubRetain
 
 publish :: PublishConstraint m => Session -> T.PublishRequest -> MQTTD m ()
-publish Session{..} pkt@T.PublishRequest{..} = atomically $ do
+publish Session{..} pkt@T.PublishRequest{..} = asks statStore >>= \ss -> atomically $ do
   -- QoS 0 is special-cased because it's fire-and-forget with no retries or anything.
   when (_pubQoS /= T.QoS0) $ modifyTVar' _sessionQP $ Map.insert (pkt ^. pktID) pkt
   p <- maybe (pure pkt) (`aliasOut` pkt) _sessionClient
   sendPacket_ _sessionChan (T.PublishPkt p)
+  incrementStatSTM StatMsgSent 1 ss
 
 aliasOut :: ConnectedClient -> T.PublishRequest -> STM T.PublishRequest
 aliasOut ConnectedClient{..} pkt@T.PublishRequest{..} =
@@ -443,13 +455,17 @@ dispatch sess@Session{..} (T.PublishPkt req) = do
       nak T.QoS2 T.PublishRequest{..} =
         sendPacketIO_ _sessionChan (T.PubRECPkt (T.PubREC _pubPktID 0x87 mempty))
 
-      satisfyQoS T.QoS0 r = broadcast (Just _sessionID) r
+      satisfyQoS T.QoS0 r = broadcast (Just _sessionID) r >> countIn
       satisfyQoS T.QoS1 r@T.PublishRequest{..} = do
         sendPacketIO_ _sessionChan (T.PubACKPkt (T.PubACK _pubPktID 0 mempty))
         broadcast (Just _sessionID) r
-      satisfyQoS T.QoS2 r@T.PublishRequest{..} = atomically $ do
+        countIn
+      satisfyQoS T.QoS2 r@T.PublishRequest{..} = asks statStore >>= \ss -> atomically $ do
         sendPacket_ _sessionChan (T.PubRECPkt (T.PubREC _pubPktID 0 mempty))
         modifyTVar' _sessionQP (Map.insert _pubPktID r)
+        incrementStatSTM StatMsgRcvd 1 ss
+
+      countIn = incrementStat StatMsgRcvd 1 =<< asks statStore
 
 dispatch sess (T.DisconnectPkt (T.DisconnectRequest T.DiscoNormalDisconnection _props)) = do
   let Just sid = sess ^? sessionClient . _Just . clientConnReq . connID
