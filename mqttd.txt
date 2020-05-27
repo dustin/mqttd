@@ -48,6 +48,28 @@ instance GHC.Show.Show MQTTD.Config.ACL
 instance GHC.Base.Semigroup MQTTD.Config.ListenerOptions
 instance GHC.Base.Monoid MQTTD.Config.ListenerOptions
 
+module MQTTD.Stats
+data StatKey
+StatMsgSent :: StatKey
+StatMsgRcvd :: StatKey
+StatBytesSent :: StatKey
+StatBytesRcvd :: StatKey
+statKeyName :: StatKey -> ByteString
+type Increment = (StatKey, Int)
+data StatStore
+StatStore :: TBQueue Increment -> TVar (Map StatKey Int) -> StatStore
+[_stats_queue] :: StatStore -> TBQueue Increment
+[_stats_map] :: StatStore -> TVar (Map StatKey Int)
+newStatStore :: MonadIO m => m StatStore
+applyStats :: MonadIO m => StatStore -> m ()
+incrementStatSTM :: StatKey -> Int -> StatStore -> STM ()
+incrementStat :: MonadIO m => StatKey -> Int -> StatStore -> m ()
+retrieveStats :: MonadIO m => StatStore -> m (Map StatKey Int)
+instance GHC.Enum.Enum MQTTD.Stats.StatKey
+instance GHC.Classes.Ord MQTTD.Stats.StatKey
+instance GHC.Show.Show MQTTD.Stats.StatKey
+instance GHC.Classes.Eq MQTTD.Stats.StatKey
+
 module MQTTD.SubTree
 
 -- | MQTT Topic Subscription tree.
@@ -236,7 +258,7 @@ relExp :: Integral p => UTCTime -> UTCTime -> p
 
 module MQTTD
 data Env
-Env :: TVar (Map SessionID Session) -> TVar Word16 -> TVar ClientID -> TVar (SubTree (Map SessionID SubOptions)) -> QueueRunner SessionID -> Retainer -> Authorizer -> Connection -> TBQueue DBOperation -> Env
+Env :: TVar (Map SessionID Session) -> TVar Word16 -> TVar ClientID -> TVar (SubTree (Map SessionID SubOptions)) -> QueueRunner SessionID -> Retainer -> Authorizer -> Connection -> TBQueue DBOperation -> StatStore -> Env
 [sessions] :: Env -> TVar (Map SessionID Session)
 [lastPktID] :: Env -> TVar Word16
 [clientIDGen] :: Env -> TVar ClientID
@@ -246,6 +268,7 @@ Env :: TVar (Map SessionID Session) -> TVar Word16 -> TVar ClientID -> TVar (Sub
 [authorizer] :: Env -> Authorizer
 [dbConnection] :: Env -> Connection
 [dbQ] :: Env -> TBQueue DBOperation
+[statStore] :: Env -> StatStore
 newtype MQTTD m a
 MQTTD :: ReaderT Env m a -> MQTTD m a
 [runMQTTD] :: MQTTD m a -> ReaderT Env m a
@@ -257,6 +280,8 @@ nextID :: MonadIO m => MQTTD m Int
 type PublishConstraint m = (MonadLogger m, MonadFail m, MonadMask m, MonadUnliftIO m, MonadIO m)
 sessionCleanup :: PublishConstraint m => MQTTD m ()
 retainerCleanup :: (MonadUnliftIO m, MonadLogger m) => MQTTD m ()
+applyStats :: (MonadUnliftIO m, MonadLogger m) => MQTTD m ()
+publishStats :: PublishConstraint m => MQTTD m ()
 resolveAliasIn :: MonadIO m => Session -> PublishRequest -> m PublishRequest
 findSubs :: MonadIO m => Topic -> MQTTD m [(Session, SubOptions)]
 restoreSessions :: PublishConstraint m => MQTTD m ()
