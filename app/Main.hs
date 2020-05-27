@@ -44,7 +44,7 @@ main = do
     runStderrLoggingT . logfilt conf . runIO e $ do
       sc <- async sessionCleanup
       pc <- async retainerCleanup
-      dba <- async runOperations
+      dba <- async (runOperations $ statStore e)
       st <- async publishStats
       as <- async applyStats
       restoreSessions

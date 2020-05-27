@@ -29,6 +29,7 @@ import qualified Network.MQTT.Lens               as T
 import qualified Network.MQTT.Topic              as T
 import qualified Network.MQTT.Types              as T
 
+import           MQTTD.Stats
 import           MQTTD.Types
 import           MQTTD.Util
 
@@ -77,8 +78,8 @@ initDB db = do
   mapM_ (execute_ db) ["pragma foreign_keys = ON"]
   initTables db
 
-runOperations :: (HasDBConnection m, MonadIO m, MonadLogger m) => m ()
-runOperations = do
+runOperations :: (HasDBConnection m, MonadIO m, MonadLogger m) => StatStore -> m ()
+runOperations statStore = do
   db <- dbConn
   q <- dbQueue
   forever $ go db q
@@ -91,6 +92,8 @@ runOperations = do
           where
             store ops = do
               logDebugN ("Storing a batch of " <> tshow (length ops) <> " operations")
+              incrementStat StatStoreTransactions 1 statStore
+              incrementStat StatStoreOperations (length ops) statStore
               liftIO . withTransaction db $
                 mapM_ store1 ops
             store1 (DeleteSession i) = deleteSessionL db i

@@ -12,6 +12,8 @@ data StatKey = StatMsgSent
              | StatMsgRcvd
              | StatBytesSent
              | StatBytesRcvd
+             | StatStoreTransactions
+             | StatStoreOperations
   deriving (Eq, Show, Ord, Enum)
 
 statKeyName :: StatKey -> BL.ByteString
@@ -19,6 +21,8 @@ statKeyName StatMsgSent = "$SYS/broker/messages/sent"
 statKeyName StatMsgRcvd = "$SYS/broker/messages/received"
 statKeyName StatBytesRcvd = "$SYS/broker/bytes/received"
 statKeyName StatBytesSent = "$SYS/broker/bytes/sent"
+statKeyName StatStoreTransactions = "$SYS/broker/store/transactions"
+statKeyName StatStoreOperations = "$SYS/broker/store/operations"
 
 type Increment = (StatKey, Int)
 
