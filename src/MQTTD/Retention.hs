@@ -2,9 +2,10 @@ module MQTTD.Retention where
 
 import           Control.Concurrent.STM (TVar, modifyTVar', newTVarIO, readTVar)
 import           Control.Lens
-import           Control.Monad          (when, (<=<))
+import           Control.Monad          (unless, when, (<=<))
 import           Control.Monad.IO.Class (MonadIO (..))
 import           Control.Monad.Logger   (MonadLogger (..), logDebugN)
+import qualified Data.ByteString.Lazy   as BL
 import           Data.Map.Strict        (Map)
 import qualified Data.Map.Strict        as Map
 import           Data.Time.Clock        (UTCTime (..), addUTCTime, diffUTCTime, getCurrentTime)
@@ -49,7 +50,7 @@ retain pr@T.PublishRequest{..} Retainer{..} = do
   let e = pr ^? properties . folded . _PropMessageExpiryInterval . to (absExp now)
       ret = Retained now e pr
   atomically $ modifyTVar' _store (Map.insert _pubTopic ret)
-  storeRetained ret
+  unless ("$SYS/" `BL.isPrefixOf` _pubTopic) $ storeRetained ret
   justM (\t -> Scheduler.enqueue t _pubTopic _qrunner) e
 
 restoreRetained :: (MonadIO m, HasDBConnection m) => Retainer -> m ()
