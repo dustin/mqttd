@@ -77,12 +77,7 @@ runMQTTDConduit (src, sink) = runConduit $ do
                 noauth T.Protocol50  = T.ConnNotAuthorized
 
     authorized pl cid req@T.ConnectRequest{..} nid = do
-      logInfoN ("connection from u=" <> tshow _username
-                <> " s=" <> tshow _connID
-                <> " w=" <> tshow _lastWill
-                <> " c=" <> if _cleanSession then "t" else "f"
-                <> " ka=" <> tshow _keepAlive
-                <> " " <> tshow _connProperties)
+      logConn
       -- Register and accept the connection
       tid <- liftIO myThreadId
       (sess@Session{_sessionID, _sessionChan}, existing) <- registerClient req cid tid
@@ -95,6 +90,26 @@ runMQTTDConduit (src, sink) = runConduit $ do
       i <- async $ E.finally (processIn wdch sess pl) (teardown cid req)
       retransmit sess
       void $ waitAnyCancel [i, o, w]
+
+      where logConn =
+              logInfoN ("connection from" <> lu
+                         <> " s=" <> tshow _connID
+                         <> lw _lastWill
+                         <> " c=" <> tf _cleanSession
+                         <> " ka=" <> tshow _keepAlive
+                         <> " " <> tshow _connProperties)
+              where
+                tf True  = "t"
+                tf False = "f"
+                lu = maybe "" (tshow . (" u=" <>)) _username
+                lw Nothing = ""
+                lw (Just T.LastWill{..}) = mconcat [
+                  " w={t=", tshow _willTopic,
+                  ", r=", tf _willRetain,
+                  ", q=", tshow (fromEnum _willQoS),
+                  tshow _willProps,
+                  "}"
+                  ]
 
     processIn wdch sess pl = runConduit $ commonIn
         .| conduitParser (T.parsePacket pl)
