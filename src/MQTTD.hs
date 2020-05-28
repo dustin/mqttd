@@ -328,8 +328,7 @@ expireSession k = do
 unregisterClient :: (MonadLogger m, MonadMask m, MonadFail m, MonadUnliftIO m, MonadIO m) => SessionID -> ClientID -> MQTTD m ()
 unregisterClient k mid = do
   now <- liftIO getCurrentTime
-  c <- asks sessions
-  atomically $ modifyTVar' c $ Map.update (up now) k
+  modifySession k (up now)
   expireSession k
 
     where
