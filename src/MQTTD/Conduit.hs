@@ -74,10 +74,15 @@ runMQTTDConduit (src, sink) = runConduit $ do
                   ]) .| commonOut pl
 
           where noauth T.Protocol311 = T.NotAuthorized
-                noauth T.Protocol50 = T.ConnNotAuthorized
+                noauth T.Protocol50  = T.ConnNotAuthorized
 
     authorized pl cid req@T.ConnectRequest{..} nid = do
-      logInfoN ("A connection is made " <> tshow req)
+      logInfoN ("connection from u=" <> tshow _username
+                <> " s=" <> tshow _connID
+                <> " w=" <> tshow _lastWill
+                <> " c=" <> if _cleanSession then "t" else "f"
+                <> " ka=" <> tshow _keepAlive
+                <> " " <> tshow _connProperties)
       -- Register and accept the connection
       tid <- liftIO myThreadId
       (sess@Session{_sessionID, _sessionChan}, existing) <- registerClient req cid tid
