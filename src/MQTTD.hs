@@ -283,9 +283,11 @@ expireSession k = do
     possiblyCleanup (Just Session{_sessionClient=Nothing,
                                   _sessionExpires=Nothing}) = expireNow
     possiblyCleanup (Just Session{_sessionClient=Nothing,
-                                  _sessionExpires=Just ex}) = do
+                                  _sessionExpires=Just ex,
+                                  _sessionSubs=subsv}) = do
       now <- liftIO getCurrentTime
-      if ex > now
+      subs <- readTVarIO subsv
+      if (not.null $ subs) && ex > now
         then Scheduler.enqueue ex k =<< asks queueRunner
         else expireNow
 
@@ -294,9 +296,10 @@ expireSession k = do
       ss <- asks sessions
       kilt <- atomically $ do
         current <- Map.lookup k <$> readTVar ss
+        subs <- maybe (pure mempty) readTVar (_sessionSubs <$> current)
         case current ^? _Just . sessionExpires . _Just of
           Nothing -> pure Nothing
-          Just x -> if now >= x
+          Just x -> if null subs || now >= x
                     then
                       modifyTVar' ss (Map.delete k) >> pure current
                     else
