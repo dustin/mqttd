@@ -23,6 +23,7 @@ import qualified Data.Conduit.Combinators as C
 import           Data.Conduit.Network     (AppData, appSink, appSource)
 import qualified Data.Map.Strict          as Map
 import           Data.String              (IsString (..))
+import           Data.Text                (intercalate, pack)
 import qualified Data.UUID                as UUID
 import qualified Network.MQTT.Types       as T
 import qualified Network.WebSockets       as WS
@@ -97,17 +98,19 @@ runMQTTDConduit (src, sink) = runConduit $ do
                          <> lw _lastWill
                          <> " c=" <> tf _cleanSession
                          <> " ka=" <> tshow _keepAlive
-                         <> " " <> tshow _connProperties)
+                         <> sp _connProperties)
               where
                 tf True  = "t"
                 tf False = "f"
+                sp [] = ""
+                sp xs = " p=[" <> intercalate " " (map (pack . drop 4 . show) xs) <> "]"
                 lu = maybe "" (tshow . (" u=" <>)) _username
                 lw Nothing = ""
                 lw (Just T.LastWill{..}) = mconcat [
                   " w={t=", tshow _willTopic,
                   ", r=", tf _willRetain,
                   ", q=", tshow (fromEnum _willQoS),
-                  tshow _willProps,
+                  sp _willProps,
                   "}"
                   ]
 
