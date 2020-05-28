@@ -32,12 +32,15 @@ cleanRetainer Retainer{..} = Scheduler.run cleanup _qrunner
     where
       cleanup k = do
         now <- liftIO getCurrentTime
-        logDebugN ("Probably removing persisted item: " <> tshow k)
+        unless (isSys k) $ logDebugN ("Probably removing persisted item: " <> tshow k)
         jk <- atomically $ do
           r <- (_retainExp <=< Map.lookup k) <$> readTVar _store
           when (r < Just now) $ modifyTVar' _store (Map.delete k)
           if r < Just now then pure (Just k) else pure Nothing
         justM deleteRetained jk
+
+isSys :: BLTopic -> Bool
+isSys = ("$SYS/" `BL.isPrefixOf`)
 
 retain :: (MonadLogger m, HasDBConnection m, MonadIO m) => T.PublishRequest -> Retainer -> m ()
 retain T.PublishRequest{_pubRetain=False} _ = pure ()
@@ -46,11 +49,11 @@ retain T.PublishRequest{_pubTopic,_pubBody=""} Retainer{..} = do
   atomically $ modifyTVar' _store (Map.delete _pubTopic)
 retain pr@T.PublishRequest{..} Retainer{..} = do
   now <- liftIO getCurrentTime
-  logDebugN ("Persisting " <> tshow _pubTopic)
+  unless (isSys _pubTopic) $ logDebugN ("Persisting " <> tshow _pubTopic)
   let e = pr ^? properties . folded . _PropMessageExpiryInterval . to (absExp now)
       ret = Retained now e pr
   atomically $ modifyTVar' _store (Map.insert _pubTopic ret)
-  unless ("$SYS/" `BL.isPrefixOf` _pubTopic) $ storeRetained ret
+  unless (isSys _pubTopic) $ storeRetained ret
   justM (\t -> Scheduler.enqueue t _pubTopic _qrunner) e
 
 restoreRetained :: (MonadIO m, HasDBConnection m) => Retainer -> m ()
