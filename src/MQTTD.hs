@@ -287,9 +287,11 @@ expireSession k = do
                                   _sessionSubs=subsv}) = do
       now <- liftIO getCurrentTime
       subs <- readTVarIO subsv
-      if (not.null $ subs) && ex > now
+      if hasHighQoS subs && ex > now
         then Scheduler.enqueue ex k =<< asks queueRunner
         else expireNow
+
+    hasHighQoS = isJust . preview (folded . subQoS . filtered (> T.QoS0))
 
     expireNow = do
       now <- liftIO getCurrentTime
@@ -299,7 +301,7 @@ expireSession k = do
         subs <- maybe (pure mempty) readTVar (_sessionSubs <$> current)
         case current ^? _Just . sessionExpires . _Just of
           Nothing -> pure Nothing
-          Just x -> if null subs || now >= x
+          Just x -> if not (hasHighQoS subs) || now >= x
                     then
                       modifyTVar' ss (Map.delete k) >> pure current
                     else
