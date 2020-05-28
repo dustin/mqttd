@@ -411,6 +411,7 @@ aliasOut ConnectedClient{..} pkt@T.PublishRequest{..} =
           pure pkt{T._pubProps=T.PropTopicAlias l:_pubProps}
 
 authTopic :: T.Topic -> [ACL] -> Either String ()
+authTopic "" = const $ Left "empty topics are not valid"
 authTopic t = foldr check (Right ())
   where
     check (Allow f) o
