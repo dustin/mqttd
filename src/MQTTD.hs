@@ -340,7 +340,7 @@ unregisterClient k mid = do
             Nothing -> Just $ sess{_sessionExpires=Just (addUTCTime defaultSessionExp now),
                                    _sessionClient=Nothing}
             -- Specifically destroy now
-            Just 0 -> Nothing
+            Just 0 -> Just $ sess{_sessionExpires=Nothing, _sessionClient=Nothing}
             -- Hold on for maybe a bit.
             Just x  -> Just $ sess{_sessionExpires=Just (addUTCTime (fromIntegral x) now),
                                    _sessionClient=Nothing}
