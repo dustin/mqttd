@@ -54,6 +54,8 @@ StatMsgSent :: StatKey
 StatMsgRcvd :: StatKey
 StatBytesSent :: StatKey
 StatBytesRcvd :: StatKey
+StatStoreTransactions :: StatKey
+StatStoreOperations :: StatKey
 statKeyName :: StatKey -> ByteString
 type Increment = (StatKey, Int)
 data StatStore
@@ -190,7 +192,7 @@ StoreRetained :: Retained -> DBOperation
 initQueries :: [(Int, Query)]
 initTables :: Connection -> IO ()
 initDB :: Connection -> IO ()
-runOperations :: (HasDBConnection m, MonadIO m, MonadLogger m) => m ()
+runOperations :: (HasDBConnection m, MonadIO m, MonadLogger m) => StatStore -> m ()
 writeDBQueue :: (HasDBConnection m, MonadIO m) => DBOperation -> m ()
 deleteSessionL :: MonadIO m => Connection -> SessionID -> m ()
 deleteSession :: (HasDBConnection m, MonadIO m) => SessionID -> m ()
