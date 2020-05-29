@@ -35,6 +35,7 @@ import           UnliftIO               (MonadUnliftIO (..), atomically, readTVa
 
 import           MQTTD.Config           (ACL (..), User (..))
 import           MQTTD.DB
+import           MQTTD.GCStats
 import           MQTTD.Retention
 import           MQTTD.Stats
 import           MQTTD.SubTree          (SubTree)
@@ -94,8 +95,6 @@ seconds = (1000000 *)
 nextID :: MonadIO m => MQTTD m Int
 nextID = asks clientIDGen >>= \ig -> atomically $ modifyTVarRet ig (+1)
 
-type PublishConstraint m = (MonadLogger m, MonadFail m, MonadMask m, MonadUnliftIO m, MonadIO m)
-
 sessionCleanup :: PublishConstraint m => MQTTD m ()
 sessionCleanup = asks queueRunner >>= Scheduler.run expireSession
 
@@ -115,15 +114,19 @@ publishStats = forever (pubStats >> sleep 15)
       pubSubs
       pubRetained
       pubCounters
+      gce <- hasGCStats
+      when gce $ pubGCStats pubBS
 
-    pub k v = broadcast Nothing (T.PublishRequest {
-                                    T._pubDup=False,
-                                    T._pubQoS=T.QoS2,
-                                    T._pubRetain=True,
-                                    T._pubTopic=k,
-                                    T._pubPktID=0,
-                                    T._pubBody=textToBL . tshow $ v,
-                                    T._pubProps=[T.PropMessageExpiryInterval 60]})
+    pub k = pubBS k . textToBL . tshow
+
+    pubBS k v = broadcast Nothing (T.PublishRequest {
+                                      T._pubDup=False,
+                                      T._pubQoS=T.QoS2,
+                                      T._pubRetain=True,
+                                      T._pubTopic=k,
+                                      T._pubPktID=0,
+                                      T._pubBody=v,
+                                      T._pubProps=[T.PropMessageExpiryInterval 60]})
 
     pubClients = do
       ssv <- asks sessions

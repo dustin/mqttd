@@ -15,13 +15,17 @@ module MQTTD.Types where
 import           Control.Concurrent     (ThreadId)
 import           Control.Concurrent.STM (TBQueue, TVar)
 import           Control.Lens
-import           Control.Monad.Catch    (Exception)
+import           Control.Monad.Catch    (Exception, MonadCatch (..), MonadMask (..), MonadThrow (..))
+import           Control.Monad.IO.Class (MonadIO (..))
+import           Control.Monad.Logger   (MonadLogger (..))
+import           Control.Monad.Reader   (MonadReader (..))
 import qualified Data.ByteString.Lazy   as BL
 import           Data.Map.Strict        (Map)
 import           Data.Time.Clock        (NominalDiffTime, UTCTime (..))
 import           Data.Word              (Word16)
 import qualified Network.MQTT.Topic     as T
 import qualified Network.MQTT.Types     as T
+import           UnliftIO               (MonadUnliftIO (..))
 
 import           MQTTD.Config           (ACL (..), User (..))
 
@@ -80,3 +84,5 @@ data Retained = Retained {
   } deriving Show
 
 makeLenses ''Retained
+
+type PublishConstraint m = (MonadLogger m, MonadFail m, MonadMask m, MonadUnliftIO m, MonadIO m)
