@@ -168,6 +168,7 @@ Retained :: UTCTime -> Maybe UTCTime -> PublishRequest -> Retained
 retainTS :: Lens' Retained UTCTime
 retainMsg :: Lens' Retained PublishRequest
 retainExp :: Lens' Retained (Maybe UTCTime)
+type PublishConstraint m = (MonadLogger m, MonadFail m, MonadMask m, MonadUnliftIO m, MonadIO m)
 instance GHC.Show.Show MQTTD.Types.Retained
 instance GHC.Show.Show MQTTD.Types.Authorizer
 instance GHC.Show.Show MQTTD.Types.ConnectedClient
@@ -179,6 +180,10 @@ textToBL :: Text -> ByteString
 blToText :: ByteString -> Text
 tshow :: Show a => a -> Text
 justM :: Monad m => (a -> m ()) -> Maybe a -> m ()
+
+module MQTTD.GCStats
+hasGCStats :: MonadIO m => m Bool
+pubGCStats :: forall m. PublishConstraint m => (ByteString -> ByteString -> m ()) -> m ()
 
 module MQTTD.DB
 class Monad m => HasDBConnection m
@@ -280,7 +285,6 @@ newEnv :: MonadIO m => Authorizer -> Connection -> m Env
 modifyAuthorizer :: Monad m => (Authorizer -> Authorizer) -> MQTTD m a -> MQTTD m a
 seconds :: Num p => p -> p
 nextID :: MonadIO m => MQTTD m Int
-type PublishConstraint m = (MonadLogger m, MonadFail m, MonadMask m, MonadUnliftIO m, MonadIO m)
 sessionCleanup :: PublishConstraint m => MQTTD m ()
 retainerCleanup :: (MonadUnliftIO m, MonadLogger m) => MQTTD m ()
 applyStats :: (MonadUnliftIO m, MonadLogger m) => MQTTD m ()
