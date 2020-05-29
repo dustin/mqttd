@@ -15,10 +15,9 @@ module MQTTD.Types where
 import           Control.Concurrent     (ThreadId)
 import           Control.Concurrent.STM (TBQueue, TVar)
 import           Control.Lens
-import           Control.Monad.Catch    (Exception, MonadCatch (..), MonadMask (..), MonadThrow (..))
+import           Control.Monad.Catch    (Exception, MonadMask (..))
 import           Control.Monad.IO.Class (MonadIO (..))
 import           Control.Monad.Logger   (MonadLogger (..))
-import           Control.Monad.Reader   (MonadReader (..))
 import qualified Data.ByteString.Lazy   as BL
 import           Data.Map.Strict        (Map)
 import           Data.Time.Clock        (NominalDiffTime, UTCTime (..))
