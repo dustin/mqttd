@@ -18,7 +18,7 @@ pubGCStats pubBS = do
 
   pub "gcs" gcs
   pub "allocated" allocated_bytes
-  pub "gc_elapsed" (gc_elapsed_ns `div` 1000000000) -- milliseconds
+  pub "gc_elapsed" gc_elapsed_ns
 
   let GCDetails{..} = gc
   pub "live_bytes" gcdetails_live_bytes
