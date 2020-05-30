@@ -121,6 +121,7 @@ type ClientID = Int
 type SessionID = ByteString
 type BLTopic = ByteString
 type BLFilter = ByteString
+defaultQueueSize :: Num a => a
 data ConnectedClient
 ConnectedClient :: ConnectRequest -> ThreadId -> ClientID -> TVar (Map Word16 ByteString) -> TVar (Map ByteString Word16) -> TVar Word16 -> ConnectedClient
 [_clientConnReq] :: ConnectedClient -> ConnectRequest
@@ -136,11 +137,13 @@ clientAliasOut :: Lens' ConnectedClient (TVar (Map ByteString Word16))
 clientAliasIn :: Lens' ConnectedClient (TVar (Map Word16 ByteString))
 clientALeft :: Lens' ConnectedClient (TVar Word16)
 data Session
-Session :: SessionID -> [ACL] -> Maybe ConnectedClient -> PktQueue -> TVar (Map PktID PublishRequest) -> TVar (Map Filter SubOptions) -> Maybe UTCTime -> Maybe LastWill -> Session
+Session :: SessionID -> [ACL] -> Maybe ConnectedClient -> PktQueue -> TVar Word16 -> TBQueue PublishRequest -> TVar (Map PktID PublishRequest) -> TVar (Map Filter SubOptions) -> Maybe UTCTime -> Maybe LastWill -> Session
 [_sessionID] :: Session -> SessionID
 [_sessionACL] :: Session -> [ACL]
 [_sessionClient] :: Session -> Maybe ConnectedClient
 [_sessionChan] :: Session -> PktQueue
+[_sessionFlight] :: Session -> TVar Word16
+[_sessionBacklog] :: Session -> TBQueue PublishRequest
 [_sessionQP] :: Session -> TVar (Map PktID PublishRequest)
 [_sessionSubs] :: Session -> TVar (Map Filter SubOptions)
 [_sessionExpires] :: Session -> Maybe UTCTime
@@ -149,9 +152,11 @@ sessionWill :: Lens' Session (Maybe LastWill)
 sessionSubs :: Lens' Session (TVar (Map Filter SubOptions))
 sessionQP :: Lens' Session (TVar (Map PktID PublishRequest))
 sessionID :: Lens' Session SessionID
+sessionFlight :: Lens' Session (TVar Word16)
 sessionExpires :: Lens' Session (Maybe UTCTime)
 sessionClient :: Lens' Session (Maybe ConnectedClient)
 sessionChan :: Lens' Session PktQueue
+sessionBacklog :: Lens' Session (TBQueue PublishRequest)
 sessionACL :: Lens' Session [ACL]
 defaultSessionExp :: NominalDiffTime
 data Authorizer
@@ -288,6 +293,7 @@ nextID :: MonadIO m => MQTTD m Int
 sessionCleanup :: PublishConstraint m => MQTTD m ()
 retainerCleanup :: (MonadUnliftIO m, MonadLogger m) => MQTTD m ()
 applyStats :: (MonadUnliftIO m, MonadLogger m) => MQTTD m ()
+isClientConnected :: SessionID -> TVar (Map SessionID Session) -> STM Bool
 publishStats :: PublishConstraint m => MQTTD m ()
 resolveAliasIn :: MonadIO m => Session -> PublishRequest -> m PublishRequest
 findSubs :: MonadIO m => Topic -> MQTTD m [(Session, SubOptions)]
@@ -297,9 +303,10 @@ subscribe :: PublishConstraint m => Session -> SubscribeRequest -> MQTTD m ()
 removeSubs :: TVar (SubTree (Map SessionID SubOptions)) -> SessionID -> [Filter] -> STM ()
 unsubscribe :: MonadIO m => Session -> [BLFilter] -> MQTTD m [UnsubStatus]
 modifySession :: MonadIO m => SessionID -> (Session -> Maybe Session) -> MQTTD m ()
-registerClient :: MonadIO m => ConnectRequest -> ClientID -> ThreadId -> MQTTD m (Session, SessionReuse)
+registerClient :: (MonadFail m, MonadIO m) => ConnectRequest -> ClientID -> ThreadId -> MQTTD m (Session, SessionReuse)
 expireSession :: PublishConstraint m => SessionID -> MQTTD m ()
 unregisterClient :: (MonadLogger m, MonadMask m, MonadFail m, MonadUnliftIO m, MonadIO m) => SessionID -> ClientID -> MQTTD m ()
+tryWriteQ :: TBQueue a -> a -> STM Bool
 sendPacket :: PktQueue -> MQTTPkt -> STM Bool
 sendPacket_ :: PktQueue -> MQTTPkt -> STM ()
 sendPacketIO :: MonadIO m => PktQueue -> MQTTPkt -> m Bool
@@ -308,8 +315,10 @@ modifyTVarRet :: TVar a -> (a -> a) -> STM a
 nextPktID :: TVar Word16 -> STM Word16
 broadcast :: PublishConstraint m => Maybe SessionID -> PublishRequest -> MQTTD m ()
 publish :: PublishConstraint m => Session -> PublishRequest -> MQTTD m ()
+deliver :: StatStore -> Session -> PublishRequest -> STM ()
 aliasOut :: ConnectedClient -> PublishRequest -> STM PublishRequest
 authTopic :: Topic -> [ACL] -> Either String ()
+releasePubSlot :: StatStore -> Session -> STM ()
 dispatch :: PublishConstraint m => Session -> MQTTPkt -> MQTTD m ()
 instance Control.Monad.Fail.MonadFail m => Control.Monad.Fail.MonadFail (MQTTD.MQTTD m)
 instance GHC.Base.Monad m => Control.Monad.Reader.Class.MonadReader MQTTD.Env (MQTTD.MQTTD m)
