@@ -56,7 +56,7 @@ instance Eq a => EqProp (SubTree a) where (=-=) = eq
 
 instance (Monoid a, Arbitrary a, Eq a) => Arbitrary (SubTree a) where
   arbitrary = do
-    topics <- choose (1, 20) >>= flip vectorOf (unTopic <$> arbitrary)
+    topics <- choose (1, 20) >>= flip vectorOf (unTopic <$> arbitraryTopic ['a'..'d'] (1,7) (1,3))
     subbers <- choose (1, 20) >>= vector
     total <- choose (1, 50)
     Sub.fromList <$> vectorOf total (liftA2 (,) (elements topics) (elements subbers))
@@ -94,39 +94,53 @@ testACLs = mapM_ aTest [
 
 newtype Topic = Topic [Text] deriving (Show, Eq)
 
-instance Arbitrary Topic where
-  arbitrary = Topic <$> someSegs
-    where someSegs = choose (1,8) >>= flip vectorOf aSeg
-          aSeg = do
-            n <- choose (1,8)
-            Text.pack <$> vectorOf n aValidChar
-          aValidChar = elements (['A'..'Z'] <> ['a'..'z'] <> ['0'..'9'])
+arbitraryTopicSegment :: [Char] -> Int -> Gen Text
+arbitraryTopicSegment alphabet n = Text.pack <$> vectorOf n (elements alphabet)
 
-  shrink (Topic x) = fmap Topic . shrinkList shrinkWord $ x
-    where shrinkWord = fmap Text.pack . shrink . Text.unpack
+arbitraryTopic :: [Char] -> (Int,Int) -> (Int,Int) -> Gen Topic
+arbitraryTopic alphabet seglen nsegs = do
+  Topic <$> someSegs
+    where someSegs = choose nsegs >>= flip vectorOf aSeg
+          aSeg = choose seglen >>= arbitraryTopicSegment alphabet
 
-data MatchingTopic = MatchingTopic Topic Topic deriving Eq
-
-instance Show MatchingTopic where
-  show (MatchingTopic t m) = concat ["MatchingTopic ",
-                                     (Text.unpack $ unTopic t), " -> ", (Text.unpack $ unTopic m)]
-
-instance Arbitrary MatchingTopic where
-  arbitrary = do
-    t@(Topic tsegs) <- arbitrary
+arbitraryMatchingTopic :: [Char] -> (Int,Int) -> (Int,Int) -> Gen (Topic, Topic)
+arbitraryMatchingTopic alphabet seglen nsegs = do
+    t@(Topic tsegs) <- arbitraryTopic alphabet seglen nsegs
     reps <- vectorOf (length tsegs) (elements [id, const "+", const "#"])
     let m = zipWith ($) reps tsegs
-    pure $ MatchingTopic t (Topic $ clean m)
+    pure $ (t, (Topic $ clean m))
       where
         clean []       = []
         clean ("#":xs) = ["#"]
         clean (x:xs)   = x : clean xs
 
-propSubTreeMapping :: [MatchingTopic] -> Bool
-propSubTreeMapping matches = all (\(t, m) -> m `elem` Sub.find t st) tp
+instance Arbitrary Topic where
+  arbitrary = arbitraryTopic ['a'..'z'] (1,6) (1,6)
+
+  shrink (Topic x) = fmap Topic . shrinkList shrinkWord $ x
+    where shrinkWord = fmap Text.pack . shrink . Text.unpack
+
+newtype MatchingTopic = MatchingTopic (Topic, Topic) deriving Eq
+
+instance Show MatchingTopic where
+  show (MatchingTopic (t, m)) = concat ["MatchingTopic ",
+                                        (Text.unpack $ unTopic t), " -> ", (Text.unpack $ unTopic m)]
+
+instance Arbitrary MatchingTopic where
+  arbitrary = MatchingTopic <$> arbitraryMatchingTopic ['a'..'z'] (1,6) (1,6)
+
+newtype CollidingMatchingTopic = CollidingMatchingTopic (Topic, Topic) deriving (Show, Eq)
+
+instance Arbitrary CollidingMatchingTopic where
+  arbitrary = CollidingMatchingTopic <$> arbitraryMatchingTopic ['a'..'c'] (1,3) (1,6)
+
+propSubTreeMapping :: [CollidingMatchingTopic] -> Property
+propSubTreeMapping matches = label ("collisions " <> collisions) $
+                             all (\(t, m) -> m `elem` Sub.find t st) tp
   where
-    tp = [(unTopic t, unTopic m) | (MatchingTopic t m) <- matches]
+    tp = [(unTopic t, unTopic m) | (CollidingMatchingTopic (t, m)) <- matches]
     st = foldr (\(_,t) -> Sub.add t [t]) mempty tp
+    collisions = (\n -> show n <> "-" <> show (n+9)) . (*10) . (`div` 10) . getSum . foldMap (Sum . subtract 1 . length) $ st
 
 unTopic :: Topic -> Text
 unTopic (Topic t) = Text.intercalate "/" t
