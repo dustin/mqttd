@@ -96,10 +96,10 @@ runOperations statStore = do
               incrementStat StatStoreOperations (length ops) statStore
               liftIO . withTransaction db $
                 mapM_ store1 ops
-            store1 (DeleteSession i) = deleteSessionL db i
+            store1 (DeleteSession i)  = deleteSessionL db i
             store1 (DeleteRetained i) = deleteRetainedL db i
-            store1 (StoreSession i) = storeSessionL db i
-            store1 (StoreRetained i) = storeRetainedL db i
+            store1 (StoreSession i)   = storeSessionL db i
+            store1 (StoreRetained i)  = storeRetainedL db i
 
 writeDBQueue :: (HasDBConnection m, MonadIO m) => DBOperation -> m ()
 writeDBQueue o = dbQueue >>= \q -> writeTBQueueIO q o
@@ -178,10 +178,10 @@ instance FromRow StoredSub where
 
       where
         rhFromStr :: String -> T.RetainHandling
-        rhFromStr "SendOnSuscribe" = T.SendOnSubscribe
-        rhFromStr "SendOnSuscribeNew" = T.SendOnSubscribeNew
+        rhFromStr "SendOnSuscribe"       = T.SendOnSubscribe
+        rhFromStr "SendOnSuscribeNew"    = T.SendOnSubscribeNew
         rhFromStr "DoNotSendOnSubscribe" = T.DoNotSendOnSubscribe
-        rhFromStr x = error ("Invalid retain handling: " <> show x)
+        rhFromStr x                      = error ("Invalid retain handling: " <> show x)
 
 data StoredSession = StoredSession {
   _sts_sessionID  :: SessionID,
@@ -224,8 +224,10 @@ loadSessions = liftIO . fetch =<< dbConn
               _sessionWill = will
               _sessionExpires = Just (addUTCTime (fromIntegral _sts_expiry) now)
               _sessionID = _sts_sessionID
-          _sessionChan <- newTBQueueIO 1000
+          _sessionChan <- newTBQueueIO defaultQueueSize
           _sessionQP <- newTVarIO mempty
+          _sessionFlight <- newTVarIO 0
+          _sessionBacklog <- newTBQueueIO defaultQueueSize
           _sessionSubs <- newTVarIO $ Map.fromList (Map.findWithDefault [] _sessionID subs)
           pure Session{..}
 

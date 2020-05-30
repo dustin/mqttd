@@ -11,7 +11,7 @@ module MQTTD where
 
 import           Control.Concurrent     (ThreadId, threadDelay, throwTo)
 import           Control.Concurrent.STM (STM, TBQueue, TVar, isFullTBQueue, modifyTVar', newTBQueue, newTBQueueIO,
-                                         newTVar, newTVarIO, readTVar, writeTBQueue, writeTVar)
+                                         newTVar, newTVarIO, readTVar, tryReadTBQueue, writeTBQueue, writeTVar)
 import           Control.Lens
 import           Control.Monad          (forever, unless, void, when)
 import           Control.Monad.Catch    (MonadCatch (..), MonadMask (..), MonadThrow (..))
@@ -103,6 +103,9 @@ retainerCleanup = asks retainer >>= cleanRetainer
 
 applyStats :: (MonadUnliftIO m, MonadLogger m) => MQTTD m ()
 applyStats = asks statStore >>= MQTTD.Stats.applyStats
+
+isClientConnected :: SessionID -> TVar (Map SessionID Session) ->  STM Bool
+isClientConnected sid sidsv = readTVar sidsv >>= \sids -> pure $ isJust (_sessionClient =<< Map.lookup sid sids)
 
 publishStats :: PublishConstraint m => MQTTD m ()
 publishStats = forever (pubStats >> sleep 15)
@@ -242,7 +245,8 @@ unsubscribe Session{..} topics = asks allSubs >>= \subs ->
 modifySession :: MonadIO m => SessionID -> (Session -> Maybe Session) -> MQTTD m ()
 modifySession k f = asks sessions >>= \s -> atomically $ modifyTVar' s (Map.update f k)
 
-registerClient :: MonadIO m => T.ConnectRequest -> ClientID -> ThreadId -> MQTTD m (Session, T.SessionReuse)
+registerClient :: (MonadFail m, MonadIO m)
+               => T.ConnectRequest -> ClientID -> ThreadId -> MQTTD m (Session, T.SessionReuse)
 registerClient req@T.ConnectRequest{..} i o = do
   c <- asks sessions
   ai <- liftIO $ newTVarIO mempty
@@ -252,8 +256,12 @@ registerClient req@T.ConnectRequest{..} i o = do
   let k = _connID
       nc = ConnectedClient req o i ai ao l
       acl = fromMaybe [] (fmap (\(User _ _ a) -> a) . (`Map.lookup` authr) =<< _username)
+      maxInFlight = fromMaybe maxBound (req ^? properties . folded . _PropReceiveMaximum)
+  when (maxInFlight == 0) $ fail "max in flight must be greater than zero"
   (o', x, ns) <- atomically $ do
-    emptySession <- Session _connID acl (Just nc) <$> newTBQueue 1000 <*> newTVar mempty <*> newTVar mempty
+    emptySession <- Session _connID acl (Just nc) <$> newTBQueue defaultQueueSize
+                    <*> newTVar maxInFlight <*> newTBQueue defaultQueueSize
+                    <*> newTVar mempty <*> newTVar mempty
                     <*> pure Nothing <*> pure _lastWill
     m <- readTVar c
     let s = Map.lookup k m
@@ -273,6 +281,8 @@ registerClient req@T.ConnectRequest{..} i o = do
         | otherwise = (s{_sessionClient=_sessionClient ns,
                          _sessionExpires=Nothing,
                          _sessionChan=_sessionChan ns,
+                         _sessionBacklog=_sessionBacklog ns,
+                         _sessionFlight=_sessionFlight ns,
                          _sessionWill=_lastWill}, T.ExistingSession)
 
 expireSession :: PublishConstraint m => SessionID -> MQTTD m ()
@@ -394,9 +404,19 @@ broadcast src req@T.PublishRequest{..} = do
     mightRetain _                                      = _pubRetain
 
 publish :: PublishConstraint m => Session -> T.PublishRequest -> MQTTD m ()
-publish Session{..} pkt@T.PublishRequest{..} = asks statStore >>= \ss -> atomically $ do
+publish sess@Session{..} pkt@T.PublishRequest{..}
   -- QoS 0 is special-cased because it's fire-and-forget with no retries or anything.
-  when (_pubQoS /= T.QoS0) $ modifyTVar' _sessionQP $ Map.insert (pkt ^. pktID) pkt
+  | _pubQoS == T.QoS0 = asks statStore >>= \ss -> atomically $ deliver ss sess pkt
+  | otherwise = asks statStore >>= \ss -> atomically $ do
+      modifyTVar' _sessionQP $ Map.insert (pkt ^. pktID) pkt
+      tokens <- readTVar _sessionFlight
+      if tokens == 0
+        then writeTBQueue _sessionBacklog pkt
+        else deliver ss sess pkt
+
+deliver :: StatStore -> Session -> T.PublishRequest -> STM ()
+deliver ss Session{..} pkt@T.PublishRequest{..} = do
+  when (_pubQoS > T.QoS0) $ modifyTVar' _sessionFlight pred
   p <- maybe (pure pkt) (`aliasOut` pkt) _sessionClient
   sendPacket_ _sessionChan (T.PublishPkt p)
   incrementStatSTM StatMsgSent 1 ss
@@ -424,12 +444,19 @@ authTopic t = foldr check (Right ())
       | T.match f t = Left "unauthorized topic"
       | otherwise = o
 
+releasePubSlot :: StatStore -> Session -> STM ()
+releasePubSlot ss sess@Session{..} = do
+  modifyTVar' _sessionFlight succ
+  justM (deliver ss sess) =<< tryReadTBQueue _sessionBacklog
+
 dispatch :: PublishConstraint m => Session -> T.MQTTPkt -> MQTTD m ()
 
 dispatch Session{..} T.PingPkt = sendPacketIO_ _sessionChan T.PongPkt
 
 -- QoS 1 ACK (receiving client got our publish message)
-dispatch Session{..} (T.PubACKPkt ack) = atomically $ modifyTVar' _sessionQP (Map.delete (ack ^. pktID))
+dispatch sess@Session{..} (T.PubACKPkt ack) = asks statStore >>= \st -> atomically $ do
+  modifyTVar' _sessionQP (Map.delete (ack ^. pktID))
+  releasePubSlot st sess
 
 -- QoS 2 ACK (receiving client received our message)
 dispatch Session{..} (T.PubRECPkt ack) = atomically $ do
@@ -446,7 +473,7 @@ dispatch Session{..} (T.PubRELPkt rel) = do
   justM (broadcast (Just _sessionID)) pkt
 
 -- QoS 2 COMPlete (publishing client says publish is complete)
-dispatch _ (T.PubCOMPPkt _) = pure ()
+dispatch sess (T.PubCOMPPkt _) = asks statStore >>= \st -> atomically $ releasePubSlot st sess
 
 -- Subscribe response is sent from the `subscribe` action because the
 -- interaction is a bit complicated.

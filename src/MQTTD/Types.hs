@@ -39,6 +39,9 @@ type SessionID = BL.ByteString
 type BLTopic = BL.ByteString
 type BLFilter = BL.ByteString
 
+defaultQueueSize :: Num a => a
+defaultQueueSize = 1000
+
 data ConnectedClient = ConnectedClient {
   _clientConnReq  :: T.ConnectRequest,
   _clientThread   :: ThreadId,
@@ -58,6 +61,8 @@ data Session = Session {
   _sessionACL     :: [ACL],
   _sessionClient  :: Maybe ConnectedClient,
   _sessionChan    :: PktQueue,
+  _sessionFlight  :: TVar Word16,
+  _sessionBacklog :: TBQueue T.PublishRequest,
   _sessionQP      :: TVar (Map T.PktID T.PublishRequest),
   _sessionSubs    :: TVar (Map T.Filter T.SubOptions),
   _sessionExpires :: Maybe UTCTime,

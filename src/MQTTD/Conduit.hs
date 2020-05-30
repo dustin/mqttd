@@ -7,9 +7,10 @@
 module MQTTD.Conduit where
 
 import           Control.Concurrent       (myThreadId, throwTo)
-import           Control.Concurrent.STM   (check, newTChanIO, orElse, readTBQueue, readTChan, readTVar, registerDelay,
-                                           writeTChan)
-import           Control.Monad            (forever, unless, void, when)
+import           Control.Concurrent.STM   (check, modifyTVar', newTChanIO, orElse, readTBQueue, readTChan, readTVar,
+                                           registerDelay, writeTBQueue, writeTChan)
+import           Control.Lens
+import           Control.Monad            (forever, guard, unless, void, when)
 import qualified Control.Monad.Catch      as E
 import           Control.Monad.IO.Class   (MonadIO (..))
 import           Control.Monad.Logger     (logDebugN, logInfoN)
@@ -25,6 +26,7 @@ import qualified Data.Map.Strict          as Map
 import           Data.String              (IsString (..))
 import           Data.Text                (intercalate, pack)
 import qualified Data.UUID                as UUID
+import qualified Network.MQTT.Lens        as T
 import qualified Network.MQTT.Types       as T
 import qualified Network.WebSockets       as WS
 import           System.Random            (randomIO)
@@ -153,8 +155,23 @@ runMQTTDConduit (src, sink) = runConduit $ do
         logInfoN ("Client with session " <> tshow sid <> " timed out")
         liftIO $ throwTo t MQTTPingTimeout
 
-    retransmit Session{..} = atomically $ mapM_ rt . Map.elems =<< readTVar _sessionQP
-        where rt p = sendPacket _sessionChan (T.PublishPkt p{T._pubDup=True})
+    retransmit Session{..} = do
+      -- We can atomically find the partially transmitted messages and
+      -- drop them into an outbound queue that does not exceed the
+      -- maximum amount allowable by either the client or our own
+      -- queue size.  The rest is returned for async processing.
+      bl <- atomically $ do
+        tokens <- readTVar _sessionFlight
+        (t, bl) <- splitAt (min defaultQueueSize (fromIntegral tokens)) . Map.elems <$> readTVar _sessionQP
+        modifyTVar' _sessionFlight (subtract . fromIntegral . length $ t)
+        mapM_ (sendPacket _sessionChan . T.PublishPkt . set T.pubDup True) t
+        pure bl
+      -- The backlog is processed as space frees up in its queue.
+      allSessions <- asks sessions
+      mapM_ (atomically . art allSessions) bl
+        where art allSessions p = do
+                guard =<< isClientConnected _sessionID allSessions
+                writeTBQueue _sessionBacklog p{T._pubDup=True}
 
 webSocketsApp :: PublishConstraint m => WS.PendingConnection -> MQTTD m ()
 webSocketsApp pc = do
