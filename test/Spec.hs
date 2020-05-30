@@ -54,14 +54,6 @@ instance Arbitrary ListenerOptions where
 
 instance Eq a => EqProp (SubTree a) where (=-=) = eq
 
-newtype ATopic = ATopic { unTopic :: Text } deriving (Eq, Show)
-
-instance Arbitrary ATopic where
-  arbitrary = do
-    n <- choose (1, 6)
-    ATopic . Text.pack . intercalate "/" <$> vectorOf n seg
-      where seg = choose (1, 8) >>= flip vectorOf (choose ('a', 'z'))
-
 instance (Monoid a, Arbitrary a, Eq a) => Arbitrary (SubTree a) where
   arbitrary = do
     topics <- choose (1, 20) >>= flip vectorOf (unTopic <$> arbitrary)
@@ -117,7 +109,7 @@ data MatchingTopic = MatchingTopic Topic Topic deriving Eq
 
 instance Show MatchingTopic where
   show (MatchingTopic t m) = concat ["MatchingTopic ",
-                                     (Text.unpack $ topicPath t), " -> ", (Text.unpack $ topicPath m)]
+                                     (Text.unpack $ unTopic t), " -> ", (Text.unpack $ unTopic m)]
 
 instance Arbitrary MatchingTopic where
   arbitrary = do
@@ -133,11 +125,11 @@ instance Arbitrary MatchingTopic where
 propSubTreeMapping :: [MatchingTopic] -> Bool
 propSubTreeMapping matches = all (\(t, m) -> m `elem` Sub.find t st) tp
   where
-    tp = [(topicPath t, topicPath m) | (MatchingTopic t m) <- matches]
+    tp = [(unTopic t, unTopic m) | (MatchingTopic t m) <- matches]
     st = foldr (\(_,t) -> Sub.add t [t]) mempty tp
 
-topicPath :: Topic -> Text
-topicPath (Topic t) = Text.intercalate "/" t
+unTopic :: Topic -> Text
+unTopic (Topic t) = Text.intercalate "/" t
 
 roundTrips :: (Eq a, Show a, Arbitrary a) => (a -> b) -> (b -> a) -> a -> Property
 roundTrips t f = f.t >>= (===)
