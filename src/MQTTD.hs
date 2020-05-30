@@ -363,11 +363,14 @@ unregisterClient k mid = do
                                    _sessionClient=Nothing}
       up _ s = Just s
 
-sendPacket :: PktQueue -> T.MQTTPkt -> STM Bool
-sendPacket ch p = do
-  full <- isFullTBQueue ch
-  unless full $ writeTBQueue ch p
+tryWriteQ :: TBQueue a -> a -> STM Bool
+tryWriteQ q a = do
+  full <- isFullTBQueue q
+  unless full $ writeTBQueue q a
   pure full
+
+sendPacket :: PktQueue -> T.MQTTPkt -> STM Bool
+sendPacket = tryWriteQ
 
 sendPacket_ :: PktQueue -> T.MQTTPkt -> STM ()
 sendPacket_ q = void . sendPacket q
@@ -411,7 +414,7 @@ publish sess@Session{..} pkt@T.PublishRequest{..}
       modifyTVar' _sessionQP $ Map.insert (pkt ^. pktID) pkt
       tokens <- readTVar _sessionFlight
       if tokens == 0
-        then writeTBQueue _sessionBacklog pkt
+        then void $ tryWriteQ _sessionBacklog pkt
         else deliver ss sess pkt
 
 deliver :: StatStore -> Session -> T.PublishRequest -> STM ()
