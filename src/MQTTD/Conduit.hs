@@ -21,10 +21,10 @@ import qualified Data.ByteString.Lazy     as BL
 import           Data.Conduit             (ConduitT, Void, await, runConduit, yield, (.|))
 import           Data.Conduit.Attoparsec  (conduitParser, sinkParser)
 import qualified Data.Conduit.Combinators as C
-import           Data.Conduit.Network     (AppData, appSink, appSource)
+import           Data.Conduit.Network     (AppData, appSink, appSockAddr, appSource)
 import qualified Data.Map.Strict          as Map
 import           Data.String              (IsString (..))
-import           Data.Text                (intercalate, pack)
+import           Data.Text                (Text, intercalate, pack, unpack)
 import qualified Data.UUID                as UUID
 import qualified Network.MQTT.Lens        as T
 import qualified Network.MQTT.Types       as T
@@ -38,7 +38,7 @@ import           MQTTD.Stats
 import           MQTTD.Types
 import           MQTTD.Util
 
-type MQTTConduit m = (ConduitT () BCS.ByteString (MQTTD m) (), ConduitT BCS.ByteString Void (MQTTD m) ())
+type MQTTConduit m = (ConduitT () BCS.ByteString (MQTTD m) (), ConduitT BCS.ByteString Void (MQTTD m) (), Text)
 
 authorize :: (MonadFail m, Monad m) => T.ConnectRequest -> MQTTD m (Either String ())
 authorize T.ConnectRequest{..} = do
@@ -50,7 +50,7 @@ authorize T.ConnectRequest{..} = do
     when (pass /= want) $ Left "invalid username or password"
 
 runMQTTDConduit :: forall m. PublishConstraint m => MQTTConduit m -> MQTTD m ()
-runMQTTDConduit (src, sink) = runConduit $ do
+runMQTTDConduit (src, sink, addr) = runConduit $ do
   (cpkt@(T.ConnPkt _ pl), genedID) <- ensureID =<< commonIn .| sinkParser T.parseConnect
   cid <- lift nextID
 
@@ -66,10 +66,10 @@ runMQTTDConduit (src, sink) = runConduit $ do
         Left x  -> notAuthorized pl req x
         Right _ -> authorized pl cid req nid
 
-    run _ _ pkt _ = fail ("Unhandled start packet: " <> show pkt)
+    run _ _ pkt _ = fail ("Unhandled start packet from " <> unpack addr <> ": " <> show pkt)
 
     notAuthorized pl req s = do
-      logInfoN ("Unauthorized connection: " <> tshow req)
+      logInfoN ("Unauthorized connection from " <> addr <> ": " <> tshow req)
       runConduit $ do
         yield (T.ConnACKPkt $ T.ConnACKFlags T.NewSession (noauth pl) []) .| commonOut pl
         yield (T.DisconnectPkt $ T.DisconnectRequest T.DiscoNotAuthorized [
@@ -95,7 +95,7 @@ runMQTTDConduit (src, sink) = runConduit $ do
       void $ waitAnyCancel [i, o, w]
 
       where logConn =
-              logInfoN ("connection from" <> lu
+              logInfoN ("connection from " <> addr <> lu
                          <> " s=" <> tshow _connID
                          <> lw _lastWill
                          <> " c=" <> tf _cleanSession
@@ -176,7 +176,7 @@ runMQTTDConduit (src, sink) = runConduit $ do
 webSocketsApp :: PublishConstraint m => WS.PendingConnection -> MQTTD m ()
 webSocketsApp pc = do
   conn <- liftIO $ WS.acceptRequest pc
-  runMQTTDConduit (wsSource conn, wsSink conn)
+  runMQTTDConduit (wsSource conn, wsSink conn, "<unknown>")
 
   where
     wsSource ws = forever $ do
@@ -186,4 +186,4 @@ webSocketsApp pc = do
     wsSink ws = justM (\bs -> liftIO (WS.sendBinaryData ws bs) >> wsSink ws) =<< await
 
 tcpApp :: PublishConstraint m => AppData -> MQTTD m ()
-tcpApp ad = runMQTTDConduit (appSource ad, appSink ad)
+tcpApp ad = runMQTTDConduit (appSource ad, appSink ad, tshow (appSockAddr ad))
