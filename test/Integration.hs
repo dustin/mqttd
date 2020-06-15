@@ -7,10 +7,10 @@ import           Test.Tasty.HUnit
 import           Test.Tasty.QuickCheck    as QC
 
 import           Control.Applicative      (liftA2)
-import           Control.Concurrent       (threadDelay)
+import           Control.Concurrent       (Chan (..), newChan, threadDelay)
 import           Control.Concurrent.STM   (TVar, check, modifyTVar', newTVarIO, readTVar, retry)
 import           Control.Monad            (forever, void, when)
-import           Control.Monad.Logger     (LogLevel (..), MonadLogger (..), filterLogger, logInfoN, runStderrLoggingT)
+import           Control.Monad.Logger     (LogLevel (..), MonadLogger (..), filterLogger, logInfoN, runChanLoggingT)
 import           Data.Conduit             (ConduitT, Void, await, runConduit, yield, (.|))
 import           Data.Either              (isLeft, isRight)
 import           Data.List                (intercalate, sort)
@@ -51,7 +51,8 @@ withTestService f = do
 
   let uri = fromJust $ parseURI $ "mqtt://127.0.0.1:" <> show port <> "/"
 
-  bracket (runServer conf) (mapM_ cancel) (const $ waitForConn uri >> f uri)
+  ch <- newChan
+  bracket (runChanLoggingT ch $ runServerLogging conf) (mapM_ cancel) (const $ waitForConn uri >> f uri)
 
   where
     waitForConn _ = sleep 1 -- TODO:  Some positive signal that listeners are ready.
