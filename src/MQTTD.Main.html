@@ -1,0 +1,374 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">MQTTD.Main</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-2"></span><span>
+</span><span id="line-3"></span><span class="hs-keyword">import</span><span>           </span><span class="annot"><span class="hs-identifier">Control.Lens</span></span><span>
+</span><span id="line-4"></span><span class="hs-keyword">import</span><span>           </span><span class="annot"><span class="hs-identifier">Control.Monad.Catch</span></span><span>      </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">MonadMask</span></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-5"></span><span class="hs-keyword">import</span><span>           </span><span class="annot"><span class="hs-identifier">Control.Monad.IO.Class</span></span><span>   </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">MonadIO</span></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-6"></span><span class="hs-keyword">import</span><span>           </span><span class="annot"><span class="hs-identifier">Control.Monad.Logger</span></span><span>     </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">LogLevel</span></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">MonadLogger</span></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">filterLogger</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">logInfoN</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">runStderrLoggingT</span></span><span class="hs-special">)</span><span>
+</span><span id="line-7"></span><span class="hs-keyword">import</span><span>           </span><span class="annot"><span class="hs-identifier">Data.Conduit.Network</span></span><span>     </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">runTCPServer</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">serverSettings</span></span><span class="hs-special">)</span><span>
+</span><span id="line-8"></span><span class="hs-keyword">import</span><span>           </span><span class="annot"><span class="hs-identifier">Data.Conduit.Network.TLS</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">runGeneralTCPServerTLS</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">tlsConfig</span></span><span class="hs-special">)</span><span>
+</span><span id="line-9"></span><span class="hs-keyword">import</span><span>           </span><span class="annot"><span class="hs-identifier">Data.Maybe</span></span><span>               </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">fromMaybe</span></span><span class="hs-special">)</span><span>
+</span><span id="line-10"></span><span class="hs-keyword">import</span><span>           </span><span class="annot"><span class="hs-identifier">Database.SQLite.Simple</span></span><span>   </span><span class="hs-keyword">hiding</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">bind</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">close</span></span><span class="hs-special">)</span><span>
+</span><span id="line-11"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Network.WebSockets</span></span><span>       </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">WS</span></span><span>
+</span><span id="line-12"></span><span class="hs-keyword">import</span><span>           </span><span class="annot"><span class="hs-identifier">UnliftIO</span></span><span>                 </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Async</span></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">MonadUnliftIO</span></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">async</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">withRunInIO</span></span><span class="hs-special">)</span><span>
+</span><span id="line-13"></span><span>
+</span><span id="line-14"></span><span class="hs-keyword">import</span><span>           </span><span class="annot"><a href="MQTTD.html"><span class="hs-identifier">MQTTD</span></a></span><span>
+</span><span id="line-15"></span><span class="hs-keyword">import</span><span>           </span><span class="annot"><a href="MQTTD.Conduit.html"><span class="hs-identifier">MQTTD.Conduit</span></a></span><span>
+</span><span id="line-16"></span><span class="hs-keyword">import</span><span>           </span><span class="annot"><a href="MQTTD.Config.html"><span class="hs-identifier">MQTTD.Config</span></a></span><span>
+</span><span id="line-17"></span><span class="hs-keyword">import</span><span>           </span><span class="annot"><a href="MQTTD.DB.html"><span class="hs-identifier">MQTTD.DB</span></a></span><span>
+</span><span id="line-18"></span><span class="hs-keyword">import</span><span>           </span><span class="annot"><a href="MQTTD.Types.html"><span class="hs-identifier">MQTTD.Types</span></a></span><span>
+</span><span id="line-19"></span><span class="hs-keyword">import</span><span>           </span><span class="annot"><a href="MQTTD.Util.html"><span class="hs-identifier">MQTTD.Util</span></a></span><span>
+</span><span id="line-20"></span><span>
+</span><span id="line-21"></span><span id="local-6989586621679275745"><span class="annot"><a href="MQTTD.Main.html#runListener"><span class="hs-identifier hs-type">runListener</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">MonadUnliftIO</span></span><span> </span><span class="annot"><a href="#local-6989586621679275745"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MonadLogger</span></span><span> </span><span class="annot"><a href="#local-6989586621679275745"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MonadFail</span></span><span> </span><span class="annot"><a href="#local-6989586621679275745"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MonadMask</span></span><span> </span><span class="annot"><a href="#local-6989586621679275745"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="MQTTD.Config.html#Listener"><span class="hs-identifier hs-type">Listener</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="MQTTD.html#MQTTD"><span class="hs-identifier hs-type">MQTTD</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679275745"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span></span><span>
+</span><span id="line-22"></span><span id="runListener"><span class="annot"><span class="annottext">runListener :: Listener -&gt; MQTTD m ()
+</span><a href="MQTTD.Main.html#runListener"><span class="hs-identifier hs-var hs-var">runListener</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="MQTTD.Config.html#MQTTListener"><span class="hs-identifier hs-type">MQTTListener</span></a></span><span> </span><span id="local-6989586621679275715"><span class="annot"><span class="annottext">a :: HostPreference
+</span><a href="#local-6989586621679275715"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="local-6989586621679275714"><span class="annot"><span class="annottext">p :: PortNumber
+</span><a href="#local-6989586621679275714"><span class="hs-identifier hs-var">p</span></a></span></span><span> </span><span class="hs-identifier">_</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-23"></span><span>  </span><span class="annot"><span class="annottext">Text -&gt; MQTTD m ()
+forall (m :: * -&gt; *). MonadLogger m =&gt; Text -&gt; m ()
+</span><span class="hs-identifier hs-var">logInfoN</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-string">&quot;Starting mqtt service on &quot;</span></span><span> </span><span class="annot"><span class="annottext">Text -&gt; Text -&gt; Text
+forall a. Semigroup a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">&lt;&gt;</span></span><span> </span><span class="annot"><span class="annottext">HostPreference -&gt; Text
+forall a. Show a =&gt; a -&gt; Text
+</span><a href="MQTTD.Util.html#tshow"><span class="hs-identifier hs-var">tshow</span></a></span><span> </span><span class="annot"><span class="annottext">HostPreference
+</span><a href="#local-6989586621679275715"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">Text -&gt; Text -&gt; Text
+forall a. Semigroup a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">&lt;&gt;</span></span><span> </span><span class="annot"><span class="hs-string">&quot;:&quot;</span></span><span> </span><span class="annot"><span class="annottext">Text -&gt; Text -&gt; Text
+forall a. Semigroup a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">&lt;&gt;</span></span><span> </span><span class="annot"><span class="annottext">PortNumber -&gt; Text
+forall a. Show a =&gt; a -&gt; Text
+</span><a href="MQTTD.Util.html#tshow"><span class="hs-identifier hs-var">tshow</span></a></span><span> </span><span class="annot"><span class="annottext">PortNumber
+</span><a href="#local-6989586621679275714"><span class="hs-identifier hs-var">p</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-24"></span><span>  </span><span class="annot"><span class="annottext">((forall a. MQTTD m a -&gt; IO a) -&gt; IO ()) -&gt; MQTTD m ()
+forall (m :: * -&gt; *) b.
+MonadUnliftIO m =&gt;
+((forall a. m a -&gt; IO a) -&gt; IO b) -&gt; m b
+</span><span class="hs-identifier hs-var">withRunInIO</span></span><span> </span><span class="annot"><span class="annottext">(((forall a. MQTTD m a -&gt; IO a) -&gt; IO ()) -&gt; MQTTD m ())
+-&gt; ((forall a. MQTTD m a -&gt; IO a) -&gt; IO ()) -&gt; MQTTD m ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621679275712"><span class="annot"><span class="annottext">unl :: forall a. MQTTD m a -&gt; IO a
+</span><a href="#local-6989586621679275712"><span class="hs-identifier hs-var">unl</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">ServerSettings -&gt; (AppData -&gt; IO ()) -&gt; IO ()
+forall a. ServerSettings -&gt; (AppData -&gt; IO ()) -&gt; IO a
+</span><span class="hs-identifier hs-var">runTCPServer</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">PortNumber -&gt; HostPreference -&gt; ServerSettings
+</span><span class="hs-identifier hs-var">serverSettings</span></span><span> </span><span class="annot"><span class="annottext">PortNumber
+</span><a href="#local-6989586621679275714"><span class="hs-identifier hs-var">p</span></a></span><span> </span><span class="annot"><span class="annottext">HostPreference
+</span><a href="#local-6989586621679275715"><span class="hs-identifier hs-var">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">MQTTD m () -&gt; IO ()
+forall a. MQTTD m a -&gt; IO a
+</span><a href="#local-6989586621679275712"><span class="hs-identifier hs-var">unl</span></a></span><span> </span><span class="annot"><span class="annottext">(MQTTD m () -&gt; IO ())
+-&gt; (AppData -&gt; MQTTD m ()) -&gt; AppData -&gt; IO ()
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">AppData -&gt; MQTTD m ()
+forall (m :: * -&gt; *). PublishConstraint m =&gt; AppData -&gt; MQTTD m ()
+</span><a href="MQTTD.Conduit.html#tcpApp"><span class="hs-identifier hs-var">tcpApp</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-25"></span><span class="annot"><a href="MQTTD.Main.html#runListener"><span class="hs-identifier hs-var">runListener</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="MQTTD.Config.html#WSListener"><span class="hs-identifier hs-type">WSListener</span></a></span><span> </span><span id="local-6989586621679275708"><span class="annot"><span class="annottext">a :: ListenAddress
+</span><a href="#local-6989586621679275708"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="local-6989586621679275707"><span class="annot"><span class="annottext">p :: PortNumber
+</span><a href="#local-6989586621679275707"><span class="hs-identifier hs-var">p</span></a></span></span><span> </span><span class="hs-identifier">_</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-26"></span><span>  </span><span class="annot"><span class="annottext">Text -&gt; MQTTD m ()
+forall (m :: * -&gt; *). MonadLogger m =&gt; Text -&gt; m ()
+</span><span class="hs-identifier hs-var">logInfoN</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-string">&quot;Starting websocket service on &quot;</span></span><span> </span><span class="annot"><span class="annottext">Text -&gt; Text -&gt; Text
+forall a. Semigroup a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">&lt;&gt;</span></span><span> </span><span class="annot"><span class="annottext">ListenAddress -&gt; Text
+forall a. Show a =&gt; a -&gt; Text
+</span><a href="MQTTD.Util.html#tshow"><span class="hs-identifier hs-var">tshow</span></a></span><span> </span><span class="annot"><span class="annottext">ListenAddress
+</span><a href="#local-6989586621679275708"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">Text -&gt; Text -&gt; Text
+forall a. Semigroup a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">&lt;&gt;</span></span><span> </span><span class="annot"><span class="hs-string">&quot;:&quot;</span></span><span> </span><span class="annot"><span class="annottext">Text -&gt; Text -&gt; Text
+forall a. Semigroup a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">&lt;&gt;</span></span><span> </span><span class="annot"><span class="annottext">PortNumber -&gt; Text
+forall a. Show a =&gt; a -&gt; Text
+</span><a href="MQTTD.Util.html#tshow"><span class="hs-identifier hs-var">tshow</span></a></span><span> </span><span class="annot"><span class="annottext">PortNumber
+</span><a href="#local-6989586621679275707"><span class="hs-identifier hs-var">p</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-27"></span><span>  </span><span class="annot"><span class="annottext">((forall a. MQTTD m a -&gt; IO a) -&gt; IO ()) -&gt; MQTTD m ()
+forall (m :: * -&gt; *) b.
+MonadUnliftIO m =&gt;
+((forall a. m a -&gt; IO a) -&gt; IO b) -&gt; m b
+</span><span class="hs-identifier hs-var">withRunInIO</span></span><span> </span><span class="annot"><span class="annottext">(((forall a. MQTTD m a -&gt; IO a) -&gt; IO ()) -&gt; MQTTD m ())
+-&gt; ((forall a. MQTTD m a -&gt; IO a) -&gt; IO ()) -&gt; MQTTD m ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621679275706"><span class="annot"><span class="annottext">unl :: forall a. MQTTD m a -&gt; IO a
+</span><a href="#local-6989586621679275706"><span class="hs-identifier hs-var">unl</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">ListenAddress -&gt; PortNumber -&gt; ServerApp -&gt; IO ()
+</span><span class="hs-identifier hs-var">WS.runServer</span></span><span> </span><span class="annot"><span class="annottext">ListenAddress
+</span><a href="#local-6989586621679275708"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">PortNumber
+</span><a href="#local-6989586621679275707"><span class="hs-identifier hs-var">p</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">MQTTD m () -&gt; IO ()
+forall a. MQTTD m a -&gt; IO a
+</span><a href="#local-6989586621679275706"><span class="hs-identifier hs-var">unl</span></a></span><span> </span><span class="annot"><span class="annottext">(MQTTD m () -&gt; IO ())
+-&gt; (PendingConnection -&gt; MQTTD m ()) -&gt; ServerApp
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">PendingConnection -&gt; MQTTD m ()
+forall (m :: * -&gt; *).
+PublishConstraint m =&gt;
+PendingConnection -&gt; MQTTD m ()
+</span><a href="MQTTD.Conduit.html#webSocketsApp"><span class="hs-identifier hs-var">webSocketsApp</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-28"></span><span class="annot"><a href="MQTTD.Main.html#runListener"><span class="hs-identifier hs-var">runListener</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="MQTTD.Config.html#MQTTSListener"><span class="hs-identifier hs-type">MQTTSListener</span></a></span><span> </span><span id="local-6989586621679275702"><span class="annot"><span class="annottext">a :: HostPreference
+</span><a href="#local-6989586621679275702"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="local-6989586621679275701"><span class="annot"><span class="annottext">p :: PortNumber
+</span><a href="#local-6989586621679275701"><span class="hs-identifier hs-var">p</span></a></span></span><span> </span><span id="local-6989586621679275700"><span class="annot"><span class="annottext">c :: ListenAddress
+</span><a href="#local-6989586621679275700"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span id="local-6989586621679275699"><span class="annot"><span class="annottext">k :: ListenAddress
+</span><a href="#local-6989586621679275699"><span class="hs-identifier hs-var">k</span></a></span></span><span> </span><span class="hs-identifier">_</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-29"></span><span>  </span><span class="annot"><span class="annottext">Text -&gt; MQTTD m ()
+forall (m :: * -&gt; *). MonadLogger m =&gt; Text -&gt; m ()
+</span><span class="hs-identifier hs-var">logInfoN</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-string">&quot;Starting mqtts service on &quot;</span></span><span> </span><span class="annot"><span class="annottext">Text -&gt; Text -&gt; Text
+forall a. Semigroup a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">&lt;&gt;</span></span><span> </span><span class="annot"><span class="annottext">HostPreference -&gt; Text
+forall a. Show a =&gt; a -&gt; Text
+</span><a href="MQTTD.Util.html#tshow"><span class="hs-identifier hs-var">tshow</span></a></span><span> </span><span class="annot"><span class="annottext">HostPreference
+</span><a href="#local-6989586621679275702"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">Text -&gt; Text -&gt; Text
+forall a. Semigroup a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">&lt;&gt;</span></span><span> </span><span class="annot"><span class="hs-string">&quot;:&quot;</span></span><span> </span><span class="annot"><span class="annottext">Text -&gt; Text -&gt; Text
+forall a. Semigroup a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">&lt;&gt;</span></span><span> </span><span class="annot"><span class="annottext">PortNumber -&gt; Text
+forall a. Show a =&gt; a -&gt; Text
+</span><a href="MQTTD.Util.html#tshow"><span class="hs-identifier hs-var">tshow</span></a></span><span> </span><span class="annot"><span class="annottext">PortNumber
+</span><a href="#local-6989586621679275701"><span class="hs-identifier hs-var">p</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-30"></span><span>  </span><span class="annot"><span class="annottext">((forall a. MQTTD m a -&gt; IO a) -&gt; IO ()) -&gt; MQTTD m ()
+forall (m :: * -&gt; *) b.
+MonadUnliftIO m =&gt;
+((forall a. m a -&gt; IO a) -&gt; IO b) -&gt; m b
+</span><span class="hs-identifier hs-var">withRunInIO</span></span><span> </span><span class="annot"><span class="annottext">(((forall a. MQTTD m a -&gt; IO a) -&gt; IO ()) -&gt; MQTTD m ())
+-&gt; ((forall a. MQTTD m a -&gt; IO a) -&gt; IO ()) -&gt; MQTTD m ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621679275698"><span class="annot"><span class="annottext">unl :: forall a. MQTTD m a -&gt; IO a
+</span><a href="#local-6989586621679275698"><span class="hs-identifier hs-var">unl</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">TLSConfig -&gt; (AppData -&gt; IO ()) -&gt; IO ()
+forall (m :: * -&gt; *).
+MonadUnliftIO m =&gt;
+TLSConfig -&gt; (AppData -&gt; m ()) -&gt; m ()
+</span><span class="hs-identifier hs-var">runGeneralTCPServerTLS</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">HostPreference
+-&gt; PortNumber -&gt; ListenAddress -&gt; ListenAddress -&gt; TLSConfig
+</span><span class="hs-identifier hs-var">tlsConfig</span></span><span> </span><span class="annot"><span class="annottext">HostPreference
+</span><a href="#local-6989586621679275702"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">PortNumber
+</span><a href="#local-6989586621679275701"><span class="hs-identifier hs-var">p</span></a></span><span> </span><span class="annot"><span class="annottext">ListenAddress
+</span><a href="#local-6989586621679275700"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="annot"><span class="annottext">ListenAddress
+</span><a href="#local-6989586621679275699"><span class="hs-identifier hs-var">k</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">MQTTD m () -&gt; IO ()
+forall a. MQTTD m a -&gt; IO a
+</span><a href="#local-6989586621679275698"><span class="hs-identifier hs-var">unl</span></a></span><span> </span><span class="annot"><span class="annottext">(MQTTD m () -&gt; IO ())
+-&gt; (AppData -&gt; MQTTD m ()) -&gt; AppData -&gt; IO ()
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">AppData -&gt; MQTTD m ()
+forall (m :: * -&gt; *). PublishConstraint m =&gt; AppData -&gt; MQTTD m ()
+</span><a href="MQTTD.Conduit.html#tcpApp"><span class="hs-identifier hs-var">tcpApp</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-31"></span><span>
+</span><span id="line-32"></span><span>
+</span><span id="line-33"></span><span id="local-6989586621679275737"><span class="annot"><a href="MQTTD.Main.html#runServerLogging"><span class="hs-identifier hs-type">runServerLogging</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">MonadFail</span></span><span> </span><span class="annot"><a href="#local-6989586621679275737"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MonadMask</span></span><span> </span><span class="annot"><a href="#local-6989586621679275737"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MonadUnliftIO</span></span><span> </span><span class="annot"><a href="#local-6989586621679275737"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MonadIO</span></span><span> </span><span class="annot"><a href="#local-6989586621679275737"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MonadLogger</span></span><span> </span><span class="annot"><a href="#local-6989586621679275737"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="MQTTD.Config.html#Config"><span class="hs-identifier hs-type">Config</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679275737"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">Async</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span class="hs-special">]</span></span><span>
+</span><span id="line-34"></span><span id="runServerLogging"><span class="annot"><span class="annottext">runServerLogging :: Config -&gt; m [Async ()]
+</span><a href="MQTTD.Main.html#runServerLogging"><span class="hs-identifier hs-var hs-var">runServerLogging</span></a></span></span><span> </span><span id="local-6989586621679275692"><span id="local-6989586621679275693"><span id="local-6989586621679275694"><span id="local-6989586621679275695"><span id="local-6989586621679275696"><span class="annot"><a href="MQTTD.Config.html#Config"><span class="hs-identifier hs-type">Config</span></a></span><span class="hs-special">{</span><span class="hs-glyph">..</span><span class="hs-special">}</span></span></span></span></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-35"></span><span>  </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679275685"><span class="annot"><span class="annottext">baseAuth :: Authorizer
+</span><a href="#local-6989586621679275685"><span class="hs-identifier hs-var hs-var">baseAuth</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ListenerOptions
+</span><a href="#local-6989586621679275693"><span class="hs-identifier hs-var">_confDefaults</span></a></span><span> </span><span class="annot"><span class="annottext">ListenerOptions -&gt; Authorizer -&gt; Authorizer
+</span><a href="#local-6989586621679275684"><span class="hs-operator hs-var">`applyListenerOptions`</span></a></span><span> </span><span class="annot"><span class="annottext">Authorizer :: Map ByteString User -&gt; Bool -&gt; Authorizer
+</span><a href="MQTTD.Types.html#Authorizer"><span class="hs-identifier hs-type hs-type">Authorizer</span></a></span><span class="hs-special">{</span><span>
+</span><span id="line-36"></span><span>        </span><span class="annot"><span class="annottext">_authAnon :: Bool
+</span><a href="MQTTD.Types.html#_authAnon"><span class="hs-identifier hs-var">_authAnon</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span class="hs-special">,</span><span>
+</span><span id="line-37"></span><span>        </span><span class="annot"><span class="annottext">_authUsers :: Map ByteString User
+</span><a href="MQTTD.Types.html#_authUsers"><span class="hs-identifier hs-var">_authUsers</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Map ByteString User
+</span><a href="#local-6989586621679275695"><span class="hs-identifier hs-var">_confUsers</span></a></span><span>
+</span><span id="line-38"></span><span>        </span><span class="hs-special">}</span><span>
+</span><span id="line-39"></span><span>
+</span><span id="line-40"></span><span>  </span><span class="annot"><span class="annottext">((forall a. m a -&gt; IO a) -&gt; IO [Async ()]) -&gt; m [Async ()]
+forall (m :: * -&gt; *) b.
+MonadUnliftIO m =&gt;
+((forall a. m a -&gt; IO a) -&gt; IO b) -&gt; m b
+</span><span class="hs-identifier hs-var">withRunInIO</span></span><span> </span><span class="annot"><span class="annottext">(((forall a. m a -&gt; IO a) -&gt; IO [Async ()]) -&gt; m [Async ()])
+-&gt; ((forall a. m a -&gt; IO a) -&gt; IO [Async ()]) -&gt; m [Async ()]
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621679275679"><span class="annot"><span class="annottext">unl :: forall a. m a -&gt; IO a
+</span><a href="#local-6989586621679275679"><span class="hs-identifier hs-var">unl</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">ListenAddress -&gt; (Connection -&gt; IO [Async ()]) -&gt; IO [Async ()]
+forall a. ListenAddress -&gt; (Connection -&gt; IO a) -&gt; IO a
+</span><span class="hs-identifier hs-var">withConnection</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">PersistenceConfig -&gt; ListenAddress
+</span><a href="MQTTD.Config.html#_persistenceDBPath"><span class="hs-identifier hs-var hs-var">_persistenceDBPath</span></a></span><span> </span><span class="annot"><span class="annottext">PersistenceConfig
+</span><a href="#local-6989586621679275692"><span class="hs-identifier hs-var">_confPersist</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">((Connection -&gt; IO [Async ()]) -&gt; IO [Async ()])
+-&gt; (Connection -&gt; IO [Async ()]) -&gt; IO [Async ()]
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621679275676"><span class="annot"><span class="annottext">db :: Connection
+</span><a href="#local-6989586621679275676"><span class="hs-identifier hs-var">db</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-41"></span><span>    </span><span class="annot"><span class="annottext">Connection -&gt; IO ()
+</span><a href="MQTTD.DB.html#initDB"><span class="hs-identifier hs-var">initDB</span></a></span><span> </span><span class="annot"><span class="annottext">Connection
+</span><a href="#local-6989586621679275676"><span class="hs-identifier hs-var">db</span></a></span><span>
+</span><span id="line-42"></span><span>    </span><span id="local-6989586621679275674"><span class="annot"><span class="annottext">Env
+</span><a href="#local-6989586621679275674"><span class="hs-identifier hs-var">e</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Authorizer -&gt; Connection -&gt; IO Env
+forall (m :: * -&gt; *).
+MonadIO m =&gt;
+Authorizer -&gt; Connection -&gt; m Env
+</span><a href="MQTTD.html#newEnv"><span class="hs-identifier hs-var">newEnv</span></a></span><span> </span><span class="annot"><span class="annottext">Authorizer
+</span><a href="#local-6989586621679275685"><span class="hs-identifier hs-var">baseAuth</span></a></span><span> </span><span class="annot"><span class="annottext">Connection
+</span><a href="#local-6989586621679275676"><span class="hs-identifier hs-var">db</span></a></span><span>
+</span><span id="line-43"></span><span>    </span><span class="annot"><span class="annottext">m [Async ()] -&gt; IO [Async ()]
+forall a. m a -&gt; IO a
+</span><a href="#local-6989586621679275679"><span class="hs-identifier hs-var">unl</span></a></span><span> </span><span class="annot"><span class="annottext">(m [Async ()] -&gt; IO [Async ()])
+-&gt; (MQTTD m [Async ()] -&gt; m [Async ()])
+-&gt; MQTTD m [Async ()]
+-&gt; IO [Async ()]
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Env -&gt; MQTTD m [Async ()] -&gt; m [Async ()]
+forall (m :: * -&gt; *) a.
+(MonadIO m, MonadLogger m) =&gt;
+Env -&gt; MQTTD m a -&gt; m a
+</span><a href="MQTTD.html#runIO"><span class="hs-identifier hs-var">runIO</span></a></span><span> </span><span class="annot"><span class="annottext">Env
+</span><a href="#local-6989586621679275674"><span class="hs-identifier hs-var">e</span></a></span><span> </span><span class="annot"><span class="annottext">(MQTTD m [Async ()] -&gt; IO [Async ()])
+-&gt; MQTTD m [Async ()] -&gt; IO [Async ()]
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-44"></span><span>      </span><span id="local-6989586621679275671"><span class="annot"><span class="annottext">Async ()
+</span><a href="#local-6989586621679275671"><span class="hs-identifier hs-var">sc</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">MQTTD m () -&gt; MQTTD m (Async ())
+forall (m :: * -&gt; *) a. MonadUnliftIO m =&gt; m a -&gt; m (Async a)
+</span><span class="hs-identifier hs-var">async</span></span><span> </span><span class="annot"><span class="annottext">MQTTD m ()
+forall (m :: * -&gt; *). PublishConstraint m =&gt; MQTTD m ()
+</span><a href="MQTTD.html#sessionCleanup"><span class="hs-identifier hs-var">sessionCleanup</span></a></span><span>
+</span><span id="line-45"></span><span>      </span><span id="local-6989586621679275669"><span class="annot"><span class="annottext">Async ()
+</span><a href="#local-6989586621679275669"><span class="hs-identifier hs-var">pc</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">MQTTD m () -&gt; MQTTD m (Async ())
+forall (m :: * -&gt; *) a. MonadUnliftIO m =&gt; m a -&gt; m (Async a)
+</span><span class="hs-identifier hs-var">async</span></span><span> </span><span class="annot"><span class="annottext">MQTTD m ()
+forall (m :: * -&gt; *).
+(MonadUnliftIO m, MonadLogger m) =&gt;
+MQTTD m ()
+</span><a href="MQTTD.html#retainerCleanup"><span class="hs-identifier hs-var">retainerCleanup</span></a></span><span>
+</span><span id="line-46"></span><span>      </span><span id="local-6989586621679275667"><span class="annot"><span class="annottext">Async ()
+</span><a href="#local-6989586621679275667"><span class="hs-identifier hs-var">dba</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">MQTTD m () -&gt; MQTTD m (Async ())
+forall (m :: * -&gt; *) a. MonadUnliftIO m =&gt; m a -&gt; m (Async a)
+</span><span class="hs-identifier hs-var">async</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">StatStore -&gt; MQTTD m ()
+forall (m :: * -&gt; *).
+(HasDBConnection m, MonadIO m, MonadLogger m) =&gt;
+StatStore -&gt; m ()
+</span><a href="MQTTD.DB.html#runOperations"><span class="hs-identifier hs-var">runOperations</span></a></span><span> </span><span class="annot"><span class="annottext">(StatStore -&gt; MQTTD m ()) -&gt; StatStore -&gt; MQTTD m ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Env -&gt; StatStore
+</span><a href="MQTTD.html#statStore"><span class="hs-identifier hs-var hs-var">statStore</span></a></span><span> </span><span class="annot"><span class="annottext">Env
+</span><a href="#local-6989586621679275674"><span class="hs-identifier hs-var">e</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-47"></span><span>      </span><span id="local-6989586621679275664"><span class="annot"><span class="annottext">Async ()
+</span><a href="#local-6989586621679275664"><span class="hs-identifier hs-var">st</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">MQTTD m () -&gt; MQTTD m (Async ())
+forall (m :: * -&gt; *) a. MonadUnliftIO m =&gt; m a -&gt; m (Async a)
+</span><span class="hs-identifier hs-var">async</span></span><span> </span><span class="annot"><span class="annottext">MQTTD m ()
+forall (m :: * -&gt; *). PublishConstraint m =&gt; MQTTD m ()
+</span><a href="MQTTD.html#publishStats"><span class="hs-identifier hs-var">publishStats</span></a></span><span>
+</span><span id="line-48"></span><span>      </span><span id="local-6989586621679275662"><span class="annot"><span class="annottext">Async ()
+</span><a href="#local-6989586621679275662"><span class="hs-keyword hs-var">as</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">MQTTD m () -&gt; MQTTD m (Async ())
+forall (m :: * -&gt; *) a. MonadUnliftIO m =&gt; m a -&gt; m (Async a)
+</span><span class="hs-identifier hs-var">async</span></span><span> </span><span class="annot"><span class="annottext">MQTTD m ()
+forall (m :: * -&gt; *).
+(MonadUnliftIO m, MonadLogger m) =&gt;
+MQTTD m ()
+</span><a href="MQTTD.html#applyStats"><span class="hs-identifier hs-var">applyStats</span></a></span><span>
+</span><span id="line-49"></span><span>      </span><span class="annot"><span class="annottext">MQTTD m ()
+forall (m :: * -&gt; *). PublishConstraint m =&gt; MQTTD m ()
+</span><a href="MQTTD.html#restoreSessions"><span class="hs-identifier hs-var">restoreSessions</span></a></span><span>
+</span><span id="line-50"></span><span>      </span><span class="annot"><span class="annottext">MQTTD m ()
+forall (m :: * -&gt; *). MonadIO m =&gt; MQTTD m ()
+</span><a href="MQTTD.html#restoreRetained"><span class="hs-identifier hs-var">restoreRetained</span></a></span><span>
+</span><span id="line-51"></span><span>
+</span><span id="line-52"></span><span>      </span><span id="local-6989586621679275658"><span class="annot"><span class="annottext">[Async ()]
+</span><a href="#local-6989586621679275658"><span class="hs-identifier hs-var">ls</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">(Listener -&gt; MQTTD m (Async ()))
+-&gt; [Listener] -&gt; MQTTD m [Async ()]
+forall (t :: * -&gt; *) (f :: * -&gt; *) a b.
+(Traversable t, Applicative f) =&gt;
+(a -&gt; f b) -&gt; t a -&gt; f (t b)
+</span><span class="hs-identifier hs-var">traverse</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">MQTTD m () -&gt; MQTTD m (Async ())
+forall (m :: * -&gt; *) a. MonadUnliftIO m =&gt; m a -&gt; m (Async a)
+</span><span class="hs-identifier hs-var">async</span></span><span> </span><span class="annot"><span class="annottext">(MQTTD m () -&gt; MQTTD m (Async ()))
+-&gt; (Listener -&gt; MQTTD m ()) -&gt; Listener -&gt; MQTTD m (Async ())
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Listener -&gt; MQTTD m ()
+</span><a href="#local-6989586621679275656"><span class="hs-identifier hs-var">runModified</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">[Listener]
+</span><a href="#local-6989586621679275694"><span class="hs-identifier hs-var">_confListeners</span></a></span><span>
+</span><span id="line-53"></span><span>
+</span><span id="line-54"></span><span>      </span><span class="annot"><span class="annottext">[Async ()] -&gt; MQTTD m [Async ()]
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Async ()
+</span><a href="#local-6989586621679275671"><span class="hs-identifier hs-var">sc</span></a></span><span class="annot"><span class="annottext">Async () -&gt; [Async ()] -&gt; [Async ()]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span class="annot"><span class="annottext">Async ()
+</span><a href="#local-6989586621679275669"><span class="hs-identifier hs-var">pc</span></a></span><span class="annot"><span class="annottext">Async () -&gt; [Async ()] -&gt; [Async ()]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span class="annot"><span class="annottext">Async ()
+</span><a href="#local-6989586621679275667"><span class="hs-identifier hs-var">dba</span></a></span><span class="annot"><span class="annottext">Async () -&gt; [Async ()] -&gt; [Async ()]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span class="annot"><span class="annottext">Async ()
+</span><a href="#local-6989586621679275664"><span class="hs-identifier hs-var">st</span></a></span><span class="annot"><span class="annottext">Async () -&gt; [Async ()] -&gt; [Async ()]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span class="annot"><span class="annottext">Async ()
+</span><a href="#local-6989586621679275662"><span class="hs-keyword hs-var">as</span></a></span><span class="annot"><span class="annottext">Async () -&gt; [Async ()] -&gt; [Async ()]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span class="annot"><span class="annottext">[Async ()]
+</span><a href="#local-6989586621679275658"><span class="hs-identifier hs-var">ls</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-55"></span><span>
+</span><span id="line-56"></span><span>        </span><span class="hs-keyword">where</span><span>
+</span><span id="line-57"></span><span>          </span><span id="local-6989586621679275656"><span class="annot"><span class="annottext">runModified :: Listener -&gt; MQTTD m ()
+</span><a href="#local-6989586621679275656"><span class="hs-identifier hs-var hs-var">runModified</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Authorizer -&gt; Authorizer) -&gt; MQTTD m () -&gt; MQTTD m ()
+forall (m :: * -&gt; *) a.
+Monad m =&gt;
+(Authorizer -&gt; Authorizer) -&gt; MQTTD m a -&gt; MQTTD m a
+</span><a href="MQTTD.html#modifyAuthorizer"><span class="hs-identifier hs-var">modifyAuthorizer</span></a></span><span> </span><span class="annot"><span class="annottext">((Authorizer -&gt; Authorizer) -&gt; MQTTD m () -&gt; MQTTD m ())
+-&gt; (Listener -&gt; Authorizer -&gt; Authorizer)
+-&gt; Listener
+-&gt; MQTTD m ()
+-&gt; MQTTD m ()
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">ListenerOptions -&gt; Authorizer -&gt; Authorizer
+</span><a href="#local-6989586621679275684"><span class="hs-identifier hs-var">applyListenerOptions</span></a></span><span> </span><span class="annot"><span class="annottext">(ListenerOptions -&gt; Authorizer -&gt; Authorizer)
+-&gt; (Listener -&gt; ListenerOptions)
+-&gt; Listener
+-&gt; Authorizer
+-&gt; Authorizer
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Getting ListenerOptions Listener ListenerOptions
+-&gt; Listener -&gt; ListenerOptions
+forall s (m :: * -&gt; *) a. MonadReader s m =&gt; Getting a s a -&gt; m a
+</span><span class="hs-identifier hs-var">view</span></span><span> </span><span class="annot"><span class="annottext">Getting ListenerOptions Listener ListenerOptions
+Lens' Listener ListenerOptions
+</span><a href="MQTTD.Config.html#listenerOpts"><span class="hs-identifier hs-var">listenerOpts</span></a></span><span> </span><span class="annot"><span class="annottext">(Listener -&gt; MQTTD m () -&gt; MQTTD m ())
+-&gt; (Listener -&gt; MQTTD m ()) -&gt; Listener -&gt; MQTTD m ()
+forall (f :: * -&gt; *) a b. Applicative f =&gt; f (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;*&gt;</span></span><span> </span><span class="annot"><span class="annottext">Listener -&gt; MQTTD m ()
+forall (m :: * -&gt; *).
+(MonadUnliftIO m, MonadLogger m, MonadFail m, MonadMask m) =&gt;
+Listener -&gt; MQTTD m ()
+</span><a href="MQTTD.Main.html#runListener"><span class="hs-identifier hs-var">runListener</span></a></span><span>
+</span><span id="line-58"></span><span>
+</span><span id="line-59"></span><span>          </span><span id="local-6989586621679275684"><span class="annot"><span class="annottext">applyListenerOptions :: ListenerOptions -&gt; Authorizer -&gt; Authorizer
+</span><a href="#local-6989586621679275684"><span class="hs-identifier hs-var hs-var">applyListenerOptions</span></a></span></span><span> </span><span id="local-6989586621679275652"><span class="annot"><a href="MQTTD.Config.html#ListenerOptions"><span class="hs-identifier hs-type">ListenerOptions</span></a></span><span class="hs-special">{</span><span class="hs-glyph">..</span><span class="hs-special">}</span></span><span> </span><span id="local-6989586621679275649"><span class="annot"><span class="annottext">a :: Authorizer
+</span><a href="#local-6989586621679275649"><span class="hs-identifier hs-var">a</span></a></span></span><span class="hs-glyph">@</span><span id="local-6989586621679275647"><span id="local-6989586621679275648"><span class="annot"><a href="MQTTD.Types.html#Authorizer"><span class="hs-identifier hs-type">Authorizer</span></a></span><span class="hs-special">{</span><span class="hs-glyph">..</span><span class="hs-special">}</span></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-60"></span><span>            </span><span class="annot"><span class="annottext">Authorizer
+</span><a href="#local-6989586621679275649"><span class="hs-identifier hs-var">a</span></a></span><span class="hs-special">{</span><span class="annot"><span class="annottext">_authAnon :: Bool
+</span><a href="MQTTD.Types.html#_authAnon"><span class="hs-identifier hs-var">_authAnon</span></a></span><span class="hs-glyph">=</span><span class="annot"><span class="annottext">Bool -&gt; Maybe Bool -&gt; Bool
+forall a. a -&gt; Maybe a -&gt; a
+</span><span class="hs-identifier hs-var">fromMaybe</span></span><span> </span><span class="annot"><span class="annottext">Bool
+</span><a href="#local-6989586621679275647"><span class="hs-identifier hs-var">_authAnon</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe Bool
+</span><a href="#local-6989586621679275652"><span class="hs-identifier hs-var">_optAllowAnonymous</span></a></span><span class="hs-special">}</span><span>
+</span><span id="line-61"></span><span>
+</span><span id="line-62"></span><span class="annot"><a href="MQTTD.Main.html#runServer"><span class="hs-identifier hs-type">runServer</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="MQTTD.Config.html#Config"><span class="hs-identifier hs-type">Config</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">Async</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span class="hs-special">]</span><span>
+</span><span id="line-63"></span><span id="runServer"><span class="annot"><span class="annottext">runServer :: Config -&gt; IO [Async ()]
+</span><a href="MQTTD.Main.html#runServer"><span class="hs-identifier hs-var hs-var">runServer</span></a></span></span><span> </span><span id="local-6989586621679275645"><span class="annot"><span class="annottext">conf :: Config
+</span><a href="#local-6989586621679275645"><span class="hs-identifier hs-var">conf</span></a></span></span><span class="hs-glyph">@</span><span id="local-6989586621679275640"><span id="local-6989586621679275641"><span id="local-6989586621679275642"><span id="local-6989586621679275643"><span id="local-6989586621679275644"><span class="annot"><a href="MQTTD.Config.html#Config"><span class="hs-identifier hs-type">Config</span></a></span><span class="hs-special">{</span><span class="hs-glyph">..</span><span class="hs-special">}</span></span></span></span></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">LoggingT IO [Async ()] -&gt; IO [Async ()]
+forall (m :: * -&gt; *) a. MonadIO m =&gt; LoggingT m a -&gt; m a
+</span><span class="hs-identifier hs-var">runStderrLoggingT</span></span><span> </span><span class="annot"><span class="annottext">(LoggingT IO [Async ()] -&gt; IO [Async ()])
+-&gt; (Config -&gt; LoggingT IO [Async ()]) -&gt; Config -&gt; IO [Async ()]
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Config -&gt; LoggingT IO [Async ()] -&gt; LoggingT IO [Async ()]
+forall (m :: * -&gt; *) a. Config -&gt; LoggingT m a -&gt; LoggingT m a
+</span><a href="#local-6989586621679275639"><span class="hs-identifier hs-var">logfilt</span></a></span><span> </span><span class="annot"><span class="annottext">Config
+</span><a href="#local-6989586621679275645"><span class="hs-identifier hs-var">conf</span></a></span><span> </span><span class="annot"><span class="annottext">(LoggingT IO [Async ()] -&gt; LoggingT IO [Async ()])
+-&gt; (Config -&gt; LoggingT IO [Async ()])
+-&gt; Config
+-&gt; LoggingT IO [Async ()]
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Config -&gt; LoggingT IO [Async ()]
+forall (m :: * -&gt; *).
+(MonadFail m, MonadMask m, MonadUnliftIO m, MonadIO m,
+ MonadLogger m) =&gt;
+Config -&gt; m [Async ()]
+</span><a href="MQTTD.Main.html#runServerLogging"><span class="hs-identifier hs-var">runServerLogging</span></a></span><span> </span><span class="annot"><span class="annottext">(Config -&gt; IO [Async ()]) -&gt; Config -&gt; IO [Async ()]
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Config
+</span><a href="#local-6989586621679275645"><span class="hs-identifier hs-var">conf</span></a></span><span>
+</span><span id="line-64"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-65"></span><span>    </span><span id="local-6989586621679275639"><span class="annot"><span class="annottext">logfilt :: Config -&gt; LoggingT m a -&gt; LoggingT m a
+</span><a href="#local-6989586621679275639"><span class="hs-identifier hs-var hs-var">logfilt</span></a></span></span><span> </span><span id="local-6989586621679275634"><span id="local-6989586621679275635"><span id="local-6989586621679275636"><span id="local-6989586621679275637"><span id="local-6989586621679275638"><span class="annot"><a href="MQTTD.Config.html#Config"><span class="hs-identifier hs-type">Config</span></a></span><span class="hs-special">{</span><span class="hs-glyph">..</span><span class="hs-special">}</span></span></span></span></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Text -&gt; LogLevel -&gt; Bool) -&gt; LoggingT m a -&gt; LoggingT m a
+forall (m :: * -&gt; *) a.
+(Text -&gt; LogLevel -&gt; Bool) -&gt; LoggingT m a -&gt; LoggingT m a
+</span><span class="hs-identifier hs-var">filterLogger</span></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span class="hs-identifier">_</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">(LogLevel -&gt; LogLevel -&gt; Bool) -&gt; LogLevel -&gt; LogLevel -&gt; Bool
+forall a b c. (a -&gt; b -&gt; c) -&gt; b -&gt; a -&gt; c
+</span><span class="hs-identifier hs-var">flip</span></span><span> </span><span class="hs-special">(</span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><a href="#local-6989586621679275638"><span class="hs-identifier hs-var">_confDebug</span></a></span><span> </span><span class="hs-keyword">then</span><span> </span><span class="annot"><span class="annottext">LogLevel -&gt; LogLevel -&gt; Bool
+forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">(&gt;=)</span></span><span> </span><span class="hs-keyword">else</span><span> </span><span class="annot"><span class="annottext">LogLevel -&gt; LogLevel -&gt; Bool
+forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">(&gt;)</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">LogLevel
+</span><span class="hs-identifier hs-var">LevelDebug</span></span><span class="hs-special">)</span><span>
+</span><span id="line-66"></span></pre></body></html>
