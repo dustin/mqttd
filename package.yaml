@@ -87,3 +87,5 @@ tests:
     - tasty-hunit
     - tasty-quickcheck
     - QuickCheck
+    - port-utils
+    - network-uri

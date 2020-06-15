@@ -21,6 +21,8 @@ import           MQTTD.Config
 import           MQTTD.SubTree            (SubTree (..))
 import qualified MQTTD.SubTree            as Sub
 
+import qualified Integration
+
 testConfigFiles :: Assertion
 testConfigFiles =
   mapM_ aTest [
@@ -169,7 +171,8 @@ tests = [
   testGroup "listener properties" [
       testProperties "semigroup" (unbatch $ semigroup (undefined :: ListenerOptions, undefined :: Int)),
       testProperties "monoid" (unbatch $ monoid (undefined :: ListenerOptions))
-      ]
+      ],
+  testGroup "Integration" Integration.tests
   ]
 
 main :: IO ()
