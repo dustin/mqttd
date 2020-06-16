@@ -8,6 +8,7 @@ import           Test.Tasty.HUnit
 import           Test.Tasty.QuickCheck    as QC
 
 import           Control.Applicative      (liftA2)
+import           Control.Concurrent.STM   (atomically, newTVarIO)
 import           Data.Either              (isLeft, isRight)
 import           Data.List                (intercalate, sort)
 import qualified Data.Map.Strict          as Map
@@ -15,6 +16,7 @@ import           Data.Monoid              (Sum (..))
 import           Data.Set                 (Set)
 import           Data.Text                (Text)
 import qualified Data.Text                as Text
+import           Data.Word                (Word16, Word8)
 
 import           MQTTD
 import           MQTTD.Config
@@ -146,6 +148,14 @@ propSubTreeMapping matches = label ("collisions " <> collisions) $
     st = foldr (\(_,t) -> Sub.add t [t]) mempty tp
     collisions = (\n -> show n <> "-" <> show (n+9)) . (*10) . (`div` 10) . getSum . foldMap (Sum . subtract 1 . length) $ st
 
+propNextPacket :: (Enum a, Bounded a, Eq a, Num a) => a -> Property
+propNextPacket n =
+  n /= 0 ==> -- The value can never be zero, so that's not a valid start.
+  ioProperty $ do
+    v <- newTVarIO n
+    i <- atomically $ nextPktID v
+    pure (i /= 0)
+
 unTopic :: Topic -> Text
 unTopic (Topic t) = Text.intercalate "/" t
 
@@ -156,6 +166,11 @@ tests :: [TestTree]
 tests = [
   testCase "config files" testConfigFiles,
   testCase "ACLs" testACLs,
+
+  localOption (QC.QuickCheckTests 500) $
+    testProperty "packet IDs (8bit) are never 0" (propNextPacket :: Word8 -> Property),
+  localOption (QC.QuickCheckTests 100000) $
+    testProperty "packet IDs (16bit) are never 0" (propNextPacket :: Word16 -> Property),
 
   testCase "subtree" testSubTree,
   testGroup "subtree properties" [

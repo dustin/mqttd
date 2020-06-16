@@ -384,7 +384,7 @@ sendPacketIO_ ch = void . atomically . sendPacket ch
 modifyTVarRet :: TVar a -> (a -> a) -> STM a
 modifyTVarRet v f = modifyTVar' v f >> readTVar v
 
-nextPktID :: TVar Word16 -> STM Word16
+nextPktID :: (Enum a, Bounded a, Eq a, Num a) => TVar a -> STM a
 nextPktID x = modifyTVarRet x $ \pid -> if pid == maxBound then 1 else succ pid
 
 broadcast :: PublishConstraint m => Maybe SessionID -> T.PublishRequest -> MQTTD m ()
