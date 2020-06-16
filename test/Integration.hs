@@ -65,12 +65,16 @@ testBasicPubSub :: Assertion
 testBasicPubSub = withTestService $ \u -> do
   -- Publisher client
   pubber <- MC.connectURI MC.mqttConfig u
-  MC.publishq pubber "test/retained" "future message" True MC.QoS0 []
+  MC.publishq pubber "test/retained0" "future message0" True MC.QoS0 []
+  MC.publishq pubber "test/retained1" "future message1" True MC.QoS1 []
+  MC.publishq pubber "test/retained2" "future message2" True MC.QoS2 []
+  MC.publishq pubber "test2/dontcare" "another retained" True MC.QoS0 []
 
   -- Subscriber client
   mv <- newTVarIO mempty
   subber <- MC.connectURI MC.mqttConfig{_msgCB=MC.SimpleCallback (saveCB mv), _protocol=MC.Protocol50} u
-  _ <- MC.subscribe subber [("test/#", MC.subOptions)] []
+  _ <- MC.subscribe subber [("test/#", MC.subOptions),
+                            ("test2/+", MC.subOptions{_retainHandling=T.DoNotSendOnSubscribe})] []
 
   -- Publish a few things
   MC.publishq pubber "nope/nosub" "no subscribers here" False MC.QoS0 []
@@ -81,12 +85,14 @@ testBasicPubSub = withTestService $ \u -> do
   -- Wait for results.
   m <- atomically $ do
     m <- readTVar mv
-    check (length m >= 4)
+    check (length m >= 6)
     pure m
-  assertEqual "Got the message" m (Map.fromList [("test/tv0", "test message 0"),
-                                                 ("test/tv1", "test message 1"),
-                                                 ("test/tv2", "test message 2"),
-                                                 ("test/retained", "future message")])
+  assertEqual "Got the messages" m (Map.fromList [("test/tv0", "test message 0"),
+                                                  ("test/tv1", "test message 1"),
+                                                  ("test/tv2", "test message 2"),
+                                                  ("test/retained0", "future message0"),
+                                                  ("test/retained1", "future message1"),
+                                                  ("test/retained2", "future message2")])
 
 tests :: [TestTree]
 tests = [
