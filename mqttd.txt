@@ -312,7 +312,7 @@ sendPacket_ :: PktQueue -> MQTTPkt -> STM ()
 sendPacketIO :: MonadIO m => PktQueue -> MQTTPkt -> m Bool
 sendPacketIO_ :: MonadIO m => PktQueue -> MQTTPkt -> m ()
 modifyTVarRet :: TVar a -> (a -> a) -> STM a
-nextPktID :: TVar Word16 -> STM Word16
+nextPktID :: (Enum a, Bounded a, Eq a, Num a) => TVar a -> STM a
 broadcast :: PublishConstraint m => Maybe SessionID -> PublishRequest -> MQTTD m ()
 publish :: PublishConstraint m => Session -> PublishRequest -> MQTTD m ()
 deliver :: StatStore -> Session -> PublishRequest -> STM ()
