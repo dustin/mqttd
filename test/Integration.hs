@@ -8,8 +8,9 @@ import           Test.Tasty.QuickCheck    as QC
 
 import           Control.Applicative      (liftA2)
 import           Control.Concurrent       (Chan (..), newChan, threadDelay)
-import           Control.Concurrent.STM   (TVar, check, modifyTVar', newTVarIO, readTVar, retry)
-import           Control.Monad            (forever, void, when)
+import           Control.Concurrent.STM   (TVar, check, modifyTVar', newTChanIO, newTVarIO, readTChan, readTVar, retry,
+                                           writeTChan)
+import           Control.Monad            (forever, replicateM, void, when)
 import           Control.Monad.Logger     (LogLevel (..), MonadLogger (..), filterLogger, logInfoN, runChanLoggingT)
 import           Data.Conduit             (ConduitT, Void, await, runConduit, yield, (.|))
 import           Data.Either              (isLeft, isRight)
@@ -26,7 +27,7 @@ import qualified Network.MQTT.Lens        as T
 import qualified Network.MQTT.Types       as T
 import           Network.Socket.Free      (getFreePort)
 import           Network.URI
-import           UnliftIO                 (async, atomically, bracket, cancel, waitAnyCancel)
+import           UnliftIO                 (async, atomically, bracket, cancel, mapConcurrently_, waitAnyCancel)
 
 import           MQTTD
 import           MQTTD.Conduit
@@ -87,14 +88,36 @@ testBasicPubSub = withTestService $ \u -> do
     m <- readTVar mv
     check (length m >= 6)
     pure m
-  assertEqual "Got the messages" m (Map.fromList [("test/tv0", "test message 0"),
-                                                  ("test/tv1", "test message 1"),
-                                                  ("test/tv2", "test message 2"),
-                                                  ("test/retained0", "future message0"),
-                                                  ("test/retained1", "future message1"),
-                                                  ("test/retained2", "future message2")])
+  assertEqual "Got the messages" (Map.fromList [("test/tv0", "test message 0"),
+                                                ("test/tv1", "test message 1"),
+                                                ("test/tv2", "test message 2"),
+                                                ("test/retained0", "future message0"),
+                                                ("test/retained1", "future message1"),
+                                                ("test/retained2", "future message2")])
+    m
+
+testAliases :: Assertion
+testAliases = withTestService $ \u -> do
+  -- Publisher client
+  pubber <- MC.connectURI MC.mqttConfig{_protocol=MC.Protocol50} u
+  mv <- newTChanIO
+  subber <- MC.connectURI MC.mqttConfig{_msgCB=MC.SimpleCallback (\_ t v _ -> atomically $ writeTChan mv (t,v)),
+                                        _protocol=MC.Protocol50,
+                                        _connProps=[T.PropTopicAliasMaximum 5]} u
+  _ <- MC.subscribe subber [("test/#", MC.subOptions)] []
+
+  MC.pubAliased pubber "test/a" "alpha" True MC.QoS0 []
+  MC.pubAliased pubber "test/a" "bravo" True MC.QoS2 []
+  MC.pubAliased pubber "test/a" "charlie" True MC.QoS1 []
+  mapConcurrently_ (\v -> MC.pubAliased pubber "test/a" v True MC.QoS1 []) ["delta", "echo", "foxtrot"]
+  -- Wait for results.
+  m <- atomically $ replicateM 6 (readTChan mv)
+  assertEqual "Got the messages" [("test/a", v) | v <- ["alpha", "bravo", "charlie",
+                                                        "delta", "echo", "foxtrot"]]
+    (sort m)
 
 tests :: [TestTree]
 tests = [
-  testCase "Basic" testBasicPubSub
+  testCase "Basic" testBasicPubSub,
+  testCase "Aliases" testAliases
   ]
