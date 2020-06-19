@@ -1,16 +1,18 @@
 module MQTTD.Main where
 
 import           Control.Concurrent       (newEmptyMVar, putMVar, takeMVar)
+import           Control.Concurrent       (newChan, readChan)
 import           Control.Lens
 import           Control.Monad.Catch      (MonadMask (..))
 import           Control.Monad.IO.Class   (MonadIO (..))
-import           Control.Monad.Logger     (LogLevel (..), MonadLogger (..), filterLogger, logInfoN, runStderrLoggingT)
+import           Control.Monad.Logger     (LogLevel (..), MonadLogger (..), filterLogger, logDebugN, logInfoN,
+                                           runStderrLoggingT)
 import           Data.Conduit.Network     (runGeneralTCPServer, serverSettings, setAfterBind)
 import           Data.Conduit.Network.TLS (runGeneralTCPServerTLS, tlsConfig)
 import           Data.Maybe               (fromMaybe)
-import           Database.SQLite.Simple   hiding (bind, close)
+import           Database.SQLite.Simple   hiding (bind)
 import qualified Network.WebSockets       as WS
-import           UnliftIO                 (Async (..), MonadUnliftIO (..), async, withRunInIO)
+import           UnliftIO                 (Async (..), MonadUnliftIO (..), async, finally, withRunInIO)
 
 import           MQTTD
 import           MQTTD.Conduit
@@ -35,6 +37,9 @@ runListener (MQTTSListener a p c k _) = do
   logInfoN ("Starting mqtts service on " <> tshow a <> ":" <> tshow p)
   async $ runGeneralTCPServerTLS (tlsConfig a p c k) tcpApp
 
+-- Block forever.
+pause :: MonadIO m => m ()
+pause = liftIO (newChan >>= readChan)
 
 runServerLogging :: (MonadFail m, MonadMask m, MonadUnliftIO m, MonadIO m, MonadLogger m) => Config -> m [Async ()]
 runServerLogging Config{..} = do
@@ -43,8 +48,11 @@ runServerLogging Config{..} = do
         _authUsers = _confUsers
         }
 
-  withRunInIO $ \unl -> withConnection (_persistenceDBPath _confPersist) $ \db -> do
-    initDB db
+  db <- liftIO $ open (_persistenceDBPath _confPersist)
+  liftIO $ initDB db
+  dbc <- async $ finally pause (logDebugN "Closing DB connection" >> liftIO (close db))
+
+  withRunInIO $ \unl -> do
     e <- newEnv baseAuth db
     unl . runIO e $ do
       sc <- async sessionCleanup
@@ -57,7 +65,7 @@ runServerLogging Config{..} = do
 
       ls <- traverse runModified _confListeners
 
-      pure (sc:pc:dba:st:as:ls)
+      pure (sc:pc:dba:st:as:dbc:ls)
 
         where
           runModified = modifyAuthorizer . applyListenerOptions . view listenerOpts <*> runListener
