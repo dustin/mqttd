@@ -24,10 +24,9 @@ runListener (MQTTListener a p _) = do
   logInfoN ("Starting mqtt service on " <> tshow a <> ":" <> tshow p)
   -- The generic TCP listener is featureful enough to allow us to
   -- block until binding is done.
-  isBound <- liftIO newEmptyMVar
-  let settings = setAfterBind (putMVar isBound) (serverSettings p a)
-  rv <- async $ runGeneralTCPServer settings tcpApp
-  _ <- liftIO $ takeMVar isBound
+  bound <- liftIO newEmptyMVar
+  rv <- async $ runGeneralTCPServer (serverSettings p a & setAfterBind (putMVar bound)) tcpApp
+  _ <- liftIO $ takeMVar bound
   pure rv
 runListener (WSListener a p _) = do
   logInfoN ("Starting websocket service on " <> tshow a <> ":" <> tshow p)
