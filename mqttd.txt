@@ -342,6 +342,6 @@ tcpApp :: PublishConstraint m => AppData -> MQTTD m ()
 
 module MQTTD.Main
 runListener :: (MonadUnliftIO m, MonadLogger m, MonadFail m, MonadMask m) => Listener -> MQTTD m (Async ())
-pause :: MonadUnliftIO m => m ()
+pause :: MonadIO m => m ()
 runServerLogging :: (MonadFail m, MonadMask m, MonadUnliftIO m, MonadIO m, MonadLogger m) => Config -> m [Async ()]
 runServer :: Config -> IO [Async ()]
