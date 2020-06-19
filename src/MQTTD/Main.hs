@@ -4,7 +4,7 @@ import           Control.Lens
 import           Control.Monad.Catch      (MonadMask (..))
 import           Control.Monad.IO.Class   (MonadIO (..))
 import           Control.Monad.Logger     (LogLevel (..), MonadLogger (..), filterLogger, logInfoN, runStderrLoggingT)
-import           Data.Conduit.Network     (runTCPServer, serverSettings)
+import           Data.Conduit.Network     (runGeneralTCPServer, serverSettings)
 import           Data.Conduit.Network.TLS (runGeneralTCPServerTLS, tlsConfig)
 import           Data.Maybe               (fromMaybe)
 import           Database.SQLite.Simple   hiding (bind, close)
@@ -21,13 +21,13 @@ import           MQTTD.Util
 runListener :: (MonadUnliftIO m, MonadLogger m, MonadFail m, MonadMask m) => Listener -> MQTTD m ()
 runListener (MQTTListener a p _) = do
   logInfoN ("Starting mqtt service on " <> tshow a <> ":" <> tshow p)
-  withRunInIO $ \unl -> runTCPServer (serverSettings p a) (unl . tcpApp)
+  runGeneralTCPServer (serverSettings p a) tcpApp
 runListener (WSListener a p _) = do
   logInfoN ("Starting websocket service on " <> tshow a <> ":" <> tshow p)
   withRunInIO $ \unl -> WS.runServer a p (unl . webSocketsApp)
 runListener (MQTTSListener a p c k _) = do
   logInfoN ("Starting mqtts service on " <> tshow a <> ":" <> tshow p)
-  withRunInIO $ \unl -> runGeneralTCPServerTLS (tlsConfig a p c k) (unl . tcpApp)
+  runGeneralTCPServerTLS (tlsConfig a p c k) tcpApp
 
 
 runServerLogging :: (MonadFail m, MonadMask m, MonadUnliftIO m, MonadIO m, MonadLogger m) => Config -> m [Async ()]
