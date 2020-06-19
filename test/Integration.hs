@@ -53,10 +53,7 @@ withTestService f = do
   let uri = fromJust $ parseURI $ "mqtt://127.0.0.1:" <> show port <> "/"
 
   ch <- newChan
-  bracket (runChanLoggingT ch $ runServerLogging conf) (mapM_ cancel) (const $ waitForConn uri >> f uri)
-
-  where
-    waitForConn _ = sleep 1 -- TODO:  Some positive signal that listeners are ready.
+  bracket (runChanLoggingT ch $ runServerLogging conf) (mapM_ cancel) (const $ f uri)
 
 saveCB mv _ t v _ = atomically $ modifyTVar' mv (Map.insert t v)
 
