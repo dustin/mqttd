@@ -80,7 +80,7 @@ runMQTTDConduit (src, sink, addr) = runConduit $ do
                 noauth T.Protocol50  = T.ConnNotAuthorized
 
     authorized pl cid req@T.ConnectRequest{..} nid = do
-      logConn
+      logConn "connection" req
       -- Register and accept the connection
       tid <- liftIO myThreadId
       (sess@Session{_sessionID, _sessionChan}, existing) <- registerClient req cid tid
@@ -94,27 +94,27 @@ runMQTTDConduit (src, sink, addr) = runConduit $ do
       retransmit sess
       void $ waitAnyCancel [i, o, w]
 
-      where logConn =
-              logInfoN ("connection from " <> addr <> lu
-                         <> " s=" <> tshow _connID
-                         <> lw _lastWill
-                         <> " c=" <> tf _cleanSession
-                         <> " ka=" <> tshow _keepAlive
-                         <> sp _connProperties)
-              where
-                tf True  = "t"
-                tf False = "f"
-                sp [] = ""
-                sp xs = " p=[" <> intercalate " " (map (pack . drop 4 . show) xs) <> "]"
-                lu = maybe "" (tshow . (" u=" <>)) _username
-                lw Nothing = ""
-                lw (Just T.LastWill{..}) = mconcat [
-                  " w={t=", tshow _willTopic,
-                  ", r=", tf _willRetain,
-                  ", q=", tshow (fromEnum _willQoS),
-                  sp _willProps,
-                  "}"
-                  ]
+    logConn h T.ConnectRequest{..} =
+      logInfoN (h <> " from " <> addr <> lu
+                <> " s=" <> tshow _connID
+                <> lw _lastWill
+                <> " c=" <> tf _cleanSession
+                <> " ka=" <> tshow _keepAlive
+                <> sp _connProperties)
+      where
+        tf True  = "t"
+        tf False = "f"
+        sp [] = ""
+        sp xs = " p=[" <> intercalate " " (map (pack . drop 4 . show) xs) <> "]"
+        lu = maybe "" (tshow . (" u=" <>)) _username
+        lw Nothing = ""
+        lw (Just T.LastWill{..}) = mconcat [
+          " w={t=", tshow _willTopic,
+          ", r=", tf _willRetain,
+          ", q=", tshow (fromEnum _willQoS),
+          sp _willProps,
+          "}"
+          ]
 
     processIn wdch sess pl = runConduit $ commonIn
         .| conduitParser (T.parsePacket pl)
@@ -137,7 +137,7 @@ runMQTTDConduit (src, sink, addr) = runConduit $ do
 
     teardown :: ClientID -> T.ConnectRequest -> MQTTD m ()
     teardown cid c@T.ConnectRequest{..} = do
-      logDebugN ("Tearing down ... " <> tshow c)
+      logConn "disconnection" c
       unregisterClient _connID cid
 
     ensureID (T.ConnPkt c@T.ConnectRequest{_connID=""} pl) = do
