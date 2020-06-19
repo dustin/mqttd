@@ -27,7 +27,8 @@ import qualified Network.MQTT.Lens        as T
 import qualified Network.MQTT.Types       as T
 import           Network.Socket.Free      (getFreePort)
 import           Network.URI
-import           UnliftIO                 (async, atomically, bracket, cancel, mapConcurrently_, waitAnyCancel)
+import           UnliftIO                 (async, atomically, bracket, cancel, concurrently, mapConcurrently_,
+                                           waitAnyCancel)
 
 import           MQTTD
 import           MQTTD.Conduit
@@ -61,16 +62,18 @@ sleep = threadDelay . seconds
 
 testBasicPubSub :: Assertion
 testBasicPubSub = withTestService $ \u -> do
-  -- Publisher client
-  pubber <- MC.connectURI MC.mqttConfig u
+  mv <- newTVarIO mempty
+  (pubber, subber) <- concurrently
+                      (MC.connectURI MC.mqttConfig u)
+                      (MC.connectURI MC.mqttConfig{_msgCB=MC.SimpleCallback (saveCB mv),
+                                                   _protocol=MC.Protocol50} u)
+
   MC.publishq pubber "test/retained0" "future message0" True MC.QoS0 []
   MC.publishq pubber "test/retained1" "future message1" True MC.QoS1 []
   MC.publishq pubber "test/retained2" "future message2" True MC.QoS2 []
   MC.publishq pubber "test2/dontcare" "another retained" True MC.QoS1 []
 
   -- Subscriber client
-  mv <- newTVarIO mempty
-  subber <- MC.connectURI MC.mqttConfig{_msgCB=MC.SimpleCallback (saveCB mv), _protocol=MC.Protocol50} u
   _ <- MC.subscribe subber [("test/#", MC.subOptions),
                             ("test2/+", MC.subOptions{_retainHandling=T.DoNotSendOnSubscribe})] []
 
@@ -96,17 +99,20 @@ testBasicPubSub = withTestService $ \u -> do
 testAliases :: Assertion
 testAliases = withTestService $ \u -> do
   -- Publisher client
-  pubber <- MC.connectURI MC.mqttConfig{_protocol=MC.Protocol50} u
   mv <- newTChanIO
-  subber <- MC.connectURI MC.mqttConfig{_msgCB=MC.SimpleCallback (\_ t v _ -> atomically $ writeTChan mv (t,v)),
-                                        _protocol=MC.Protocol50,
-                                        _connProps=[T.PropTopicAliasMaximum 5]} u
+  (pubber, subber) <- concurrently
+                      (MC.connectURI MC.mqttConfig{_protocol=MC.Protocol50} u)
+                      (MC.connectURI MC.mqttConfig{_msgCB=MC.SimpleCallback (\_ t v _ -> atomically $ writeTChan mv (t,v)),
+                                                    _protocol=MC.Protocol50,
+                                                    _connProps=[T.PropTopicAliasMaximum 5]} u)
+
   _ <- MC.subscribe subber [("test/#", MC.subOptions)] []
 
   MC.pubAliased pubber "test/a" "alpha" True MC.QoS0 []
   MC.pubAliased pubber "test/a" "bravo" True MC.QoS2 []
   MC.pubAliased pubber "test/a" "charlie" True MC.QoS1 []
   mapConcurrently_ (\v -> MC.pubAliased pubber "test/a" v True MC.QoS1 []) ["delta", "echo", "foxtrot"]
+
   -- Wait for results.
   m <- atomically $ replicateM 6 (readTChan mv)
   assertEqual "Got the messages" [("test/a", v) | v <- ["alpha", "bravo", "charlie",
