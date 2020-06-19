@@ -66,7 +66,7 @@ testBasicPubSub = withTestService $ \u -> do
   MC.publishq pubber "test/retained0" "future message0" True MC.QoS0 []
   MC.publishq pubber "test/retained1" "future message1" True MC.QoS1 []
   MC.publishq pubber "test/retained2" "future message2" True MC.QoS2 []
-  MC.publishq pubber "test2/dontcare" "another retained" True MC.QoS0 []
+  MC.publishq pubber "test2/dontcare" "another retained" True MC.QoS1 []
 
   -- Subscriber client
   mv <- newTVarIO mempty
