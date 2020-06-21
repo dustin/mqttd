@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -Wno-orphans #-}
 {-# LANGUAGE TypeApplications #-}
 
 import           Data.Function            ((&))
@@ -10,7 +11,7 @@ import           Test.Tasty.QuickCheck    as QC
 import           Control.Applicative      (liftA2)
 import           Control.Concurrent.STM   (atomically, newTVarIO)
 import           Data.Either              (isLeft, isRight)
-import           Data.List                (intercalate, sort)
+import           Data.List                (sort)
 import qualified Data.Map.Strict          as Map
 import           Data.Monoid              (Sum (..))
 import           Data.Set                 (Set)
@@ -20,7 +21,7 @@ import           Data.Word                (Word16, Word8)
 
 import           MQTTD
 import           MQTTD.Config
-import           MQTTD.SubTree            (SubTree (..))
+import           MQTTD.SubTree            (SubTree)
 import qualified MQTTD.SubTree            as Sub
 
 import qualified Integration
@@ -50,7 +51,6 @@ testConfigFiles =
       ]
   where
     aTest (f,w) = assertEqual f w =<< parseConfFile ("test/" <> f)
-    noops = ListenerOptions Nothing
 
 instance EqProp ListenerOptions where (=-=) = eq
 
@@ -63,8 +63,8 @@ instance (Monoid a, Arbitrary a, Eq a) => Arbitrary (SubTree a) where
   arbitrary = do
     topics <- choose (1, 20) >>= flip vectorOf (unTopic <$> arbitraryTopic ['a'..'d'] (1,7) (1,3))
     subbers <- choose (1, 20) >>= vector
-    total <- choose (1, 50)
-    Sub.fromList <$> vectorOf total (liftA2 (,) (elements topics) (elements subbers))
+    leaves <- choose (1, 50)
+    Sub.fromList <$> vectorOf leaves (liftA2 (,) (elements topics) (elements subbers))
 
   shrink = fmap Sub.fromList . shrinkList (const []) . Sub.flatten
 
@@ -148,9 +148,8 @@ propSubTreeMapping matches = label ("collisions " <> collisions) $
     st = foldr (\(_,t) -> Sub.add t [t]) mempty tp
     collisions = (\n -> show n <> "-" <> show (n+9)) . (*10) . (`div` 10) . getSum . foldMap (Sum . subtract 1 . length) $ st
 
-propNextPacket :: (Enum a, Bounded a, Eq a, Num a) => a -> Property
-propNextPacket n =
-  n /= 0 ==> -- The value can never be zero, so that's not a valid start.
+propNextPacket :: (Enum a, Bounded a, Eq a, Num a) => NonZero a -> Property
+propNextPacket (NonZero n) =
   ioProperty $ do
     v <- newTVarIO n
     i <- atomically $ nextPktID v
@@ -168,9 +167,9 @@ tests = [
   testCase "ACLs" testACLs,
 
   localOption (QC.QuickCheckTests 500) $
-    testProperty "packet IDs (8bit) are never 0" (propNextPacket :: Word8 -> Property),
+    testProperty "packet IDs (8bit) are never 0" (propNextPacket :: NonZero Word8 -> Property),
   localOption (QC.QuickCheckTests 100000) $
-    testProperty "packet IDs (16bit) are never 0" (propNextPacket :: Word16 -> Property),
+    testProperty "packet IDs (16bit) are never 0" (propNextPacket :: NonZero Word16 -> Property),
 
   testCase "subtree" testSubTree,
   testGroup "subtree properties" [

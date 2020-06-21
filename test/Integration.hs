@@ -1,42 +1,24 @@
 module Integration where
 
-import           Test.QuickCheck.Checkers
-import           Test.QuickCheck.Classes
 import           Test.Tasty
 import           Test.Tasty.HUnit
-import           Test.Tasty.QuickCheck    as QC
 
-import           Control.Applicative      (liftA2)
-import           Control.Concurrent       (Chan (..), newChan, threadDelay)
-import           Control.Concurrent.STM   (TVar, check, modifyTVar', newTChanIO, newTVarIO, readTChan, readTVar, retry,
-                                           writeTChan)
-import           Control.Monad            (forever, replicateM, void, when)
-import           Control.Monad.Logger     (LogLevel (..), MonadLogger (..), filterLogger, logInfoN, runChanLoggingT)
-import           Data.Conduit             (ConduitT, Void, await, runConduit, yield, (.|))
-import           Data.Either              (isLeft, isRight)
-import           Data.List                (intercalate, sort)
-import qualified Data.Map.Strict          as Map
-import           Data.Maybe               (fromJust)
-import           Data.Monoid              (Sum (..))
-import           Data.Set                 (Set)
-import           Data.Text                (Text)
-import qualified Data.Text                as Text
-import           Database.SQLite.Simple   hiding (bind, close)
-import           Network.MQTT.Client      as MC
-import qualified Network.MQTT.Lens        as T
-import qualified Network.MQTT.Types       as T
-import           Network.Socket.Free      (getFreePort)
+import           Control.Concurrent     (newChan, threadDelay)
+import           Control.Concurrent.STM (check, modifyTVar', newTChanIO, newTVarIO, readTChan, readTVar, writeTChan)
+import           Control.Monad          (replicateM)
+import           Control.Monad.Logger   (runChanLoggingT)
+import           Data.List              (sort)
+import qualified Data.Map.Strict        as Map
+import           Data.Maybe             (fromJust)
+import           Network.MQTT.Client    as MC
+import qualified Network.MQTT.Types     as T
+import           Network.Socket.Free    (getFreePort)
 import           Network.URI
-import           UnliftIO                 (async, atomically, bracket, cancel, concurrently, mapConcurrently_,
-                                           waitAnyCancel)
+import           UnliftIO               (atomically, bracket, cancel, concurrently, mapConcurrently_)
 
 import           MQTTD
-import           MQTTD.Conduit
 import           MQTTD.Config
-import           MQTTD.DB
 import           MQTTD.Main
-import           MQTTD.Types
-import           MQTTD.Util
 
 type TestServer = URI
 
@@ -56,8 +38,7 @@ withTestService f = do
   ch <- newChan
   bracket (runChanLoggingT ch $ runServerLogging conf) (mapM_ cancel) (const $ f uri)
 
-saveCB mv _ t v _ = atomically $ modifyTVar' mv (Map.insert t v)
-
+sleep :: Int -> IO ()
 sleep = threadDelay . seconds
 
 testBasicPubSub :: Assertion
@@ -65,7 +46,7 @@ testBasicPubSub = withTestService $ \u -> do
   mv <- newTVarIO mempty
   (pubber, subber) <- concurrently
                       (MC.connectURI MC.mqttConfig u)
-                      (MC.connectURI MC.mqttConfig{_msgCB=MC.SimpleCallback (saveCB mv),
+                      (MC.connectURI MC.mqttConfig{_msgCB=MC.SimpleCallback (\_ t v _ -> atomically $ modifyTVar' mv (Map.insert t v)),
                                                    _protocol=MC.Protocol50} u)
 
   MC.publishq pubber "test/retained0" "future message0" True MC.QoS0 []
