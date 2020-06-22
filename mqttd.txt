@@ -92,6 +92,10 @@ modify :: Filter -> (Maybe a -> Maybe a) -> SubTree a -> SubTree a
 -- | Add a value at the given filter path.
 add :: Monoid a => Filter -> a -> SubTree a -> SubTree a
 
+-- | Add a value at the given filter path with the given collision
+--   function.
+addWith :: Monoid a => Filter -> (a -> a -> a) -> a -> SubTree a -> SubTree a
+
 -- | Find subscribers of a given topic.
 find :: Monoid a => Topic -> SubTree a -> a
 
@@ -121,6 +125,7 @@ type ClientID = Int
 type SessionID = ByteString
 type BLTopic = ByteString
 type BLFilter = ByteString
+type SubscriberName = Text
 defaultQueueSize :: Num a => a
 data ConnectedClient
 ConnectedClient :: ConnectRequest -> ThreadId -> ClientID -> TVar (Map Word16 ByteString) -> TVar (Map ByteString Word16) -> TVar Word16 -> ConnectedClient
@@ -174,6 +179,14 @@ retainTS :: Lens' Retained UTCTime
 retainMsg :: Lens' Retained PublishRequest
 retainExp :: Lens' Retained (Maybe UTCTime)
 type PublishConstraint m = (MonadLogger m, MonadFail m, MonadMask m, MonadUnliftIO m, MonadIO m)
+data TopicType
+Normal :: Topic -> TopicType
+SharedSubscription :: SubscriberName -> Filter -> TopicType
+InvalidTopic :: TopicType
+classifyTopic :: Text -> TopicType
+partitionShared :: [(Filter, o)] -> ([(SubscriberName, Filter, o)], [(Filter, o)])
+instance GHC.Show.Show MQTTD.Types.TopicType
+instance GHC.Classes.Eq MQTTD.Types.TopicType
 instance GHC.Show.Show MQTTD.Types.Retained
 instance GHC.Show.Show MQTTD.Types.Authorizer
 instance GHC.Show.Show MQTTD.Types.ConnectedClient
@@ -271,11 +284,12 @@ relExp :: Integral p => UTCTime -> UTCTime -> p
 
 module MQTTD
 data Env
-Env :: TVar (Map SessionID Session) -> TVar Word16 -> TVar ClientID -> TVar (SubTree (Map SessionID SubOptions)) -> QueueRunner SessionID -> Retainer -> Authorizer -> Connection -> TBQueue DBOperation -> StatStore -> Env
+Env :: TVar (Map SessionID Session) -> TVar Word16 -> TVar ClientID -> TVar (SubTree (Map SessionID SubOptions)) -> TVar (SubTree (Map SubscriberName [(SessionID, SubOptions)])) -> QueueRunner SessionID -> Retainer -> Authorizer -> Connection -> TBQueue DBOperation -> StatStore -> Env
 [sessions] :: Env -> TVar (Map SessionID Session)
 [lastPktID] :: Env -> TVar Word16
 [clientIDGen] :: Env -> TVar ClientID
 [allSubs] :: Env -> TVar (SubTree (Map SessionID SubOptions))
+[sharedSubs] :: Env -> TVar (SubTree (Map SubscriberName [(SessionID, SubOptions)]))
 [queueRunner] :: Env -> QueueRunner SessionID
 [retainer] :: Env -> Retainer
 [authorizer] :: Env -> Authorizer
@@ -300,7 +314,7 @@ findSubs :: MonadIO m => Topic -> MQTTD m [(Session, SubOptions)]
 restoreSessions :: PublishConstraint m => MQTTD m ()
 restoreRetained :: MonadIO m => MQTTD m ()
 subscribe :: PublishConstraint m => Session -> SubscribeRequest -> MQTTD m ()
-removeSubs :: TVar (SubTree (Map SessionID SubOptions)) -> SessionID -> [Filter] -> STM ()
+removeSubs :: TVar (SubTree (Map SubscriberName [(SessionID, SubOptions)])) -> TVar (SubTree (Map SessionID SubOptions)) -> SessionID -> [Filter] -> STM ()
 unsubscribe :: MonadIO m => Session -> [BLFilter] -> MQTTD m [UnsubStatus]
 modifySession :: MonadIO m => SessionID -> (Session -> Maybe Session) -> MQTTD m ()
 registerClient :: (MonadFail m, MonadIO m) => ConnectRequest -> ClientID -> ThreadId -> MQTTD m (Session, SessionReuse)
