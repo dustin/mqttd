@@ -331,7 +331,8 @@ broadcast :: PublishConstraint m => Maybe SessionID -> PublishRequest -> MQTTD m
 publish :: PublishConstraint m => Session -> PublishRequest -> MQTTD m ()
 deliver :: StatStore -> Session -> PublishRequest -> STM ()
 aliasOut :: ConnectedClient -> PublishRequest -> STM PublishRequest
-authTopic :: Topic -> [ACL] -> Either String ()
+topicTypeTopic :: TopicType -> Topic
+authTopic :: TopicType -> [ACL] -> Either String ()
 releasePubSlot :: StatStore -> Session -> STM ()
 dispatch :: PublishConstraint m => Session -> MQTTPkt -> MQTTD m ()
 instance Control.Monad.Fail.MonadFail m => Control.Monad.Fail.MonadFail (MQTTD.MQTTD m)
