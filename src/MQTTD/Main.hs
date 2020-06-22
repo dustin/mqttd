@@ -1,7 +1,6 @@
 module MQTTD.Main where
 
-import           Control.Concurrent       (newEmptyMVar, putMVar, takeMVar)
-import           Control.Concurrent       (newChan, readChan)
+import           Control.Concurrent       (newChan, newEmptyMVar, putMVar, readChan, takeMVar)
 import           Control.Lens
 import           Control.Monad.Catch      (MonadMask (..))
 import           Control.Monad.IO.Class   (MonadIO (..))

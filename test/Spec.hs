@@ -23,6 +23,7 @@ import           MQTTD
 import           MQTTD.Config
 import           MQTTD.SubTree            (SubTree)
 import qualified MQTTD.SubTree            as Sub
+import           MQTTD.Types
 
 import qualified Integration
 
@@ -96,6 +97,17 @@ testACLs = mapM_ aTest [
   ]
   where
     aTest (a,t,f) = assertBool (show (a, t)) $ f (authTopic t a)
+
+testTopicClassification :: Assertion
+testTopicClassification = mapM_ aTest [
+  ("a", Normal "a"),
+  ("a/b", Normal "a/b"),
+  ("$share/x", InvalidTopic),
+  ("$share/a/b", SharedSubscription "a" "b"),
+  ("$share/a/b/c", SharedSubscription "a" "b/c")
+  ]
+  where
+    aTest (i, want) = assertEqual (show i) want (classifyTopic i)
 
 newtype Topic = Topic [Text] deriving (Show, Eq)
 
@@ -181,6 +193,8 @@ tests = [
       testProperties "semigroup" (unbatch $ semigroup (undefined :: SubTree [Int], undefined :: Int)),
       testProperties "monoid" (unbatch $ monoid (undefined :: SubTree [Int]))
       ],
+
+  testCase "topic classification" testTopicClassification,
 
   testGroup "listener properties" [
       testProperties "semigroup" (unbatch $ semigroup (undefined :: ListenerOptions, undefined :: Int)),

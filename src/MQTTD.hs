@@ -5,10 +5,12 @@
 {-# LANGUAGE GeneralisedNewtypeDeriving #-}
 {-# LANGUAGE LambdaCase                 #-}
 {-# LANGUAGE ScopedTypeVariables        #-}
+{-# LANGUAGE TupleSections              #-}
 {-# LANGUAGE UndecidableInstances       #-}
 
 module MQTTD where
 
+import           Control.Applicative    (liftA2)
 import           Control.Concurrent     (ThreadId, threadDelay, throwTo)
 import           Control.Concurrent.STM (STM, TBQueue, TVar, isFullTBQueue, modifyTVar', newTBQueue, newTBQueueIO,
                                          newTVar, newTVarIO, readTVar, tryReadTBQueue, writeTBQueue, writeTVar)
@@ -31,6 +33,7 @@ import           Database.SQLite.Simple (Connection)
 import           Network.MQTT.Lens
 import qualified Network.MQTT.Topic     as T
 import qualified Network.MQTT.Types     as T
+import           System.Random          (getStdGen, newStdGen, randomR)
 import           UnliftIO               (MonadUnliftIO (..), atomically, readTVarIO)
 
 import           MQTTD.Config           (ACL (..), User (..))
@@ -50,6 +53,7 @@ data Env = Env {
   lastPktID    :: TVar Word16,
   clientIDGen  :: TVar ClientID,
   allSubs      :: TVar (SubTree (Map SessionID T.SubOptions)),
+  sharedSubs   :: TVar (SubTree (Map SubscriberName [(SessionID, T.SubOptions)])),
   queueRunner  :: Scheduler.QueueRunner SessionID,
   retainer     :: Retainer,
   authorizer   :: Authorizer,
@@ -78,7 +82,8 @@ newEnv a d = liftIO $ Env
          <$> newTVarIO mempty
          <*> newTVarIO 1
          <*> newTVarIO 0
-         <*> newTVarIO mempty
+         <*> newTVarIO mempty -- all subs
+         <*> newTVarIO mempty -- shared subs
          <*> Scheduler.newRunner
          <*> newRetainer
          <*> pure a
@@ -168,12 +173,28 @@ resolveAliasIn Session{_sessionClient=Just ConnectedClient{_clientAliasIn}} r =
                             _ -> True)
 
 findSubs :: MonadIO m => T.Topic -> MQTTD m [(Session, T.SubOptions)]
-findSubs t = do
-  subs <- asks allSubs
-  sess <- asks sessions
-  atomically $ do
-    sm <- readTVar sess
-    foldMap (\(sid,os) -> maybe [] (\s -> [(s,os)]) $ Map.lookup sid sm) . SubTree.findMap t Map.assocs <$> readTVar subs
+findSubs t = liftA2 (<>) getRegularSubs getSharedSubs
+  where
+    getRegularSubs = do
+      subs <- asks allSubs
+      sess <- asks sessions
+      atomically $ do
+        sm <- readTVar sess
+        foldMap (\(sid,os) -> maybe [] (\s -> [(s,os)]) $ Map.lookup sid sm) . SubTree.findMap t Map.assocs <$> readTVar subs
+
+    getSharedSubs = do
+      subs <- asks sharedSubs
+      sess <- asks sessions
+      r <- liftIO getStdGen
+      _ <- liftIO newStdGen
+
+      atomically $ do
+        sm <- readTVar sess
+        foldMap (\(sid,os) -> maybe [] (\s -> [(s,os)]) $ Map.lookup sid sm) . SubTree.findMap t (foldMap (someElem sm r) . Map.elems) <$> readTVar subs
+
+    someElem sm r els = let els' = filter ((`Map.member` sm) . fst) els
+                            (o, _) = randomR (0, length els' - 1) r
+                        in [els' !! o]
 
 restoreSessions :: PublishConstraint m => MQTTD m ()
 restoreSessions = do
@@ -196,12 +217,19 @@ restoreRetained = asks retainer >>= MQTTD.Retention.restoreRetained
 subscribe :: PublishConstraint m => Session -> T.SubscribeRequest -> MQTTD m ()
 subscribe sess@Session{..} (T.SubscribeRequest pid topics props) = do
   subs <- asks allSubs
+  subsShared <- asks sharedSubs
   let topics' = map (\(t,o) -> let t' = blToText t in
-                                 bimap (const T.SubErrNotAuthorized) (const (t', o)) $ authTopic t' _sessionACL) topics
-      new = Map.fromList $ rights topics'
+                                 bimap (const T.SubErrNotAuthorized)
+                                       (const (t', o)) $ authTopic t' _sessionACL) topics
+      (shared, normal) = partitionShared (rights topics')
+      new = Map.fromList normal
   atomically $ do
-    modifyTVar' _sessionSubs (Map.union new)
+    -- session copy of subscriptions
+    modifyTVar' _sessionSubs . Map.union . Map.fromList . rights $ topics'
+    -- regular subscriptions
     modifyTVar' subs (upSub new)
+    -- shared subscriptions
+    modifyTVar' subsShared (upShared shared)
     let r = map (second (T._subQoS . snd)) topics'
     sendPacket_ _sessionChan (T.SubACKPkt (T.SubscribeResponse pid r props))
   p <- asks retainer
@@ -210,6 +238,7 @@ subscribe sess@Session{..} (T.SubscribeRequest pid topics props) = do
 
   where
     upSub m subs = Map.foldrWithKey (\k x -> SubTree.add k (Map.singleton _sessionID x)) subs m
+    upShared m subs = foldr (\(n,f,o) -> SubTree.addWith f (Map.unionWith (<>)) (Map.singleton n [(_sessionID, o)])) subs m
 
     doRetained _ (_, T.SubOptions{T._retainHandling=T.DoNotSendOnSubscribe}) = pure ()
     doRetained p (t, ops) = mapM_ (sendOne ops) =<< matchRetained p t
@@ -224,18 +253,29 @@ subscribe sess@Session{..} (T.SubscribeRequest pid topics props) = do
           mightRetain T.SubOptions{_retainAsPublished=False} = False
           mightRetain _                                      = _pubRetain
 
-removeSubs :: TVar (SubTree (Map SessionID T.SubOptions)) -> SessionID -> [T.Filter] -> STM ()
-removeSubs subt sid ts = modifyTVar' subt up
+removeSubs :: TVar (SubTree (Map SubscriberName [(SessionID, T.SubOptions)]))
+           -> TVar (SubTree (Map SessionID T.SubOptions))
+           -> SessionID
+           -> [T.Filter]
+           -> STM ()
+removeSubs sharedt subt sid ts = do
+  let (shared, normal) = partitionShared (map (,()) ts)
+  modifyTVar' subt (up normal)
+  modifyTVar' sharedt (upShared shared)
+
   where
-    up s = foldr (\t -> SubTree.modify t (Map.delete sid <$>)) s ts
+    up l s = foldr (\(t,_) -> SubTree.modify t (Map.delete sid <$>)) s l
+    upShared l s = foldr (\(t,_,_) -> SubTree.modify t cleanShared) s l
+      where
+        cleanShared = (fmap . fmap) (filter ((== sid) . fst))
 
 unsubscribe :: MonadIO m => Session -> [BLFilter] -> MQTTD m [T.UnsubStatus]
-unsubscribe Session{..} topics = asks allSubs >>= \subs ->
+unsubscribe Session{..} topics = asks allSubs >>= \subs -> asks sharedSubs >>= \ssubs ->
   atomically $ do
     m <- readTVar _sessionSubs
     let (uns, n) = foldl' (\(r,m') t -> first ((:r) . unm) $ up t m') ([], m) topics
     writeTVar _sessionSubs n
-    removeSubs subs _sessionID (blToText <$> topics)
+    removeSubs ssubs subs _sessionID (blToText <$> topics)
     pure (reverse uns)
 
     where
@@ -324,9 +364,10 @@ expireSession k = do
         Just s@Session{..}  -> do
           logDebugN ("Expired session for " <> tshow k)
           subt <- asks allSubs
+          ssubst <- asks sharedSubs
           atomically $ do
             subs <- readTVar _sessionSubs
-            removeSubs subt _sessionID (Map.keys subs)
+            removeSubs ssubst subt _sessionID (Map.keys subs)
           deleteSession _sessionID
           sessionDied s
 

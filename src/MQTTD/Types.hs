@@ -20,6 +20,7 @@ import           Control.Monad.IO.Class (MonadIO (..))
 import           Control.Monad.Logger   (MonadLogger (..))
 import qualified Data.ByteString.Lazy   as BL
 import           Data.Map.Strict        (Map)
+import qualified Data.Text              as Txt
 import           Data.Time.Clock        (NominalDiffTime, UTCTime (..))
 import           Data.Word              (Word16)
 import qualified Network.MQTT.Topic     as T
@@ -38,6 +39,7 @@ type ClientID = Int
 type SessionID = BL.ByteString
 type BLTopic = BL.ByteString
 type BLFilter = BL.ByteString
+type SubscriberName = Txt.Text
 
 defaultQueueSize :: Num a => a
 defaultQueueSize = 1000
@@ -90,3 +92,22 @@ data Retained = Retained {
 makeLenses ''Retained
 
 type PublishConstraint m = (MonadLogger m, MonadFail m, MonadMask m, MonadUnliftIO m, MonadIO m)
+
+data TopicType
+  = Normal T.Topic
+  | SharedSubscription SubscriberName T.Filter
+  | InvalidTopic
+  deriving (Eq, Show)
+
+classifyTopic :: Txt.Text -> TopicType
+classifyTopic t
+  | "$share/" `Txt.isPrefixOf` t = case Txt.break (== '/') (Txt.drop 7 t) of
+                                     (_, "") -> InvalidTopic
+                                     (n, f)  -> SharedSubscription n (Txt.drop 1 f)
+  | otherwise = Normal t
+
+partitionShared :: [(T.Filter, o)] -> ([(SubscriberName, T.Filter, o)], [(T.Filter, o)])
+partitionShared = foldr (\x@(t,o) (s,n) -> case classifyTopic t of
+                                             Normal _                 -> (s, x:n)
+                                             SharedSubscription sn sf -> ((sn, sf, o):s, n)
+                                             _                        -> (s, n)) ([], [])

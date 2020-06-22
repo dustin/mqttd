@@ -1,7 +1,7 @@
 {-# LANGUAGE DeriveTraversable #-}
 
 module MQTTD.SubTree (
-  SubTree, empty, modify, add, find, findMap, flatten, fromList,
+  SubTree, empty, modify, add, addWith, find, findMap, flatten, fromList,
   ) where
 
 import           Data.Map.Strict    (Map)
@@ -45,7 +45,11 @@ modify top f = go (splitOn "/" top)
 
 -- | Add a value at the given filter path.
 add :: Monoid a => Filter -> a -> SubTree a -> SubTree a
-add top i = modify top (fmap (i<>) . maybe (Just mempty) Just)
+add top = addWith top (<>)
+
+-- | Add a value at the given filter path with the given collision function.
+addWith :: Monoid a => Filter -> (a -> a -> a) -> a -> SubTree a -> SubTree a
+addWith top f i = modify top (fmap (f i) . maybe (Just mempty) Just)
 
 -- | Find all matching subscribers
 findMap :: Monoid m => Topic -> (a -> m) -> SubTree a -> m
