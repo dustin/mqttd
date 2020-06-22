@@ -96,7 +96,7 @@ testACLs = mapM_ aTest [
   ([Deny "tmp/#", Allow "#"], "allowed", isRight)
   ]
   where
-    aTest (a,t,f) = assertBool (show (a, t)) $ f (authTopic t a)
+    aTest (a,t,f) = assertBool (show (a, t)) $ f (authTopic (classifyTopic t) a)
 
 testTopicClassification :: Assertion
 testTopicClassification = mapM_ aTest [

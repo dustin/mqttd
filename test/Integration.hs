@@ -1,3 +1,5 @@
+{-# LANGUAGE ScopedTypeVariables #-}
+
 module Integration where
 
 import           Test.Tasty
@@ -6,6 +8,7 @@ import           Test.Tasty.HUnit
 import           Control.Concurrent     (newChan, threadDelay)
 import           Control.Concurrent.STM (TChan, check, modifyTVar', newTChanIO, newTVarIO, orElse, readTChan, readTVar,
                                          registerDelay, writeTChan)
+import           Control.Exception      (catch)
 import           Control.Monad          (replicateM, when)
 import           Control.Monad.Logger   (runChanLoggingT)
 import qualified Data.ByteString.Lazy   as BL
@@ -26,21 +29,26 @@ import           MQTTD.Main
 
 type TestServer = URI
 
-withTestService :: (TestServer -> Assertion) -> Assertion
-withTestService f = do
+testConfig :: Config
+testConfig = Config {
+  _confDebug = False,
+  _confUsers = mempty,
+  _confListeners = [], -- filled in by withTestServiceConfig
+  _confDefaults = ListenerOptions { _optAllowAnonymous = Just True },
+  _confPersist = PersistenceConfig ":memory:"
+  }
+
+withTestServiceConfig :: Config -> (TestServer -> Assertion) -> Assertion
+withTestServiceConfig conf f = do
   port <- getFreePort
-  let conf = Config {
-        _confDebug = False,
-        _confUsers = mempty,
-        _confListeners = [MQTTListener "127.0.0.1" port mempty],
-        _confDefaults = ListenerOptions { _optAllowAnonymous = Just True },
-        _confPersist = PersistenceConfig ":memory:"
-        }
-
   let uri = fromJust $ parseURI $ "mqtt://127.0.0.1:" <> show port <> "/"
-
+      cf = conf{_confListeners = [MQTTListener "127.0.0.1" port mempty]}
   ch <- newChan
-  bracket (runChanLoggingT ch $ runServerLogging conf) (mapM_ cancel) (const $ f uri)
+  -- async (mapM_ (\(_,_,_,x) -> print x) =<< getChanContents ch)
+  bracket (runChanLoggingT ch $ runServerLogging cf) (mapM_ cancel) (const $ f uri)
+
+withTestService :: (TestServer -> Assertion) -> Assertion
+withTestService = withTestServiceConfig testConfig
 
 sleep :: Int -> IO ()
 sleep = threadDelay . seconds
@@ -148,9 +156,57 @@ testShared step = withTestService $ \u -> do
   where
     mkcb mv i = MC.SimpleCallback (\_ _ v _ -> atomically $ modifyTVar' mv (Map.insertWith (<>) v [i]))
 
+assertFails :: String -> IO a -> Assertion
+assertFails msg a = catch (a >> assertFailure msg) (\(_ :: MC.MQTTException) -> pure ())
+
+testAAA :: (String -> IO ()) -> Assertion
+testAAA step = let conf = testConfig{
+                     _confUsers = Map.fromList [
+                         ("all", User "all" "allpass" []),
+                         ("test", User "test" "testpass" [Allow "test/#", Deny "#"])
+                         ],
+                     _confDefaults = (ListenerOptions (Just False))
+                     }
+                   baseConfig = MC.mqttConfig{_protocol=MC.Protocol50} in
+  withTestServiceConfig conf $ \u -> do
+  step "anonymous"
+  assertFails "anonymous connection" (MC.connectURI baseConfig u)
+  step "bad user"
+  assertFails "bad user" (MC.connectURI baseConfig (withCreds u "someuser" "x"))
+  step "bad pass"
+  assertFails "bad user" (MC.connectURI baseConfig (withCreds u "all" "x"))
+
+  step "good user"
+  allUser <- MC.connectURI baseConfig (withCreds u "all" "allpass")
+  alls1 <- MC.subscribe allUser [("x", T.subOptions),
+                                 ("test/a", T.subOptions),
+                                 ("$share/x/test/a", T.subOptions),
+                                 ("$share/x/misc/a", T.subOptions)] []
+  assertEqual "all sub response" ([Right T.QoS0, Right T.QoS0, Right T.QoS0, Right T.QoS0], []) alls1
+  assertFails "all user publish to share" (MC.pubAliased allUser "$share/blah/test/a" "x" True MC.QoS1 [])
+  MC.pubAliased allUser "test/a" "x" True MC.QoS1 []
+
+  step "test user"
+  testUser <- MC.connectURI baseConfig (withCreds u "test" "testpass")
+  tests1 <- MC.subscribe testUser [("x", T.subOptions),
+                                   ("test/a", T.subOptions),
+                                   ("$share/x/test/a", T.subOptions),
+                                   ("$share/x/misc/a", T.subOptions)] []
+  assertEqual "test sub response" ([Left T.SubErrNotAuthorized,
+                                    Right T.QoS0,
+                                    Right T.QoS0,
+                                    Left T.SubErrNotAuthorized], []) tests1
+  MC.pubAliased testUser "test/a" "x" True MC.QoS1 []
+  assertFails "test user publish to share" (MC.pubAliased testUser "$share/blah/test/a" "x" True MC.QoS1 [])
+  assertFails "publish from bad user" (MC.pubAliased testUser "fail/a" "x" True MC.QoS1 [])
+
+  where
+    withCreds url u p = let Just a = uriAuthority url in url{uriAuthority=Just a{uriUserInfo = u <> ":" <> p <> "@"}}
+
 tests :: [TestTree]
 tests = [
-    testCase "Basic" testBasicPubSub,
-    testCase "Aliases" testAliases,
-    testCaseSteps "Shared" testShared
-    ]
+  testCase "Basic" testBasicPubSub,
+  testCase "Aliases" testAliases,
+  testCaseSteps "Shared" testShared,
+  testCaseSteps "AAA" testAAA
+  ]

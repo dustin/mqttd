@@ -220,7 +220,7 @@ subscribe sess@Session{..} (T.SubscribeRequest pid topics props) = do
   subsShared <- asks sharedSubs
   let topics' = map (\(t,o) -> let t' = blToText t in
                                  bimap (const T.SubErrNotAuthorized)
-                                       (const (t', o)) $ authTopic t' _sessionACL) topics
+                                       (const (t', o)) $ authTopic (classifyTopic t') _sessionACL) topics
       (shared, normal) = partitionShared (rights topics')
       new = Map.fromList normal
   atomically $ do
@@ -477,10 +477,19 @@ aliasOut ConnectedClient{..} pkt@T.PublishRequest{..} =
           modifyTVar' _clientAliasOut (Map.insert _pubTopic l)
           pure pkt{T._pubProps=T.PropTopicAlias l:_pubProps}
 
-authTopic :: T.Topic -> [ACL] -> Either String ()
-authTopic "" = const $ Left "empty topics are not valid"
-authTopic t = foldr check (Right ())
+
+topicTypeTopic :: TopicType -> T.Topic
+topicTypeTopic (Normal t)               = t
+topicTypeTopic (SharedSubscription _ t) = t
+topicTypeTopic _                        = ""
+
+authTopic :: TopicType -> [ACL] -> Either String ()
+authTopic InvalidTopic = const $ Left "invalid topics are invalid"
+authTopic tt
+  | topicTypeTopic tt == "" = const $ Left "empty topics are not valid"
+authTopic tt = foldr check (Right ())
   where
+    t = topicTypeTopic tt
     check (Allow f) o
       | T.match f t = Right ()
       | otherwise = o
@@ -529,7 +538,7 @@ dispatch sess@Session{..} (T.UnsubscribePkt (T.UnsubscribeRequest pid subs props
 
 dispatch sess@Session{..} (T.PublishPkt req) = do
   r@T.PublishRequest{..} <- resolveAliasIn sess req
-  case authTopic (blToText _pubTopic) _sessionACL of
+  case authPub (classifyTopic $ blToText _pubTopic) _sessionACL of
     Left _  -> logInfoN ("Unauthorized topic: " <> tshow _pubTopic) >> nak _pubQoS r
     Right _ -> satisfyQoS _pubQoS r
 
@@ -551,6 +560,12 @@ dispatch sess@Session{..} (T.PublishPkt req) = do
         incrementStatSTM StatMsgRcvd 1 ss
 
       countIn = incrementStat StatMsgRcvd 1 =<< asks statStore
+
+      authPub :: TopicType -> [ACL] -> Either String ()
+      authPub t acl = case t of
+                        Normal _ -> Right ()
+                        _        -> Left "invalid topic"
+                      >> authTopic t acl
 
 dispatch sess (T.DisconnectPkt (T.DisconnectRequest T.DiscoNormalDisconnection _props)) = do
   let Just sid = sess ^? sessionClient . _Just . clientConnReq . connID
