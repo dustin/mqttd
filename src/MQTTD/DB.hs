@@ -178,10 +178,10 @@ instance FromRow StoredSub where
 
       where
         rhFromStr :: String -> T.RetainHandling
-        rhFromStr "SendOnSuscribe"       = T.SendOnSubscribe
-        rhFromStr "SendOnSuscribeNew"    = T.SendOnSubscribeNew
-        rhFromStr "DoNotSendOnSubscribe" = T.DoNotSendOnSubscribe
-        rhFromStr x                      = error ("Invalid retain handling: " <> show x)
+        rhFromStr "SendOnSubscribe"       = T.SendOnSubscribe
+        rhFromStr "SendOnSubscribeNew"    = T.SendOnSubscribeNew
+        rhFromStr "DoNotSendOnSubscribe"  = T.DoNotSendOnSubscribe
+        rhFromStr x                       = error ("Invalid retain handling: " <> show x)
 
 data StoredSession = StoredSession {
   _sts_sessionID  :: SessionID,
