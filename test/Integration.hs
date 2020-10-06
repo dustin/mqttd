@@ -89,6 +89,25 @@ testBasicPubSub = withTestService $ \u -> do
                                                 ("test/retained2", "future message2")])
     m
 
+testRetainAsPublished :: Assertion
+testRetainAsPublished = withTestService $ \u -> do
+  mv <- newTVarIO mempty
+  (pubber, subber) <- concurrently
+                      (MC.connectURI MC.mqttConfig u)
+                      (MC.connectURI MC.mqttConfig{_msgCB=MC.LowLevelCallback (\_ r@T.PublishRequest{..}
+                                                                                -> atomically $ modifyTVar' mv (Map.insert _pubTopic r)),
+                                                   _protocol=MC.Protocol50} u)
+  MC.publishq pubber "t" "future message0" True MC.QoS0 []
+
+  _ <- MC.subscribe subber [("t", MC.subOptions{_retainAsPublished=True})] []
+
+  r@T.PublishRequest{..} <- atomically $ do
+    m <- readTVar mv
+    check (length m == 1)
+    pure (m Map.! "t")
+
+  assertBool ("message reported retained: " <> show r) _pubRetain
+
 chCallback :: TChan (Topic, BL.ByteString) -> MessageCallback
 chCallback ch = MC.SimpleCallback (\_ t v _ -> atomically $ writeTChan ch (t,v))
 
@@ -206,6 +225,7 @@ testAAA step = let conf = testConfig{
 tests :: [TestTree]
 tests = [
   testCase "Basic" testBasicPubSub,
+  testCase "Retain as Published" testRetainAsPublished,
   testCase "Aliases" testAliases,
   testCaseSteps "Shared" testShared,
   testCaseSteps "AAA" testAAA
