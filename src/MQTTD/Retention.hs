@@ -53,8 +53,9 @@ retain pr@T.PublishRequest{..} Retainer{..} = do
   let e = pr ^? properties . folded . _PropMessageExpiryInterval . to (absExp now)
       ret = Retained now e pr
   atomically $ modifyTVar' _store (Map.insert _pubTopic ret)
-  unless (isSys _pubTopic) $ storeRetained ret
-  justM (\t -> Scheduler.enqueue t _pubTopic _qrunner) e
+  unless (isSys _pubTopic) $ do
+    storeRetained ret
+    justM (\t -> Scheduler.enqueue t _pubTopic _qrunner) e
 
 restoreRetained :: (MonadIO m, HasDBConnection m) => Retainer -> m ()
 restoreRetained Retainer{..} = mapM_ keep =<< loadRetained
