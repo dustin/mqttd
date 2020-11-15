@@ -15,6 +15,7 @@ import qualified Network.MQTT.Types     as T
 import           UnliftIO               (MonadUnliftIO (..), atomically, readTVarIO)
 
 import           MQTTD.DB
+import           MQTTD.Stats
 import           MQTTD.Types
 import           MQTTD.Util
 import qualified Scheduler
@@ -27,7 +28,7 @@ data Retainer = Retainer {
 newRetainer :: MonadIO m => m Retainer
 newRetainer = Retainer <$> liftIO (newTVarIO mempty) <*> Scheduler.newRunner
 
-cleanRetainer :: (MonadLogger m, HasDBConnection m, MonadUnliftIO m) => Retainer -> m ()
+cleanRetainer :: (HasStats m, MonadLogger m, HasDBConnection m, MonadUnliftIO m) => Retainer -> m ()
 cleanRetainer Retainer{..} = Scheduler.run cleanup _qrunner
     where
       cleanup k = do
@@ -42,7 +43,7 @@ cleanRetainer Retainer{..} = Scheduler.run cleanup _qrunner
 isSys :: BLTopic -> Bool
 isSys = ("$SYS/" `BL.isPrefixOf`)
 
-retain :: (MonadLogger m, HasDBConnection m, MonadIO m) => T.PublishRequest -> Retainer -> m ()
+retain :: (HasStats m, MonadLogger m, HasDBConnection m, MonadIO m) => T.PublishRequest -> Retainer -> m ()
 retain T.PublishRequest{_pubRetain=False} _ = pure ()
 retain T.PublishRequest{_pubTopic,_pubBody=""} Retainer{..} = do
   deleteRetained _pubTopic
@@ -57,7 +58,7 @@ retain pr@T.PublishRequest{..} Retainer{..} = do
     storeRetained ret
     justM (\t -> Scheduler.enqueue t _pubTopic _qrunner) e
 
-restoreRetained :: (MonadIO m, HasDBConnection m) => Retainer -> m ()
+restoreRetained :: (HasStats m, MonadIO m, HasDBConnection m) => Retainer -> m ()
 restoreRetained Retainer{..} = mapM_ keep =<< loadRetained
   where
     keep r@Retained{..} = do
