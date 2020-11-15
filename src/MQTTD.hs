@@ -59,7 +59,7 @@ data Env = Env {
   authorizer   :: Authorizer,
   dbConnection :: Connection,
   dbQ          :: TBQueue DBOperation,
-  statStore    :: StatStore
+  stats        :: StatStore
   }
 
 newtype MQTTD m a = MQTTD
@@ -73,6 +73,8 @@ instance MonadUnliftIO m => MonadUnliftIO (MQTTD m) where
 instance (Monad m, MonadReader Env m) => HasDBConnection m where
   dbConn = asks dbConnection
   dbQueue = asks dbQ
+
+instance Monad m => HasStats (MQTTD m) where statStore = asks stats
 
 runIO :: (MonadIO m, MonadLogger m) => Env -> MQTTD m a -> m a
 runIO e m = runReaderT (runMQTTD m) e
@@ -105,9 +107,6 @@ sessionCleanup = asks queueRunner >>= Scheduler.run expireSession
 
 retainerCleanup :: (MonadUnliftIO m, MonadLogger m) => MQTTD m ()
 retainerCleanup = asks retainer >>= cleanRetainer
-
-applyStats :: (MonadUnliftIO m, MonadLogger m) => MQTTD m ()
-applyStats = asks statStore >>= MQTTD.Stats.applyStats
 
 isClientConnected :: SessionID -> TVar (Map SessionID Session) ->  STM Bool
 isClientConnected sid sidsv = readTVar sidsv >>= \sids -> pure $ isJust (_sessionClient =<< Map.lookup sid sids)
@@ -152,7 +151,7 @@ publishStats = forever (pubStats >> sleep 15)
       pub "$SYS/broker/subscriptions/count" (getSum $ foldMap (Sum . length) m)
 
     pubCounters = do
-      m <- retrieveStats =<< asks statStore
+      m <- retrieveStats
       mapM_ (\(k, v) -> pub (statKeyName k) v) (Map.assocs m)
 
 resolveAliasIn :: MonadIO m => Session -> T.PublishRequest -> m T.PublishRequest
@@ -384,7 +383,7 @@ expireSession k = do
                             T._pubBody=_willMsg,
                             T._pubProps=_willProps})
 
-unregisterClient :: (MonadLogger m, MonadMask m, MonadFail m, MonadUnliftIO m, MonadIO m) => SessionID -> ClientID -> MQTTD m ()
+unregisterClient :: PublishConstraint m => SessionID -> ClientID -> MQTTD m ()
 unregisterClient k mid = do
   now <- liftIO getCurrentTime
   modifySession k (up now)
@@ -450,8 +449,8 @@ broadcast src req@T.PublishRequest{..} = do
 publish :: PublishConstraint m => Session -> T.PublishRequest -> MQTTD m ()
 publish sess@Session{..} pkt@T.PublishRequest{..}
   -- QoS 0 is special-cased because it's fire-and-forget with no retries or anything.
-  | _pubQoS == T.QoS0 = asks statStore >>= \ss -> atomically $ deliver ss sess pkt
-  | otherwise = asks statStore >>= \ss -> atomically $ do
+  | _pubQoS == T.QoS0 = statStore >>= \ss -> atomically $ deliver ss sess pkt
+  | otherwise = statStore >>= \ss -> atomically $ do
       modifyTVar' _sessionQP $ Map.insert (pkt ^. pktID) pkt
       tokens <- readTVar _sessionFlight
       if tokens == 0
@@ -507,7 +506,7 @@ dispatch :: PublishConstraint m => Session -> T.MQTTPkt -> MQTTD m ()
 dispatch Session{..} T.PingPkt = sendPacketIO_ _sessionChan T.PongPkt
 
 -- QoS 1 ACK (receiving client got our publish message)
-dispatch sess@Session{..} (T.PubACKPkt ack) = asks statStore >>= \st -> atomically $ do
+dispatch sess@Session{..} (T.PubACKPkt ack) = statStore >>= \st -> atomically $ do
   modifyTVar' _sessionQP (Map.delete (ack ^. pktID))
   releasePubSlot st sess
 
@@ -526,7 +525,7 @@ dispatch Session{..} (T.PubRELPkt rel) = do
   justM (broadcast (Just _sessionID)) pkt
 
 -- QoS 2 COMPlete (publishing client says publish is complete)
-dispatch sess (T.PubCOMPPkt _) = asks statStore >>= \st -> atomically $ releasePubSlot st sess
+dispatch sess (T.PubCOMPPkt _) = statStore >>= \st -> atomically $ releasePubSlot st sess
 
 -- Subscribe response is sent from the `subscribe` action because the
 -- interaction is a bit complicated.
@@ -554,12 +553,12 @@ dispatch sess@Session{..} (T.PublishPkt req) = do
         sendPacketIO_ _sessionChan (T.PubACKPkt (T.PubACK _pubPktID 0 mempty))
         broadcast (Just _sessionID) r
         countIn
-      satisfyQoS T.QoS2 r@T.PublishRequest{..} = asks statStore >>= \ss -> atomically $ do
+      satisfyQoS T.QoS2 r@T.PublishRequest{..} = statStore >>= \ss -> atomically $ do
         sendPacket_ _sessionChan (T.PubRECPkt (T.PubREC _pubPktID 0 mempty))
         modifyTVar' _sessionQP (Map.insert _pubPktID r)
         incrementStatSTM StatMsgRcvd 1 ss
 
-      countIn = incrementStat StatMsgRcvd 1 =<< asks statStore
+      countIn = incrementStat StatMsgRcvd 1
 
       authPub :: TopicType -> [ACL] -> Either String ()
       authPub t acl = case t of

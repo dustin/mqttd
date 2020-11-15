@@ -57,7 +57,7 @@ runMQTTDConduit (src, sink, addr) = runConduit $ do
   lift $ run pl cid cpkt genedID
 
   where
-    count s x = asks statStore >>= incrementStat s (fromIntegral $ BCS.length x) >> pure x
+    count s x = incrementStat s (fromIntegral $ BCS.length x) >> pure x
 
     run :: T.ProtocolLevel -> ClientID -> T.MQTTPkt -> Maybe SessionID -> MQTTD m ()
     run pl cid (T.ConnPkt req@T.ConnectRequest{..} _) nid = do

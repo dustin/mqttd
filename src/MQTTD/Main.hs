@@ -17,6 +17,7 @@ import           MQTTD
 import           MQTTD.Conduit
 import           MQTTD.Config
 import           MQTTD.DB
+import           MQTTD.Stats              (applyStats)
 import           MQTTD.Types
 import           MQTTD.Util
 
@@ -56,9 +57,9 @@ runServerLogging Config{..} = do
     unl . runIO e $ do
       sc <- async sessionCleanup
       pc <- async retainerCleanup
-      dba <- async (runOperations $ statStore e)
+      dba <- async runOperations
       st <- async publishStats
-      as <- async applyStats
+      as <- async (applyStats $ stats e)
       restoreSessions
       restoreRetained
 

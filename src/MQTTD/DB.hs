@@ -78,8 +78,8 @@ initDB db = do
   mapM_ (execute_ db) ["pragma foreign_keys = ON"]
   initTables db
 
-runOperations :: (HasDBConnection m, MonadIO m, MonadLogger m) => StatStore -> m ()
-runOperations statStore = do
+runOperations :: (HasDBConnection m, HasStats m, MonadIO m, MonadLogger m) => m ()
+runOperations = do
   db <- dbConn
   q <- dbQueue
   forever $ go db q
@@ -92,8 +92,8 @@ runOperations statStore = do
           where
             store ops = do
               logDebugN ("Storing a batch of " <> tshow (length ops) <> " operations")
-              incrementStat StatStoreTransactions 1 statStore
-              incrementStat StatStoreOperations (length ops) statStore
+              incrementStat StatStoreTransactions 1
+              incrementStat StatStoreOperations (length ops)
               liftIO . withTransaction db $
                 mapM_ store1 ops
             store1 (DeleteSession i)  = deleteSessionL db i
@@ -178,10 +178,10 @@ instance FromRow StoredSub where
 
       where
         rhFromStr :: String -> T.RetainHandling
-        rhFromStr "SendOnSubscribe"       = T.SendOnSubscribe
-        rhFromStr "SendOnSubscribeNew"    = T.SendOnSubscribeNew
-        rhFromStr "DoNotSendOnSubscribe"  = T.DoNotSendOnSubscribe
-        rhFromStr x                       = error ("Invalid retain handling: " <> show x)
+        rhFromStr "SendOnSubscribe"      = T.SendOnSubscribe
+        rhFromStr "SendOnSubscribeNew"   = T.SendOnSubscribeNew
+        rhFromStr "DoNotSendOnSubscribe" = T.DoNotSendOnSubscribe
+        rhFromStr x                      = error ("Invalid retain handling: " <> show x)
 
 data StoredSession = StoredSession {
   _sts_sessionID  :: SessionID,
