@@ -56,17 +56,21 @@ StatBytesSent :: StatKey
 StatBytesRcvd :: StatKey
 StatStoreTransactions :: StatKey
 StatStoreOperations :: StatKey
+StatsActionQueued :: StatKey
+StatsActionExecuted :: StatKey
 statKeyName :: StatKey -> ByteString
 type Increment = (StatKey, Int)
 data StatStore
 StatStore :: TBQueue Increment -> TVar (Map StatKey Int) -> StatStore
 [_stats_queue] :: StatStore -> TBQueue Increment
 [_stats_map] :: StatStore -> TVar (Map StatKey Int)
+class HasStats m
+statStore :: HasStats m => m StatStore
 newStatStore :: MonadIO m => m StatStore
 applyStats :: MonadIO m => StatStore -> m ()
 incrementStatSTM :: StatKey -> Int -> StatStore -> STM ()
-incrementStat :: MonadIO m => StatKey -> Int -> StatStore -> m ()
-retrieveStats :: MonadIO m => StatStore -> m (Map StatKey Int)
+incrementStat :: (MonadIO m, HasStats m) => StatKey -> Int -> m ()
+retrieveStats :: (MonadIO m, HasStats m) => m (Map StatKey Int)
 instance GHC.Enum.Enum MQTTD.Stats.StatKey
 instance GHC.Classes.Ord MQTTD.Stats.StatKey
 instance GHC.Show.Show MQTTD.Stats.StatKey
@@ -109,10 +113,10 @@ flatten :: SubTree a -> [(Filter, a)]
 --   monoidal values).
 fromList :: Monoid a => [(Filter, a)] -> SubTree a
 instance Data.Traversable.Traversable MQTTD.SubTree.SubTree
+instance Data.Foldable.Foldable MQTTD.SubTree.SubTree
 instance GHC.Base.Functor MQTTD.SubTree.SubTree
 instance GHC.Classes.Eq a => GHC.Classes.Eq (MQTTD.SubTree.SubTree a)
 instance GHC.Show.Show a => GHC.Show.Show (MQTTD.SubTree.SubTree a)
-instance Data.Foldable.Foldable MQTTD.SubTree.SubTree
 instance GHC.Base.Semigroup a => GHC.Base.Semigroup (MQTTD.SubTree.SubTree a)
 instance GHC.Base.Monoid a => GHC.Base.Monoid (MQTTD.SubTree.SubTree a)
 
@@ -215,7 +219,7 @@ StoreRetained :: Retained -> DBOperation
 initQueries :: [(Int, Query)]
 initTables :: Connection -> IO ()
 initDB :: Connection -> IO ()
-runOperations :: (HasDBConnection m, MonadIO m, MonadLogger m) => StatStore -> m ()
+runOperations :: (HasDBConnection m, HasStats m, MonadIO m, MonadLogger m) => m ()
 writeDBQueue :: (HasDBConnection m, MonadIO m) => DBOperation -> m ()
 deleteSessionL :: MonadIO m => Connection -> SessionID -> m ()
 deleteSession :: (HasDBConnection m, MonadIO m) => SessionID -> m ()
@@ -256,16 +260,16 @@ newtype QueueRunner a
 QueueRunner :: TVar (TimedQueue a) -> QueueRunner a
 [_tq] :: QueueRunner a -> TVar (TimedQueue a)
 newRunner :: MonadIO m => m (QueueRunner a)
-enqueue :: (Ord a, MonadIO m) => UTCTime -> a -> QueueRunner a -> m ()
+enqueue :: (HasStats m, Ord a, MonadIO m) => UTCTime -> a -> QueueRunner a -> m ()
 
 -- | Run forever.
-run :: (MonadLogger m, MonadIO m) => (a -> m ()) -> QueueRunner a -> m ()
+run :: (HasStats m, MonadLogger m, MonadIO m) => (a -> m ()) -> QueueRunner a -> m ()
 
 -- | Block until an item might be ready and then run (and remove) all ready
 --   items. This will sometimes run 0 items. It shouldn't ever run any
 --   items that are scheduled for the future, and it shouldn't forget any
 --   items that are ready.
-runOnce :: (MonadLogger m, MonadIO m) => (a -> m ()) -> QueueRunner a -> m ()
+runOnce :: (HasStats m, MonadLogger m, MonadIO m) => (a -> m ()) -> QueueRunner a -> m ()
 diffTimeToMicros :: NominalDiffTime -> Int
 
 module MQTTD.Retention
@@ -274,10 +278,10 @@ Retainer :: TVar (Map BLTopic Retained) -> QueueRunner BLTopic -> Retainer
 [_store] :: Retainer -> TVar (Map BLTopic Retained)
 [_qrunner] :: Retainer -> QueueRunner BLTopic
 newRetainer :: MonadIO m => m Retainer
-cleanRetainer :: (MonadLogger m, HasDBConnection m, MonadUnliftIO m) => Retainer -> m ()
+cleanRetainer :: (HasStats m, MonadLogger m, HasDBConnection m, MonadUnliftIO m) => Retainer -> m ()
 isSys :: BLTopic -> Bool
-retain :: (MonadLogger m, HasDBConnection m, MonadIO m) => PublishRequest -> Retainer -> m ()
-restoreRetained :: (MonadIO m, HasDBConnection m) => Retainer -> m ()
+retain :: (HasStats m, MonadLogger m, HasDBConnection m, MonadIO m) => PublishRequest -> Retainer -> m ()
+restoreRetained :: (HasStats m, MonadIO m, HasDBConnection m) => Retainer -> m ()
 matchRetained :: MonadIO m => Retainer -> Filter -> m [PublishRequest]
 absExp :: Integral a => UTCTime -> a -> UTCTime
 relExp :: Integral p => UTCTime -> UTCTime -> p
@@ -295,7 +299,7 @@ Env :: TVar (Map SessionID Session) -> TVar Word16 -> TVar ClientID -> TVar (Sub
 [authorizer] :: Env -> Authorizer
 [dbConnection] :: Env -> Connection
 [dbQ] :: Env -> TBQueue DBOperation
-[statStore] :: Env -> StatStore
+[stats] :: Env -> StatStore
 newtype MQTTD m a
 MQTTD :: ReaderT Env m a -> MQTTD m a
 [runMQTTD] :: MQTTD m a -> ReaderT Env m a
@@ -306,7 +310,6 @@ seconds :: Num p => p -> p
 nextID :: MonadIO m => MQTTD m Int
 sessionCleanup :: PublishConstraint m => MQTTD m ()
 retainerCleanup :: (MonadUnliftIO m, MonadLogger m) => MQTTD m ()
-applyStats :: (MonadUnliftIO m, MonadLogger m) => MQTTD m ()
 isClientConnected :: SessionID -> TVar (Map SessionID Session) -> STM Bool
 publishStats :: PublishConstraint m => MQTTD m ()
 resolveAliasIn :: MonadIO m => Session -> PublishRequest -> m PublishRequest
@@ -319,7 +322,7 @@ unsubscribe :: MonadIO m => Session -> [BLFilter] -> MQTTD m [UnsubStatus]
 modifySession :: MonadIO m => SessionID -> (Session -> Maybe Session) -> MQTTD m ()
 registerClient :: (MonadFail m, MonadIO m) => ConnectRequest -> ClientID -> ThreadId -> MQTTD m (Session, SessionReuse)
 expireSession :: PublishConstraint m => SessionID -> MQTTD m ()
-unregisterClient :: (MonadLogger m, MonadMask m, MonadFail m, MonadUnliftIO m, MonadIO m) => SessionID -> ClientID -> MQTTD m ()
+unregisterClient :: PublishConstraint m => SessionID -> ClientID -> MQTTD m ()
 tryWriteQ :: TBQueue a -> a -> STM Bool
 sendPacket :: PktQueue -> MQTTPkt -> STM Bool
 sendPacket_ :: PktQueue -> MQTTPkt -> STM ()
@@ -346,6 +349,7 @@ instance GHC.Base.Monad m => GHC.Base.Monad (MQTTD.MQTTD m)
 instance GHC.Base.Functor m => GHC.Base.Functor (MQTTD.MQTTD m)
 instance GHC.Base.Applicative m => GHC.Base.Applicative (MQTTD.MQTTD m)
 instance Control.Monad.IO.Unlift.MonadUnliftIO m => Control.Monad.IO.Unlift.MonadUnliftIO (MQTTD.MQTTD m)
+instance GHC.Base.Monad m => MQTTD.Stats.HasStats (MQTTD.MQTTD m)
 instance (GHC.Base.Monad m, Control.Monad.Reader.Class.MonadReader MQTTD.Env m) => MQTTD.DB.HasDBConnection m
 
 module MQTTD.Conduit
