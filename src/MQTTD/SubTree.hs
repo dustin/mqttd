@@ -13,12 +13,9 @@ import           Network.MQTT.Topic (Filter, Topic)
 
 -- | MQTT Topic Subscription tree.
 data SubTree a = SubTree {
-  subs     :: Maybe a,
-  children :: Map Filter (SubTree a)
-  } deriving (Show, Eq, Functor, Traversable)
-
-instance Foldable SubTree where
-  foldMap f SubTree{..} = maybe mempty f subs <> (foldMap.foldMap) f children
+  subs       :: Maybe a
+  , children :: Map Filter (SubTree a)
+  } deriving (Show, Eq, Functor, Foldable, Traversable)
 
 instance Semigroup a => Semigroup (SubTree a) where
   a <> b = SubTree (subs a <> subs b) (Map.unionWith (<>) (children a) (children b))
