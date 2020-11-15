@@ -69,7 +69,8 @@ runOnce action QueueRunner{..} = block >> go
         writeTVar _tq nq
         pure todo
       logDebugN ("Running " <> (pack . show . length) todo <> " actions")
-      mapM_ (\a -> action a >> incrementStat StatsActionExecuted 1) todo
+      incrementStat StatsActionExecuted (length todo)
+      mapM_ action todo
 
 -- A couple utilities
 
