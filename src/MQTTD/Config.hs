@@ -87,20 +87,20 @@ qstr :: IsString a => Parser a
 qstr = fromString <$> (char '"' >> manyTill L.charLiteral (char '"'))
 
 parseListener :: Parser Listener
-parseListener = symbol "listener" *> (choice . map (sc' . try)) [mqtt, mqtts, ws] <*> o
+parseListener = lexeme "listener" *> (choice . map (sc' . try)) [mqtt, mqtts, ws] <*> o
   where
-    mqtt =  symbol "mqtt"  *> (MQTTListener <$> lexeme qstr <*> lexeme L.decimal)
-    mqtts = symbol "mqtts" *> (MQTTSListener <$> lexeme qstr <*> lexeme L.decimal <*> lexeme qstr <*> lexeme qstr)
-    ws =    symbol "ws"    *> (WSListener <$> lexeme qstr <*> lexeme L.decimal)
+    mqtt =  lexeme "mqtt"  *> (MQTTListener <$> lexeme qstr <*> lexeme L.decimal)
+    mqtts = lexeme "mqtts" *> (MQTTSListener <$> lexeme qstr <*> lexeme L.decimal <*> lexeme qstr <*> lexeme qstr)
+    ws =    lexeme "ws"    *> (WSListener <$> lexeme qstr <*> lexeme L.decimal)
 
     o = option mempty (lexeme parseListenOpts)
 
 parseUser :: Parser User
-parseUser = User <$> (symbol "user" *> lexeme qstr) <*> (symbol "password" *> lexeme qstr)
+parseUser = User <$> (lexeme "user" *> lexeme qstr) <*> (lexeme "password" *> lexeme qstr)
             <*> option [] (lexeme parseACL)
-  where parseACL = symbol "acls" *> between "[" "]" (some (sc' (lexeme aclEntry)))
-        aclEntry = Allow <$> (symbol "allow" *> lexeme qstr)
-                   <|> Deny <$> (symbol "deny" *> lexeme qstr)
+  where parseACL = lexeme "acls" *> between "[" "]" (some (sc' (lexeme aclEntry)))
+        aclEntry = Allow <$> (lexeme "allow" *> lexeme qstr)
+                   <|> Deny <$> (lexeme "deny" *> lexeme qstr)
 
 namedList :: Text -> Parser p -> Parser [p]
 namedList s p = namedValue s $ between "[" "]" (some (sc *> lexeme p))
