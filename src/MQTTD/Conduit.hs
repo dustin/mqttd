@@ -60,7 +60,7 @@ runMQTTDConduit (src, sink, addr) = runConduit $ do
     count s x = incrementStat s (fromIntegral $ BCS.length x) >> pure x
 
     run :: T.ProtocolLevel -> ClientID -> T.MQTTPkt -> Maybe SessionID -> MQTTD m ()
-    run pl cid (T.ConnPkt req@T.ConnectRequest{..} _) nid = do
+    run pl cid (T.ConnPkt req _) nid = do
       r <- authorize req
       case r of
         Left x  -> notAuthorized pl req x

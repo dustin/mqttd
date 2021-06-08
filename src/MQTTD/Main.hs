@@ -74,6 +74,6 @@ runServerLogging Config{..} = do
             a{_authAnon=fromMaybe _authAnon _optAllowAnonymous}
 
 runServer :: Config -> IO [Async ()]
-runServer conf@Config{..} = runStderrLoggingT . logfilt conf . runServerLogging $ conf
+runServer conf = runStderrLoggingT . logfilt conf . runServerLogging $ conf
   where
     logfilt Config{..} = filterLogger (\_ -> flip (if _confDebug then (>=) else (>)) LevelDebug)

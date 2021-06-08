@@ -529,7 +529,7 @@ dispatch sess (T.PubCOMPPkt _) = statStore >>= \st -> atomically $ releasePubSlo
 
 -- Subscribe response is sent from the `subscribe` action because the
 -- interaction is a bit complicated.
-dispatch sess@Session{..} (T.SubscribePkt req) = subscribe sess req
+dispatch sess (T.SubscribePkt req) = subscribe sess req
 
 dispatch sess@Session{..} (T.UnsubscribePkt (T.UnsubscribeRequest pid subs props)) = do
   uns <- unsubscribe sess subs
