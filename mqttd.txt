@@ -32,19 +32,19 @@ ListenerOptions :: Maybe Bool -> ListenerOptions
 [_optAllowAnonymous] :: ListenerOptions -> Maybe Bool
 listenerOpts :: Lens' Listener ListenerOptions
 parseConfFile :: String -> IO Config
-instance GHC.Show.Show MQTTD.Config.Section
-instance GHC.Classes.Eq MQTTD.Config.Config
-instance GHC.Show.Show MQTTD.Config.Config
-instance GHC.Classes.Eq MQTTD.Config.PersistenceConfig
-instance GHC.Show.Show MQTTD.Config.PersistenceConfig
-instance GHC.Classes.Eq MQTTD.Config.Listener
-instance GHC.Show.Show MQTTD.Config.Listener
-instance GHC.Show.Show MQTTD.Config.ListenerOptions
-instance GHC.Classes.Eq MQTTD.Config.ListenerOptions
-instance GHC.Classes.Eq MQTTD.Config.User
-instance GHC.Show.Show MQTTD.Config.User
 instance GHC.Classes.Eq MQTTD.Config.ACL
 instance GHC.Show.Show MQTTD.Config.ACL
+instance GHC.Classes.Eq MQTTD.Config.User
+instance GHC.Show.Show MQTTD.Config.User
+instance GHC.Show.Show MQTTD.Config.ListenerOptions
+instance GHC.Classes.Eq MQTTD.Config.ListenerOptions
+instance GHC.Classes.Eq MQTTD.Config.Listener
+instance GHC.Show.Show MQTTD.Config.Listener
+instance GHC.Classes.Eq MQTTD.Config.PersistenceConfig
+instance GHC.Show.Show MQTTD.Config.PersistenceConfig
+instance GHC.Classes.Eq MQTTD.Config.Config
+instance GHC.Show.Show MQTTD.Config.Config
+instance GHC.Show.Show MQTTD.Config.Section
 instance GHC.Base.Semigroup MQTTD.Config.ListenerOptions
 instance GHC.Base.Monoid MQTTD.Config.ListenerOptions
 

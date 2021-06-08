@@ -22,7 +22,7 @@
 </span><span id="line-22"></span><span class="hs-keyword">type</span><span> </span><span id="ListenAddress"><span class="annot"><a href="MQTTD.Config.html#ListenAddress"><span class="hs-identifier hs-var">ListenAddress</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span>
 </span><span id="line-23"></span><span class="hs-keyword">type</span><span> </span><span id="PortNumber"><span class="annot"><a href="MQTTD.Config.html#PortNumber"><span class="hs-identifier hs-var">PortNumber</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span>
 </span><span id="line-24"></span><span>
-</span><span id="line-25"></span><span class="hs-keyword">data</span><span> </span><span id="ACL"><span class="annot"><a href="MQTTD.Config.html#ACL"><span class="hs-identifier hs-var">ACL</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="Allow"><span class="annot"><a href="MQTTD.Config.html#Allow"><span class="hs-identifier hs-var">Allow</span></a></span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">T.Filter</span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="Deny"><span class="annot"><a href="MQTTD.Config.html#Deny"><span class="hs-identifier hs-var">Deny</span></a></span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">T.Filter</span></span><span> </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679276500"><span id="local-6989586621679276502"><span id="local-6989586621679276504"><span class="annot"><span class="annottext">Int -&gt; ACL -&gt; ShowS
+</span><span id="line-25"></span><span class="hs-keyword">data</span><span> </span><span id="ACL"><span class="annot"><a href="MQTTD.Config.html#ACL"><span class="hs-identifier hs-var">ACL</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="Allow"><span class="annot"><a href="MQTTD.Config.html#Allow"><span class="hs-identifier hs-var">Allow</span></a></span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">T.Filter</span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="Deny"><span class="annot"><a href="MQTTD.Config.html#Deny"><span class="hs-identifier hs-var">Deny</span></a></span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">T.Filter</span></span><span> </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679182806"><span id="local-6989586621679182808"><span id="local-6989586621679182810"><span class="annot"><span class="annottext">Int -&gt; ACL -&gt; ShowS
 [ACL] -&gt; ShowS
 ACL -&gt; String
 (Int -&gt; ACL -&gt; ShowS)
@@ -35,7 +35,7 @@ show :: ACL -&gt; String
 $cshow :: ACL -&gt; String
 showsPrec :: Int -&gt; ACL -&gt; ShowS
 $cshowsPrec :: Int -&gt; ACL -&gt; ShowS
-</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679276495"><span id="local-6989586621679276497"><span class="annot"><span class="annottext">ACL -&gt; ACL -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679182801"><span id="local-6989586621679182803"><span class="annot"><span class="annottext">ACL -&gt; ACL -&gt; Bool
 (ACL -&gt; ACL -&gt; Bool) -&gt; (ACL -&gt; ACL -&gt; Bool) -&gt; Eq ACL
 forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
 /= :: ACL -&gt; ACL -&gt; Bool
@@ -44,7 +44,7 @@ $c/= :: ACL -&gt; ACL -&gt; Bool
 $c== :: ACL -&gt; ACL -&gt; Bool
 </span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">)</span><span>
 </span><span id="line-26"></span><span>
-</span><span id="line-27"></span><span class="hs-keyword">data</span><span> </span><span id="User"><span class="annot"><a href="MQTTD.Config.html#User"><span class="hs-identifier hs-var">User</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="User"><span class="annot"><a href="MQTTD.Config.html#User"><span class="hs-identifier hs-var">User</span></a></span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">BL.ByteString</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">BL.ByteString</span></span><span> </span><span class="hs-special">[</span><span class="annot"><a href="MQTTD.Config.html#ACL"><span class="hs-identifier hs-type">ACL</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679276487"><span id="local-6989586621679276489"><span id="local-6989586621679276491"><span class="annot"><span class="annottext">Int -&gt; User -&gt; ShowS
+</span><span id="line-27"></span><span class="hs-keyword">data</span><span> </span><span id="User"><span class="annot"><a href="MQTTD.Config.html#User"><span class="hs-identifier hs-var">User</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="User"><span class="annot"><a href="MQTTD.Config.html#User"><span class="hs-identifier hs-var">User</span></a></span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">BL.ByteString</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">BL.ByteString</span></span><span> </span><span class="hs-special">[</span><span class="annot"><a href="MQTTD.Config.html#ACL"><span class="hs-identifier hs-type">ACL</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679182793"><span id="local-6989586621679182795"><span id="local-6989586621679182797"><span class="annot"><span class="annottext">Int -&gt; User -&gt; ShowS
 [User] -&gt; ShowS
 User -&gt; String
 (Int -&gt; User -&gt; ShowS)
@@ -57,7 +57,7 @@ show :: User -&gt; String
 $cshow :: User -&gt; String
 showsPrec :: Int -&gt; User -&gt; ShowS
 $cshowsPrec :: Int -&gt; User -&gt; ShowS
-</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679276483"><span id="local-6989586621679276485"><span class="annot"><span class="annottext">User -&gt; User -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679182789"><span id="local-6989586621679182791"><span class="annot"><span class="annottext">User -&gt; User -&gt; Bool
 (User -&gt; User -&gt; Bool) -&gt; (User -&gt; User -&gt; Bool) -&gt; Eq User
 forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
 /= :: User -&gt; User -&gt; Bool
@@ -69,7 +69,7 @@ $c== :: User -&gt; User -&gt; Bool
 </span><span id="line-29"></span><span class="hs-keyword">data</span><span> </span><span id="ListenerOptions"><span class="annot"><a href="MQTTD.Config.html#ListenerOptions"><span class="hs-identifier hs-var">ListenerOptions</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="ListenerOptions"><span class="annot"><a href="MQTTD.Config.html#ListenerOptions"><span class="hs-identifier hs-var">ListenerOptions</span></a></span></span><span> </span><span class="hs-special">{</span><span>
 </span><span id="line-30"></span><span>  </span><span id="_optAllowAnonymous"><span class="annot"><span class="annottext">ListenerOptions -&gt; Maybe Bool
 </span><a href="MQTTD.Config.html#_optAllowAnonymous"><span class="hs-identifier hs-var hs-var">_optAllowAnonymous</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
-</span><span id="line-31"></span><span>  </span><span class="hs-special">}</span><span> </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679276477"><span id="local-6989586621679276479"><span class="annot"><span class="annottext">ListenerOptions -&gt; ListenerOptions -&gt; Bool
+</span><span id="line-31"></span><span>  </span><span class="hs-special">}</span><span> </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679182783"><span id="local-6989586621679182785"><span class="annot"><span class="annottext">ListenerOptions -&gt; ListenerOptions -&gt; Bool
 (ListenerOptions -&gt; ListenerOptions -&gt; Bool)
 -&gt; (ListenerOptions -&gt; ListenerOptions -&gt; Bool)
 -&gt; Eq ListenerOptions
@@ -78,7 +78,7 @@ forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
 $c/= :: ListenerOptions -&gt; ListenerOptions -&gt; Bool
 == :: ListenerOptions -&gt; ListenerOptions -&gt; Bool
 $c== :: ListenerOptions -&gt; ListenerOptions -&gt; Bool
-</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679276471"><span id="local-6989586621679276473"><span id="local-6989586621679276475"><span class="annot"><span class="annottext">Int -&gt; ListenerOptions -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679182777"><span id="local-6989586621679182779"><span id="local-6989586621679182781"><span class="annot"><span class="annottext">Int -&gt; ListenerOptions -&gt; ShowS
 [ListenerOptions] -&gt; ShowS
 ListenerOptions -&gt; String
 (Int -&gt; ListenerOptions -&gt; ShowS)
@@ -95,19 +95,19 @@ showsPrec :: Int -&gt; ListenerOptions -&gt; ShowS
 $cshowsPrec :: Int -&gt; ListenerOptions -&gt; ShowS
 </span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">)</span><span>
 </span><span id="line-32"></span><span>
-</span><span id="line-33"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621679276466"><span id="local-6989586621679276468"><span class="annot"><span class="hs-identifier hs-type">Semigroup</span></span><span> </span><span class="annot"><a href="MQTTD.Config.html#ListenerOptions"><span class="hs-identifier hs-type">ListenerOptions</span></a></span></span></span><span> </span><span class="hs-keyword">where</span><span>
-</span><span id="line-34"></span><span>  </span><span class="hs-special">(</span><span class="annot"><a href="MQTTD.Config.html#ListenerOptions"><span class="hs-identifier hs-type">ListenerOptions</span></a></span><span> </span><span id="local-6989586621679276464"><span class="annot"><span class="annottext">a :: Maybe Bool
-</span><a href="#local-6989586621679276464"><span class="hs-identifier hs-var">a</span></a></span></span><span class="hs-special">)</span><span> </span><span id="local-6989586621679276463"><span class="annot"><span class="annottext">&lt;&gt; :: ListenerOptions -&gt; ListenerOptions -&gt; ListenerOptions
-</span><span class="hs-operator hs-var hs-var hs-var hs-var">&lt;&gt;</span></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="MQTTD.Config.html#ListenerOptions"><span class="hs-identifier hs-type">ListenerOptions</span></a></span><span> </span><span id="local-6989586621679276462"><span class="annot"><span class="annottext">b :: Maybe Bool
-</span><a href="#local-6989586621679276462"><span class="hs-identifier hs-var">b</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Maybe Bool -&gt; ListenerOptions
+</span><span id="line-33"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621679182772"><span id="local-6989586621679182774"><span class="annot"><span class="hs-identifier hs-type">Semigroup</span></span><span> </span><span class="annot"><a href="MQTTD.Config.html#ListenerOptions"><span class="hs-identifier hs-type">ListenerOptions</span></a></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-34"></span><span>  </span><span class="hs-special">(</span><span class="annot"><a href="MQTTD.Config.html#ListenerOptions"><span class="hs-identifier hs-type">ListenerOptions</span></a></span><span> </span><span id="local-6989586621679182770"><span class="annot"><span class="annottext">Maybe Bool
+</span><a href="#local-6989586621679182770"><span class="hs-identifier hs-var">a</span></a></span></span><span class="hs-special">)</span><span> </span><span id="local-6989586621679182769"><span class="annot"><span class="annottext">&lt;&gt; :: ListenerOptions -&gt; ListenerOptions -&gt; ListenerOptions
+</span><span class="hs-operator hs-var hs-var hs-var hs-var">&lt;&gt;</span></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="MQTTD.Config.html#ListenerOptions"><span class="hs-identifier hs-type">ListenerOptions</span></a></span><span> </span><span id="local-6989586621679182768"><span class="annot"><span class="annottext">Maybe Bool
+</span><a href="#local-6989586621679182768"><span class="hs-identifier hs-var">b</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Maybe Bool -&gt; ListenerOptions
 </span><a href="MQTTD.Config.html#ListenerOptions"><span class="hs-identifier hs-var">ListenerOptions</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Maybe Bool
-</span><a href="#local-6989586621679276464"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe Bool -&gt; Maybe Bool -&gt; Maybe Bool
+</span><a href="#local-6989586621679182770"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe Bool -&gt; Maybe Bool -&gt; Maybe Bool
 forall (f :: * -&gt; *) a. Alternative f =&gt; f a -&gt; f a -&gt; f a
 </span><span class="hs-operator hs-var">&lt;|&gt;</span></span><span> </span><span class="annot"><span class="annottext">Maybe Bool
-</span><a href="#local-6989586621679276462"><span class="hs-identifier hs-var">b</span></a></span><span class="hs-special">)</span><span>
+</span><a href="#local-6989586621679182768"><span class="hs-identifier hs-var">b</span></a></span><span class="hs-special">)</span><span>
 </span><span id="line-35"></span><span>
-</span><span id="line-36"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621679276456"><span id="local-6989586621679276458"><span class="annot"><span class="hs-identifier hs-type">Monoid</span></span><span> </span><span class="annot"><a href="MQTTD.Config.html#ListenerOptions"><span class="hs-identifier hs-type">ListenerOptions</span></a></span></span></span><span> </span><span class="hs-keyword">where</span><span>
-</span><span id="line-37"></span><span>  </span><span id="local-6989586621679276454"><span class="annot"><span class="annottext">mempty :: ListenerOptions
+</span><span id="line-36"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621679182762"><span id="local-6989586621679182764"><span class="annot"><span class="hs-identifier hs-type">Monoid</span></span><span> </span><span class="annot"><a href="MQTTD.Config.html#ListenerOptions"><span class="hs-identifier hs-type">ListenerOptions</span></a></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-37"></span><span>  </span><span id="local-6989586621679182760"><span class="annot"><span class="annottext">mempty :: ListenerOptions
 </span><span class="hs-identifier hs-var hs-var hs-var hs-var">mempty</span></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Maybe Bool -&gt; ListenerOptions
 </span><a href="MQTTD.Config.html#ListenerOptions"><span class="hs-identifier hs-var">ListenerOptions</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe Bool
 forall a. Maybe a
@@ -116,7 +116,7 @@ forall a. Maybe a
 </span><span id="line-39"></span><span class="hs-keyword">data</span><span> </span><span id="Listener"><span class="annot"><a href="MQTTD.Config.html#Listener"><span class="hs-identifier hs-var">Listener</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="MQTTListener"><span class="annot"><a href="MQTTD.Config.html#MQTTListener"><span class="hs-identifier hs-var">MQTTListener</span></a></span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">HostPreference</span></span><span> </span><span class="annot"><a href="MQTTD.Config.html#PortNumber"><span class="hs-identifier hs-type">PortNumber</span></a></span><span> </span><span class="annot"><a href="MQTTD.Config.html#ListenerOptions"><span class="hs-identifier hs-type">ListenerOptions</span></a></span><span>
 </span><span id="line-40"></span><span>              </span><span class="hs-glyph">|</span><span> </span><span id="MQTTSListener"><span class="annot"><a href="MQTTD.Config.html#MQTTSListener"><span class="hs-identifier hs-var">MQTTSListener</span></a></span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">HostPreference</span></span><span> </span><span class="annot"><a href="MQTTD.Config.html#PortNumber"><span class="hs-identifier hs-type">PortNumber</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">FilePath</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">FilePath</span></span><span> </span><span class="annot"><a href="MQTTD.Config.html#ListenerOptions"><span class="hs-identifier hs-type">ListenerOptions</span></a></span><span>
 </span><span id="line-41"></span><span>              </span><span class="hs-glyph">|</span><span> </span><span id="WSListener"><span class="annot"><a href="MQTTD.Config.html#WSListener"><span class="hs-identifier hs-var">WSListener</span></a></span></span><span> </span><span class="annot"><a href="MQTTD.Config.html#ListenAddress"><span class="hs-identifier hs-type">ListenAddress</span></a></span><span> </span><span class="annot"><a href="MQTTD.Config.html#PortNumber"><span class="hs-identifier hs-type">PortNumber</span></a></span><span> </span><span class="annot"><a href="MQTTD.Config.html#ListenerOptions"><span class="hs-identifier hs-type">ListenerOptions</span></a></span><span>
-</span><span id="line-42"></span><span>              </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679276444"><span id="local-6989586621679276446"><span id="local-6989586621679276448"><span class="annot"><span class="annottext">Int -&gt; Listener -&gt; ShowS
+</span><span id="line-42"></span><span>              </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679182750"><span id="local-6989586621679182752"><span id="local-6989586621679182754"><span class="annot"><span class="annottext">Int -&gt; Listener -&gt; ShowS
 [Listener] -&gt; ShowS
 Listener -&gt; String
 (Int -&gt; Listener -&gt; ShowS)
@@ -129,7 +129,7 @@ show :: Listener -&gt; String
 $cshow :: Listener -&gt; String
 showsPrec :: Int -&gt; Listener -&gt; ShowS
 $cshowsPrec :: Int -&gt; Listener -&gt; ShowS
-</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679276440"><span id="local-6989586621679276442"><span class="annot"><span class="annottext">Listener -&gt; Listener -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679182746"><span id="local-6989586621679182748"><span class="annot"><span class="annottext">Listener -&gt; Listener -&gt; Bool
 (Listener -&gt; Listener -&gt; Bool)
 -&gt; (Listener -&gt; Listener -&gt; Bool) -&gt; Eq Listener
 forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
@@ -146,52 +146,63 @@ $c== :: Listener -&gt; Listener -&gt; Bool
 -&gt; Lens Listener Listener ListenerOptions ListenerOptions
 forall s a b t. (s -&gt; a) -&gt; (s -&gt; b -&gt; t) -&gt; Lens s t a b
 </span><span class="hs-identifier hs-var">lens</span></span><span> </span><span class="annot"><span class="annottext">Listener -&gt; ListenerOptions
-</span><a href="#local-6989586621679276437"><span class="hs-identifier hs-var">r</span></a></span><span> </span><span class="annot"><span class="annottext">Listener -&gt; ListenerOptions -&gt; Listener
-</span><a href="#local-6989586621679276436"><span class="hs-identifier hs-var">w</span></a></span><span>
+</span><a href="#local-6989586621679182743"><span class="hs-identifier hs-var">r</span></a></span><span> </span><span class="annot"><span class="annottext">Listener -&gt; ListenerOptions -&gt; Listener
+</span><a href="#local-6989586621679182742"><span class="hs-identifier hs-var">w</span></a></span><span>
 </span><span id="line-46"></span><span>  </span><span class="hs-keyword">where</span><span>
-</span><span id="line-47"></span><span>    </span><span id="local-6989586621679276437"><span class="annot"><span class="annottext">r :: Listener -&gt; ListenerOptions
-</span><a href="#local-6989586621679276437"><span class="hs-identifier hs-var hs-var">r</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="MQTTD.Config.html#MQTTListener"><span class="hs-identifier hs-type">MQTTListener</span></a></span><span> </span><span class="hs-identifier">_</span><span> </span><span class="hs-identifier">_</span><span> </span><span id="local-6989586621679276435"><span class="annot"><span class="annottext">o :: ListenerOptions
-</span><a href="#local-6989586621679276435"><span class="hs-identifier hs-var">o</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ListenerOptions
-</span><a href="#local-6989586621679276435"><span class="hs-identifier hs-var">o</span></a></span><span>
-</span><span id="line-48"></span><span>    </span><span class="annot"><a href="#local-6989586621679276437"><span class="hs-identifier hs-var">r</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="MQTTD.Config.html#MQTTSListener"><span class="hs-identifier hs-type">MQTTSListener</span></a></span><span> </span><span class="hs-identifier">_</span><span> </span><span class="hs-identifier">_</span><span> </span><span class="hs-identifier">_</span><span> </span><span class="hs-identifier">_</span><span> </span><span id="local-6989586621679276434"><span class="annot"><span class="annottext">o :: ListenerOptions
-</span><a href="#local-6989586621679276434"><span class="hs-identifier hs-var">o</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ListenerOptions
-</span><a href="#local-6989586621679276434"><span class="hs-identifier hs-var">o</span></a></span><span>
-</span><span id="line-49"></span><span>    </span><span class="annot"><a href="#local-6989586621679276437"><span class="hs-identifier hs-var">r</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="MQTTD.Config.html#WSListener"><span class="hs-identifier hs-type">WSListener</span></a></span><span> </span><span class="hs-identifier">_</span><span> </span><span class="hs-identifier">_</span><span> </span><span id="local-6989586621679276433"><span class="annot"><span class="annottext">o :: ListenerOptions
-</span><a href="#local-6989586621679276433"><span class="hs-identifier hs-var">o</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ListenerOptions
-</span><a href="#local-6989586621679276433"><span class="hs-identifier hs-var">o</span></a></span><span>
-</span><span id="line-50"></span><span>    </span><span id="local-6989586621679276436"><span class="annot"><span class="annottext">w :: Listener -&gt; ListenerOptions -&gt; Listener
-</span><a href="#local-6989586621679276436"><span class="hs-identifier hs-var hs-var">w</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="MQTTD.Config.html#MQTTListener"><span class="hs-identifier hs-type">MQTTListener</span></a></span><span> </span><span id="local-6989586621679276432"><span class="annot"><span class="annottext">a :: HostPreference
-</span><a href="#local-6989586621679276432"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="local-6989586621679276431"><span class="annot"><span class="annottext">b :: Int
-</span><a href="#local-6989586621679276431"><span class="hs-identifier hs-var">b</span></a></span></span><span> </span><span class="hs-identifier">_</span><span class="hs-special">)</span><span> </span><span id="local-6989586621679276430"><span class="annot"><span class="annottext">o :: ListenerOptions
-</span><a href="#local-6989586621679276430"><span class="hs-identifier hs-var">o</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">HostPreference -&gt; Int -&gt; ListenerOptions -&gt; Listener
+</span><span id="line-47"></span><span>    </span><span id="local-6989586621679182743"><span class="annot"><span class="annottext">r :: Listener -&gt; ListenerOptions
+</span><a href="#local-6989586621679182743"><span class="hs-identifier hs-var hs-var">r</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="MQTTD.Config.html#MQTTListener"><span class="hs-identifier hs-type">MQTTListener</span></a></span><span> </span><span class="annot"><span class="annottext">HostPreference
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621679182741"><span class="annot"><span class="annottext">ListenerOptions
+</span><a href="#local-6989586621679182741"><span class="hs-identifier hs-var">o</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ListenerOptions
+</span><a href="#local-6989586621679182741"><span class="hs-identifier hs-var">o</span></a></span><span>
+</span><span id="line-48"></span><span>    </span><span class="annot"><a href="#local-6989586621679182743"><span class="hs-identifier hs-var">r</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="MQTTD.Config.html#MQTTSListener"><span class="hs-identifier hs-type">MQTTSListener</span></a></span><span> </span><span class="annot"><span class="annottext">HostPreference
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621679182740"><span class="annot"><span class="annottext">ListenerOptions
+</span><a href="#local-6989586621679182740"><span class="hs-identifier hs-var">o</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ListenerOptions
+</span><a href="#local-6989586621679182740"><span class="hs-identifier hs-var">o</span></a></span><span>
+</span><span id="line-49"></span><span>    </span><span class="annot"><a href="#local-6989586621679182743"><span class="hs-identifier hs-var">r</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="MQTTD.Config.html#WSListener"><span class="hs-identifier hs-type">WSListener</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621679182739"><span class="annot"><span class="annottext">ListenerOptions
+</span><a href="#local-6989586621679182739"><span class="hs-identifier hs-var">o</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ListenerOptions
+</span><a href="#local-6989586621679182739"><span class="hs-identifier hs-var">o</span></a></span><span>
+</span><span id="line-50"></span><span>    </span><span id="local-6989586621679182742"><span class="annot"><span class="annottext">w :: Listener -&gt; ListenerOptions -&gt; Listener
+</span><a href="#local-6989586621679182742"><span class="hs-identifier hs-var hs-var">w</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="MQTTD.Config.html#MQTTListener"><span class="hs-identifier hs-type">MQTTListener</span></a></span><span> </span><span id="local-6989586621679182738"><span class="annot"><span class="annottext">HostPreference
+</span><a href="#local-6989586621679182738"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="local-6989586621679182737"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679182737"><span class="hs-identifier hs-var">b</span></a></span></span><span> </span><span class="annot"><span class="annottext">ListenerOptions
+</span><span class="hs-identifier">_</span></span><span class="hs-special">)</span><span> </span><span id="local-6989586621679182736"><span class="annot"><span class="annottext">ListenerOptions
+</span><a href="#local-6989586621679182736"><span class="hs-identifier hs-var">o</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">HostPreference -&gt; Int -&gt; ListenerOptions -&gt; Listener
 </span><a href="MQTTD.Config.html#MQTTListener"><span class="hs-identifier hs-var">MQTTListener</span></a></span><span> </span><span class="annot"><span class="annottext">HostPreference
-</span><a href="#local-6989586621679276432"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">Int
-</span><a href="#local-6989586621679276431"><span class="hs-identifier hs-var">b</span></a></span><span> </span><span class="annot"><span class="annottext">ListenerOptions
-</span><a href="#local-6989586621679276430"><span class="hs-identifier hs-var">o</span></a></span><span>
-</span><span id="line-51"></span><span>    </span><span class="annot"><a href="#local-6989586621679276436"><span class="hs-identifier hs-var">w</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="MQTTD.Config.html#MQTTSListener"><span class="hs-identifier hs-type">MQTTSListener</span></a></span><span> </span><span id="local-6989586621679276429"><span class="annot"><span class="annottext">a :: HostPreference
-</span><a href="#local-6989586621679276429"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="local-6989586621679276428"><span class="annot"><span class="annottext">b :: Int
-</span><a href="#local-6989586621679276428"><span class="hs-identifier hs-var">b</span></a></span></span><span> </span><span id="local-6989586621679276427"><span class="annot"><span class="annottext">c :: String
-</span><a href="#local-6989586621679276427"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span id="local-6989586621679276426"><span class="annot"><span class="annottext">d :: String
-</span><a href="#local-6989586621679276426"><span class="hs-identifier hs-var">d</span></a></span></span><span> </span><span class="hs-identifier">_</span><span class="hs-special">)</span><span> </span><span id="local-6989586621679276425"><span class="annot"><span class="annottext">o :: ListenerOptions
-</span><a href="#local-6989586621679276425"><span class="hs-identifier hs-var">o</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">HostPreference
+</span><a href="#local-6989586621679182738"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679182737"><span class="hs-identifier hs-var">b</span></a></span><span> </span><span class="annot"><span class="annottext">ListenerOptions
+</span><a href="#local-6989586621679182736"><span class="hs-identifier hs-var">o</span></a></span><span>
+</span><span id="line-51"></span><span>    </span><span class="annot"><a href="#local-6989586621679182742"><span class="hs-identifier hs-var">w</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="MQTTD.Config.html#MQTTSListener"><span class="hs-identifier hs-type">MQTTSListener</span></a></span><span> </span><span id="local-6989586621679182735"><span class="annot"><span class="annottext">HostPreference
+</span><a href="#local-6989586621679182735"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="local-6989586621679182734"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679182734"><span class="hs-identifier hs-var">b</span></a></span></span><span> </span><span id="local-6989586621679182733"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679182733"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span id="local-6989586621679182732"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679182732"><span class="hs-identifier hs-var">d</span></a></span></span><span> </span><span class="annot"><span class="annottext">ListenerOptions
+</span><span class="hs-identifier">_</span></span><span class="hs-special">)</span><span> </span><span id="local-6989586621679182731"><span class="annot"><span class="annottext">ListenerOptions
+</span><a href="#local-6989586621679182731"><span class="hs-identifier hs-var">o</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">HostPreference
 -&gt; Int -&gt; String -&gt; String -&gt; ListenerOptions -&gt; Listener
 </span><a href="MQTTD.Config.html#MQTTSListener"><span class="hs-identifier hs-var">MQTTSListener</span></a></span><span> </span><span class="annot"><span class="annottext">HostPreference
-</span><a href="#local-6989586621679276429"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">Int
-</span><a href="#local-6989586621679276428"><span class="hs-identifier hs-var">b</span></a></span><span> </span><span class="annot"><span class="annottext">String
-</span><a href="#local-6989586621679276427"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="annot"><span class="annottext">String
-</span><a href="#local-6989586621679276426"><span class="hs-identifier hs-var">d</span></a></span><span> </span><span class="annot"><span class="annottext">ListenerOptions
-</span><a href="#local-6989586621679276425"><span class="hs-identifier hs-var">o</span></a></span><span>
-</span><span id="line-52"></span><span>    </span><span class="annot"><a href="#local-6989586621679276436"><span class="hs-identifier hs-var">w</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="MQTTD.Config.html#WSListener"><span class="hs-identifier hs-type">WSListener</span></a></span><span> </span><span id="local-6989586621679276424"><span class="annot"><span class="annottext">a :: String
-</span><a href="#local-6989586621679276424"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="local-6989586621679276423"><span class="annot"><span class="annottext">b :: Int
-</span><a href="#local-6989586621679276423"><span class="hs-identifier hs-var">b</span></a></span></span><span> </span><span class="hs-identifier">_</span><span class="hs-special">)</span><span> </span><span id="local-6989586621679276422"><span class="annot"><span class="annottext">o :: ListenerOptions
-</span><a href="#local-6989586621679276422"><span class="hs-identifier hs-var">o</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String -&gt; Int -&gt; ListenerOptions -&gt; Listener
+</span><a href="#local-6989586621679182735"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679182734"><span class="hs-identifier hs-var">b</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679182733"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679182732"><span class="hs-identifier hs-var">d</span></a></span><span> </span><span class="annot"><span class="annottext">ListenerOptions
+</span><a href="#local-6989586621679182731"><span class="hs-identifier hs-var">o</span></a></span><span>
+</span><span id="line-52"></span><span>    </span><span class="annot"><a href="#local-6989586621679182742"><span class="hs-identifier hs-var">w</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="MQTTD.Config.html#WSListener"><span class="hs-identifier hs-type">WSListener</span></a></span><span> </span><span id="local-6989586621679182730"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679182730"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="local-6989586621679182729"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679182729"><span class="hs-identifier hs-var">b</span></a></span></span><span> </span><span class="annot"><span class="annottext">ListenerOptions
+</span><span class="hs-identifier">_</span></span><span class="hs-special">)</span><span> </span><span id="local-6989586621679182728"><span class="annot"><span class="annottext">ListenerOptions
+</span><a href="#local-6989586621679182728"><span class="hs-identifier hs-var">o</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String -&gt; Int -&gt; ListenerOptions -&gt; Listener
 </span><a href="MQTTD.Config.html#WSListener"><span class="hs-identifier hs-var">WSListener</span></a></span><span> </span><span class="annot"><span class="annottext">String
-</span><a href="#local-6989586621679276424"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">Int
-</span><a href="#local-6989586621679276423"><span class="hs-identifier hs-var">b</span></a></span><span> </span><span class="annot"><span class="annottext">ListenerOptions
-</span><a href="#local-6989586621679276422"><span class="hs-identifier hs-var">o</span></a></span><span>
+</span><a href="#local-6989586621679182730"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679182729"><span class="hs-identifier hs-var">b</span></a></span><span> </span><span class="annot"><span class="annottext">ListenerOptions
+</span><a href="#local-6989586621679182728"><span class="hs-identifier hs-var">o</span></a></span><span>
 </span><span id="line-53"></span><span>
 </span><span id="line-54"></span><span class="hs-keyword">newtype</span><span> </span><span id="PersistenceConfig"><span class="annot"><a href="MQTTD.Config.html#PersistenceConfig"><span class="hs-identifier hs-var">PersistenceConfig</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="PersistenceConfig"><span class="annot"><a href="MQTTD.Config.html#PersistenceConfig"><span class="hs-identifier hs-var">PersistenceConfig</span></a></span></span><span> </span><span class="hs-special">{</span><span> </span><span id="_persistenceDBPath"><span class="annot"><span class="annottext">PersistenceConfig -&gt; String
-</span><a href="MQTTD.Config.html#_persistenceDBPath"><span class="hs-identifier hs-var hs-var">_persistenceDBPath</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">FilePath</span></span><span> </span><span class="hs-special">}</span><span> </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679276414"><span id="local-6989586621679276416"><span id="local-6989586621679276418"><span class="annot"><span class="annottext">Int -&gt; PersistenceConfig -&gt; ShowS
+</span><a href="MQTTD.Config.html#_persistenceDBPath"><span class="hs-identifier hs-var hs-var">_persistenceDBPath</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">FilePath</span></span><span> </span><span class="hs-special">}</span><span> </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679182720"><span id="local-6989586621679182722"><span id="local-6989586621679182724"><span class="annot"><span class="annottext">Int -&gt; PersistenceConfig -&gt; ShowS
 [PersistenceConfig] -&gt; ShowS
 PersistenceConfig -&gt; String
 (Int -&gt; PersistenceConfig -&gt; ShowS)
@@ -206,7 +217,7 @@ show :: PersistenceConfig -&gt; String
 $cshow :: PersistenceConfig -&gt; String
 showsPrec :: Int -&gt; PersistenceConfig -&gt; ShowS
 $cshowsPrec :: Int -&gt; PersistenceConfig -&gt; ShowS
-</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679276410"><span id="local-6989586621679276412"><span class="annot"><span class="annottext">PersistenceConfig -&gt; PersistenceConfig -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679182716"><span id="local-6989586621679182718"><span class="annot"><span class="annottext">PersistenceConfig -&gt; PersistenceConfig -&gt; Bool
 (PersistenceConfig -&gt; PersistenceConfig -&gt; Bool)
 -&gt; (PersistenceConfig -&gt; PersistenceConfig -&gt; Bool)
 -&gt; Eq PersistenceConfig
@@ -228,7 +239,7 @@ $c== :: PersistenceConfig -&gt; PersistenceConfig -&gt; Bool
 </span><a href="MQTTD.Config.html#_confDefaults"><span class="hs-identifier hs-var hs-var">_confDefaults</span></a></span></span><span>  </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="MQTTD.Config.html#ListenerOptions"><span class="hs-identifier hs-type">ListenerOptions</span></a></span><span class="hs-special">,</span><span>
 </span><span id="line-61"></span><span>  </span><span id="_confPersist"><span class="annot"><span class="annottext">Config -&gt; PersistenceConfig
 </span><a href="MQTTD.Config.html#_confPersist"><span class="hs-identifier hs-var hs-var">_confPersist</span></a></span></span><span>   </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="MQTTD.Config.html#PersistenceConfig"><span class="hs-identifier hs-type">PersistenceConfig</span></a></span><span>
-</span><span id="line-62"></span><span>  </span><span class="hs-special">}</span><span> </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679276398"><span id="local-6989586621679276400"><span id="local-6989586621679276402"><span class="annot"><span class="annottext">Int -&gt; Config -&gt; ShowS
+</span><span id="line-62"></span><span>  </span><span class="hs-special">}</span><span> </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679182704"><span id="local-6989586621679182706"><span id="local-6989586621679182708"><span class="annot"><span class="annottext">Int -&gt; Config -&gt; ShowS
 [Config] -&gt; ShowS
 Config -&gt; String
 (Int -&gt; Config -&gt; ShowS)
@@ -241,7 +252,7 @@ show :: Config -&gt; String
 $cshow :: Config -&gt; String
 showsPrec :: Int -&gt; Config -&gt; ShowS
 $cshowsPrec :: Int -&gt; Config -&gt; ShowS
-</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679276394"><span id="local-6989586621679276396"><span class="annot"><span class="annottext">Config -&gt; Config -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679182700"><span id="local-6989586621679182702"><span class="annot"><span class="annottext">Config -&gt; Config -&gt; Bool
 (Config -&gt; Config -&gt; Bool)
 -&gt; (Config -&gt; Config -&gt; Bool) -&gt; Eq Config
 forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
@@ -256,7 +267,7 @@ $c== :: Config -&gt; Config -&gt; Bool
 </span><span id="line-66"></span><span>             </span><span class="hs-glyph">|</span><span> </span><span id="DefaultsSection"><span class="annot"><a href="MQTTD.Config.html#DefaultsSection"><span class="hs-identifier hs-var">DefaultsSection</span></a></span></span><span> </span><span class="annot"><a href="MQTTD.Config.html#ListenerOptions"><span class="hs-identifier hs-type">ListenerOptions</span></a></span><span>
 </span><span id="line-67"></span><span>             </span><span class="hs-glyph">|</span><span> </span><span id="ListenerSection"><span class="annot"><a href="MQTTD.Config.html#ListenerSection"><span class="hs-identifier hs-var">ListenerSection</span></a></span></span><span> </span><span class="hs-special">[</span><span class="annot"><a href="MQTTD.Config.html#Listener"><span class="hs-identifier hs-type">Listener</span></a></span><span class="hs-special">]</span><span>
 </span><span id="line-68"></span><span>             </span><span class="hs-glyph">|</span><span> </span><span id="PersistenceSection"><span class="annot"><a href="MQTTD.Config.html#PersistenceSection"><span class="hs-identifier hs-var">PersistenceSection</span></a></span></span><span> </span><span class="annot"><a href="MQTTD.Config.html#PersistenceConfig"><span class="hs-identifier hs-type">PersistenceConfig</span></a></span><span>
-</span><span id="line-69"></span><span>             </span><span class="hs-keyword">deriving</span><span> </span><span id="local-6989586621679276383"><span id="local-6989586621679276385"><span id="local-6989586621679276387"><span class="annot"><span class="annottext">Int -&gt; Section -&gt; ShowS
+</span><span id="line-69"></span><span>             </span><span class="hs-keyword">deriving</span><span> </span><span id="local-6989586621679182689"><span id="local-6989586621679182691"><span id="local-6989586621679182693"><span class="annot"><span class="annottext">Int -&gt; Section -&gt; ShowS
 [Section] -&gt; ShowS
 Section -&gt; String
 (Int -&gt; Section -&gt; ShowS)
@@ -285,7 +296,8 @@ m ()
 forall e s (m :: * -&gt; *).
 (MonadParsec e s m, Token s ~ Char) =&gt;
 Tokens s -&gt; m ()
-</span><span class="hs-identifier hs-var">L.skipLineComment</span></span><span> </span><span class="annot"><span class="hs-string">&quot;#&quot;</span></span><span> </span><span class="annot"><span class="annottext">Parser () -&gt; Parser () -&gt; Parser ()
+</span><span class="hs-identifier hs-var">L.skipLineComment</span></span><span> </span><span class="annot"><span class="annottext">Tokens Text
+</span><span class="hs-string">&quot;#&quot;</span></span><span> </span><span class="annot"><span class="annottext">Parser () -&gt; Parser () -&gt; Parser ()
 forall (f :: * -&gt; *) a b. Applicative f =&gt; f a -&gt; f b -&gt; f a
 </span><span class="hs-operator hs-var">&lt;*</span></span><span> </span><span class="annot"><span class="annottext">Parser ()
 forall e s (m :: * -&gt; *).
@@ -295,16 +307,18 @@ m ()
 forall e s (m :: * -&gt; *).
 (MonadParsec e s m, Token s ~ Char) =&gt;
 Tokens s -&gt; Tokens s -&gt; m ()
-</span><span class="hs-identifier hs-var">L.skipBlockComment</span></span><span> </span><span class="annot"><span class="hs-string">&quot;/*&quot;</span></span><span> </span><span class="annot"><span class="hs-string">&quot;*/&quot;</span></span><span class="hs-special">)</span><span>
+</span><span class="hs-identifier hs-var">L.skipBlockComment</span></span><span> </span><span class="annot"><span class="annottext">Tokens Text
+</span><span class="hs-string">&quot;/*&quot;</span></span><span> </span><span class="annot"><span class="annottext">Tokens Text
+</span><span class="hs-string">&quot;*/&quot;</span></span><span class="hs-special">)</span><span>
 </span><span id="line-73"></span><span>
-</span><span id="line-74"></span><span id="local-6989586621679276581"><span class="annot"><a href="MQTTD.Config.html#sc%27"><span class="hs-identifier hs-type">sc'</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="MQTTD.Config.html#Parser"><span class="hs-identifier hs-type">Parser</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679276581"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="MQTTD.Config.html#Parser"><span class="hs-identifier hs-type">Parser</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679276581"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-74"></span><span id="local-6989586621679182683"><span class="annot"><a href="MQTTD.Config.html#sc%27"><span class="hs-identifier hs-type">sc'</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="MQTTD.Config.html#Parser"><span class="hs-identifier hs-type">Parser</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679182683"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="MQTTD.Config.html#Parser"><span class="hs-identifier hs-type">Parser</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679182683"><span class="hs-identifier hs-type">a</span></a></span></span><span>
 </span><span id="line-75"></span><span id="sc%27"><span class="annot"><span class="annottext">sc' :: Parser a -&gt; Parser a
 </span><a href="MQTTD.Config.html#sc%27"><span class="hs-identifier hs-var hs-var">sc'</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Parser ()
 </span><a href="MQTTD.Config.html#sc"><span class="hs-identifier hs-var">sc</span></a></span><span> </span><span class="annot"><span class="annottext">Parser () -&gt; Parser a -&gt; Parser a
 forall (f :: * -&gt; *) a b. Applicative f =&gt; f a -&gt; f b -&gt; f b
 </span><span class="hs-operator hs-var">*&gt;</span></span><span class="hs-special">)</span><span>
 </span><span id="line-76"></span><span>
-</span><span id="line-77"></span><span id="local-6989586621679276376"><span class="annot"><a href="MQTTD.Config.html#lexeme"><span class="hs-identifier hs-type">lexeme</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="MQTTD.Config.html#Parser"><span class="hs-identifier hs-type">Parser</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679276376"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="MQTTD.Config.html#Parser"><span class="hs-identifier hs-type">Parser</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679276376"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-77"></span><span id="local-6989586621679182896"><span class="annot"><a href="MQTTD.Config.html#lexeme"><span class="hs-identifier hs-type">lexeme</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="MQTTD.Config.html#Parser"><span class="hs-identifier hs-type">Parser</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679182896"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="MQTTD.Config.html#Parser"><span class="hs-identifier hs-type">Parser</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679182896"><span class="hs-identifier hs-type">a</span></a></span></span><span>
 </span><span id="line-78"></span><span id="lexeme"><span class="annot"><span class="annottext">lexeme :: Parser a -&gt; Parser a
 </span><a href="MQTTD.Config.html#lexeme"><span class="hs-identifier hs-var hs-var">lexeme</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Parser () -&gt; Parser a -&gt; Parser a
 forall e s (m :: * -&gt; *) a. MonadParsec e s m =&gt; m () -&gt; m a -&gt; m a
@@ -323,15 +337,16 @@ m () -&gt; Tokens s -&gt; m (Tokens s)
 </span><span id="line-82"></span><span>
 </span><span id="line-83"></span><span class="annot"><a href="MQTTD.Config.html#symbeq"><span class="hs-identifier hs-type">symbeq</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Text</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="MQTTD.Config.html#Parser"><span class="hs-identifier hs-type">Parser</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Text</span></span><span>
 </span><span id="line-84"></span><span id="symbeq"><span class="annot"><span class="annottext">symbeq :: Text -&gt; Parser Text
-</span><a href="MQTTD.Config.html#symbeq"><span class="hs-identifier hs-var hs-var">symbeq</span></a></span></span><span> </span><span id="local-6989586621679276370"><span class="annot"><span class="annottext">x :: Text
-</span><a href="#local-6989586621679276370"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Text -&gt; Parser Text
+</span><a href="MQTTD.Config.html#symbeq"><span class="hs-identifier hs-var hs-var">symbeq</span></a></span></span><span> </span><span id="local-6989586621679182676"><span class="annot"><span class="annottext">Text
+</span><a href="#local-6989586621679182676"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Text -&gt; Parser Text
 </span><a href="MQTTD.Config.html#symbol"><span class="hs-identifier hs-var">symbol</span></a></span><span> </span><span class="annot"><span class="annottext">Text
-</span><a href="#local-6989586621679276370"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">Parser Text -&gt; Parser Text -&gt; Parser Text
+</span><a href="#local-6989586621679182676"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">Parser Text -&gt; Parser Text -&gt; Parser Text
 forall (f :: * -&gt; *) a b. Applicative f =&gt; f a -&gt; f b -&gt; f a
 </span><span class="hs-operator hs-var">&lt;*</span></span><span> </span><span class="annot"><span class="annottext">Text -&gt; Parser Text
-</span><a href="MQTTD.Config.html#symbol"><span class="hs-identifier hs-var">symbol</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;=&quot;</span></span><span>
+</span><a href="MQTTD.Config.html#symbol"><span class="hs-identifier hs-var">symbol</span></a></span><span> </span><span class="annot"><span class="annottext">Text
+</span><span class="hs-string">&quot;=&quot;</span></span><span>
 </span><span id="line-85"></span><span>
-</span><span id="line-86"></span><span id="local-6989586621679276574"><span class="annot"><a href="MQTTD.Config.html#qstr"><span class="hs-identifier hs-type">qstr</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IsString</span></span><span> </span><span class="annot"><a href="#local-6989586621679276574"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="MQTTD.Config.html#Parser"><span class="hs-identifier hs-type">Parser</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679276574"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-86"></span><span id="local-6989586621679182881"><span class="annot"><a href="MQTTD.Config.html#qstr"><span class="hs-identifier hs-type">qstr</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IsString</span></span><span> </span><span class="annot"><a href="#local-6989586621679182881"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="MQTTD.Config.html#Parser"><span class="hs-identifier hs-type">Parser</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679182881"><span class="hs-identifier hs-type">a</span></a></span></span><span>
 </span><span id="line-87"></span><span id="qstr"><span class="annot"><span class="annottext">qstr :: Parser a
 </span><a href="MQTTD.Config.html#qstr"><span class="hs-identifier hs-var hs-var">qstr</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String -&gt; a
 forall a. IsString a =&gt; String -&gt; a
@@ -341,7 +356,8 @@ forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
 forall e s (m :: * -&gt; *).
 (MonadParsec e s m, Token s ~ Char) =&gt;
 Token s -&gt; m (Token s)
-</span><span class="hs-identifier hs-var">char</span></span><span> </span><span class="annot"><span class="annottext">Token Text
+</span><span class="hs-identifier hs-var">char</span></span><span> </span><span class="annot"><span class="annottext">Char
+Token Text
 </span><span class="hs-char">'&quot;'</span></span><span> </span><span class="annot"><span class="annottext">ParsecT Void Text Identity Char
 -&gt; ParsecT Void Text Identity String
 -&gt; ParsecT Void Text Identity String
@@ -358,13 +374,16 @@ m Char
 forall e s (m :: * -&gt; *).
 (MonadParsec e s m, Token s ~ Char) =&gt;
 Token s -&gt; m (Token s)
-</span><span class="hs-identifier hs-var">char</span></span><span> </span><span class="annot"><span class="annottext">Token Text
+</span><span class="hs-identifier hs-var">char</span></span><span> </span><span class="annot"><span class="annottext">Char
+Token Text
 </span><span class="hs-char">'&quot;'</span></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
 </span><span id="line-88"></span><span>
 </span><span id="line-89"></span><span class="annot"><a href="MQTTD.Config.html#parseListener"><span class="hs-identifier hs-type">parseListener</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="MQTTD.Config.html#Parser"><span class="hs-identifier hs-type">Parser</span></a></span><span> </span><span class="annot"><a href="MQTTD.Config.html#Listener"><span class="hs-identifier hs-type">Listener</span></a></span><span>
 </span><span id="line-90"></span><span id="parseListener"><span class="annot"><span class="annottext">parseListener :: Parser Listener
-</span><a href="MQTTD.Config.html#parseListener"><span class="hs-identifier hs-var hs-var">parseListener</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Text -&gt; Parser Text
-</span><a href="MQTTD.Config.html#symbol"><span class="hs-identifier hs-var">symbol</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;listener&quot;</span></span><span> </span><span class="annot"><span class="annottext">Parser Text
+</span><a href="MQTTD.Config.html#parseListener"><span class="hs-identifier hs-var hs-var">parseListener</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Parser Text -&gt; Parser Text
+forall a. Parser a -&gt; Parser a
+</span><a href="MQTTD.Config.html#lexeme"><span class="hs-identifier hs-var">lexeme</span></a></span><span> </span><span class="annot"><span class="annottext">Parser Text
+</span><span class="hs-string">&quot;listener&quot;</span></span><span> </span><span class="annot"><span class="annottext">Parser Text
 -&gt; ParsecT Void Text Identity (ListenerOptions -&gt; Listener)
 -&gt; ParsecT Void Text Identity (ListenerOptions -&gt; Listener)
 forall (f :: * -&gt; *) a b. Applicative f =&gt; f a -&gt; f b -&gt; f b
@@ -399,17 +418,19 @@ forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
 -&gt; ParsecT Void Text Identity (ListenerOptions -&gt; Listener)
 forall e s (m :: * -&gt; *) a. MonadParsec e s m =&gt; m a -&gt; m a
 </span><span class="hs-identifier hs-var">try</span></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">ParsecT Void Text Identity (ListenerOptions -&gt; Listener)
-</span><a href="#local-6989586621679276364"><span class="hs-identifier hs-var">mqtt</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">ParsecT Void Text Identity (ListenerOptions -&gt; Listener)
-</span><a href="#local-6989586621679276363"><span class="hs-identifier hs-var">mqtts</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">ParsecT Void Text Identity (ListenerOptions -&gt; Listener)
-</span><a href="#local-6989586621679276362"><span class="hs-identifier hs-var">ws</span></a></span><span class="hs-special">]</span><span> </span><span class="annot"><span class="annottext">ParsecT Void Text Identity (ListenerOptions -&gt; Listener)
+</span><a href="#local-6989586621679182670"><span class="hs-identifier hs-var">mqtt</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">ParsecT Void Text Identity (ListenerOptions -&gt; Listener)
+</span><a href="#local-6989586621679182669"><span class="hs-identifier hs-var">mqtts</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">ParsecT Void Text Identity (ListenerOptions -&gt; Listener)
+</span><a href="#local-6989586621679182668"><span class="hs-identifier hs-var">ws</span></a></span><span class="hs-special">]</span><span> </span><span class="annot"><span class="annottext">ParsecT Void Text Identity (ListenerOptions -&gt; Listener)
 -&gt; ParsecT Void Text Identity ListenerOptions -&gt; Parser Listener
 forall (f :: * -&gt; *) a b. Applicative f =&gt; f (a -&gt; b) -&gt; f a -&gt; f b
 </span><span class="hs-operator hs-var">&lt;*&gt;</span></span><span> </span><span class="annot"><span class="annottext">ParsecT Void Text Identity ListenerOptions
-</span><a href="#local-6989586621679276361"><span class="hs-identifier hs-var">o</span></a></span><span>
+</span><a href="#local-6989586621679182667"><span class="hs-identifier hs-var">o</span></a></span><span>
 </span><span id="line-91"></span><span>  </span><span class="hs-keyword">where</span><span>
-</span><span id="line-92"></span><span>    </span><span id="local-6989586621679276364"><span class="annot"><span class="annottext">mqtt :: ParsecT Void Text Identity (ListenerOptions -&gt; Listener)
-</span><a href="#local-6989586621679276364"><span class="hs-identifier hs-var hs-var">mqtt</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>  </span><span class="annot"><span class="annottext">Text -&gt; Parser Text
-</span><a href="MQTTD.Config.html#symbol"><span class="hs-identifier hs-var">symbol</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;mqtt&quot;</span></span><span>  </span><span class="annot"><span class="annottext">Parser Text
+</span><span id="line-92"></span><span>    </span><span id="local-6989586621679182670"><span class="annot"><span class="annottext">mqtt :: ParsecT Void Text Identity (ListenerOptions -&gt; Listener)
+</span><a href="#local-6989586621679182670"><span class="hs-identifier hs-var hs-var">mqtt</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>  </span><span class="annot"><span class="annottext">Parser Text -&gt; Parser Text
+forall a. Parser a -&gt; Parser a
+</span><a href="MQTTD.Config.html#lexeme"><span class="hs-identifier hs-var">lexeme</span></a></span><span> </span><span class="annot"><span class="annottext">Parser Text
+</span><span class="hs-string">&quot;mqtt&quot;</span></span><span>  </span><span class="annot"><span class="annottext">Parser Text
 -&gt; ParsecT Void Text Identity (ListenerOptions -&gt; Listener)
 -&gt; ParsecT Void Text Identity (ListenerOptions -&gt; Listener)
 forall (f :: * -&gt; *) a b. Applicative f =&gt; f a -&gt; f b -&gt; f b
@@ -434,9 +455,11 @@ forall e s (m :: * -&gt; *) a.
 (MonadParsec e s m, Token s ~ Char, Num a) =&gt;
 m a
 </span><span class="hs-identifier hs-var">L.decimal</span></span><span class="hs-special">)</span><span>
-</span><span id="line-93"></span><span>    </span><span id="local-6989586621679276363"><span class="annot"><span class="annottext">mqtts :: ParsecT Void Text Identity (ListenerOptions -&gt; Listener)
-</span><a href="#local-6989586621679276363"><span class="hs-identifier hs-var hs-var">mqtts</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Text -&gt; Parser Text
-</span><a href="MQTTD.Config.html#symbol"><span class="hs-identifier hs-var">symbol</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;mqtts&quot;</span></span><span> </span><span class="annot"><span class="annottext">Parser Text
+</span><span id="line-93"></span><span>    </span><span id="local-6989586621679182669"><span class="annot"><span class="annottext">mqtts :: ParsecT Void Text Identity (ListenerOptions -&gt; Listener)
+</span><a href="#local-6989586621679182669"><span class="hs-identifier hs-var hs-var">mqtts</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Parser Text -&gt; Parser Text
+forall a. Parser a -&gt; Parser a
+</span><a href="MQTTD.Config.html#lexeme"><span class="hs-identifier hs-var">lexeme</span></a></span><span> </span><span class="annot"><span class="annottext">Parser Text
+</span><span class="hs-string">&quot;mqtts&quot;</span></span><span> </span><span class="annot"><span class="annottext">Parser Text
 -&gt; ParsecT Void Text Identity (ListenerOptions -&gt; Listener)
 -&gt; ParsecT Void Text Identity (ListenerOptions -&gt; Listener)
 forall (f :: * -&gt; *) a b. Applicative f =&gt; f a -&gt; f b -&gt; f b
@@ -498,9 +521,11 @@ forall a. Parser a -&gt; Parser a
 </span><a href="MQTTD.Config.html#lexeme"><span class="hs-identifier hs-var">lexeme</span></a></span><span> </span><span class="annot"><span class="annottext">ParsecT Void Text Identity String
 forall a. IsString a =&gt; Parser a
 </span><a href="MQTTD.Config.html#qstr"><span class="hs-identifier hs-var">qstr</span></a></span><span class="hs-special">)</span><span>
-</span><span id="line-94"></span><span>    </span><span id="local-6989586621679276362"><span class="annot"><span class="annottext">ws :: ParsecT Void Text Identity (ListenerOptions -&gt; Listener)
-</span><a href="#local-6989586621679276362"><span class="hs-identifier hs-var hs-var">ws</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>    </span><span class="annot"><span class="annottext">Text -&gt; Parser Text
-</span><a href="MQTTD.Config.html#symbol"><span class="hs-identifier hs-var">symbol</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;ws&quot;</span></span><span>    </span><span class="annot"><span class="annottext">Parser Text
+</span><span id="line-94"></span><span>    </span><span id="local-6989586621679182668"><span class="annot"><span class="annottext">ws :: ParsecT Void Text Identity (ListenerOptions -&gt; Listener)
+</span><a href="#local-6989586621679182668"><span class="hs-identifier hs-var hs-var">ws</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>    </span><span class="annot"><span class="annottext">Parser Text -&gt; Parser Text
+forall a. Parser a -&gt; Parser a
+</span><a href="MQTTD.Config.html#lexeme"><span class="hs-identifier hs-var">lexeme</span></a></span><span> </span><span class="annot"><span class="annottext">Parser Text
+</span><span class="hs-string">&quot;ws&quot;</span></span><span>    </span><span class="annot"><span class="annottext">Parser Text
 -&gt; ParsecT Void Text Identity (ListenerOptions -&gt; Listener)
 -&gt; ParsecT Void Text Identity (ListenerOptions -&gt; Listener)
 forall (f :: * -&gt; *) a b. Applicative f =&gt; f a -&gt; f b -&gt; f b
@@ -526,8 +551,8 @@ forall e s (m :: * -&gt; *) a.
 m a
 </span><span class="hs-identifier hs-var">L.decimal</span></span><span class="hs-special">)</span><span>
 </span><span id="line-95"></span><span>
-</span><span id="line-96"></span><span>    </span><span id="local-6989586621679276361"><span class="annot"><span class="annottext">o :: ParsecT Void Text Identity ListenerOptions
-</span><a href="#local-6989586621679276361"><span class="hs-identifier hs-var hs-var">o</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ListenerOptions
+</span><span id="line-96"></span><span>    </span><span id="local-6989586621679182667"><span class="annot"><span class="annottext">o :: ParsecT Void Text Identity ListenerOptions
+</span><a href="#local-6989586621679182667"><span class="hs-identifier hs-var hs-var">o</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ListenerOptions
 -&gt; ParsecT Void Text Identity ListenerOptions
 -&gt; ParsecT Void Text Identity ListenerOptions
 forall (m :: * -&gt; *) a. Alternative m =&gt; a -&gt; m a -&gt; m a
@@ -546,8 +571,10 @@ forall a. Parser a -&gt; Parser a
 -&gt; ParsecT Void Text Identity ByteString
 -&gt; ParsecT Void Text Identity (ByteString -&gt; [ACL] -&gt; User)
 forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
-</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Text -&gt; Parser Text
-</span><a href="MQTTD.Config.html#symbol"><span class="hs-identifier hs-var">symbol</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;user&quot;</span></span><span> </span><span class="annot"><span class="annottext">Parser Text
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Parser Text -&gt; Parser Text
+forall a. Parser a -&gt; Parser a
+</span><a href="MQTTD.Config.html#lexeme"><span class="hs-identifier hs-var">lexeme</span></a></span><span> </span><span class="annot"><span class="annottext">Parser Text
+</span><span class="hs-string">&quot;user&quot;</span></span><span> </span><span class="annot"><span class="annottext">Parser Text
 -&gt; ParsecT Void Text Identity ByteString
 -&gt; ParsecT Void Text Identity ByteString
 forall (f :: * -&gt; *) a b. Applicative f =&gt; f a -&gt; f b -&gt; f b
@@ -560,8 +587,10 @@ forall a. IsString a =&gt; Parser a
 -&gt; ParsecT Void Text Identity ByteString
 -&gt; ParsecT Void Text Identity ([ACL] -&gt; User)
 forall (f :: * -&gt; *) a b. Applicative f =&gt; f (a -&gt; b) -&gt; f a -&gt; f b
-</span><span class="hs-operator hs-var">&lt;*&gt;</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Text -&gt; Parser Text
-</span><a href="MQTTD.Config.html#symbol"><span class="hs-identifier hs-var">symbol</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;password&quot;</span></span><span> </span><span class="annot"><span class="annottext">Parser Text
+</span><span class="hs-operator hs-var">&lt;*&gt;</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Parser Text -&gt; Parser Text
+forall a. Parser a -&gt; Parser a
+</span><a href="MQTTD.Config.html#lexeme"><span class="hs-identifier hs-var">lexeme</span></a></span><span> </span><span class="annot"><span class="annottext">Parser Text
+</span><span class="hs-string">&quot;password&quot;</span></span><span> </span><span class="annot"><span class="annottext">Parser Text
 -&gt; ParsecT Void Text Identity ByteString
 -&gt; ParsecT Void Text Identity ByteString
 forall (f :: * -&gt; *) a b. Applicative f =&gt; f a -&gt; f b -&gt; f b
@@ -582,10 +611,12 @@ forall (m :: * -&gt; *) a. Alternative m =&gt; a -&gt; m a -&gt; m a
 -&gt; ParsecT Void Text Identity [ACL]
 forall a. Parser a -&gt; Parser a
 </span><a href="MQTTD.Config.html#lexeme"><span class="hs-identifier hs-var">lexeme</span></a></span><span> </span><span class="annot"><span class="annottext">ParsecT Void Text Identity [ACL]
-</span><a href="#local-6989586621679276357"><span class="hs-identifier hs-var">parseACL</span></a></span><span class="hs-special">)</span><span>
-</span><span id="line-101"></span><span>  </span><span class="hs-keyword">where</span><span> </span><span id="local-6989586621679276357"><span class="annot"><span class="annottext">parseACL :: ParsecT Void Text Identity [ACL]
-</span><a href="#local-6989586621679276357"><span class="hs-identifier hs-var hs-var">parseACL</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Text -&gt; Parser Text
-</span><a href="MQTTD.Config.html#symbol"><span class="hs-identifier hs-var">symbol</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;acls&quot;</span></span><span> </span><span class="annot"><span class="annottext">Parser Text
+</span><a href="#local-6989586621679182663"><span class="hs-identifier hs-var">parseACL</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-101"></span><span>  </span><span class="hs-keyword">where</span><span> </span><span id="local-6989586621679182663"><span class="annot"><span class="annottext">parseACL :: ParsecT Void Text Identity [ACL]
+</span><a href="#local-6989586621679182663"><span class="hs-identifier hs-var hs-var">parseACL</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Parser Text -&gt; Parser Text
+forall a. Parser a -&gt; Parser a
+</span><a href="MQTTD.Config.html#lexeme"><span class="hs-identifier hs-var">lexeme</span></a></span><span> </span><span class="annot"><span class="annottext">Parser Text
+</span><span class="hs-string">&quot;acls&quot;</span></span><span> </span><span class="annot"><span class="annottext">Parser Text
 -&gt; ParsecT Void Text Identity [ACL]
 -&gt; ParsecT Void Text Identity [ACL]
 forall (f :: * -&gt; *) a b. Applicative f =&gt; f a -&gt; f b -&gt; f b
@@ -596,20 +627,24 @@ forall (f :: * -&gt; *) a b. Applicative f =&gt; f a -&gt; f b -&gt; f b
 forall (m :: * -&gt; *) open close a.
 Applicative m =&gt;
 m open -&gt; m close -&gt; m a -&gt; m a
-</span><span class="hs-identifier hs-var">between</span></span><span> </span><span class="annot"><span class="hs-string">&quot;[&quot;</span></span><span> </span><span class="annot"><span class="hs-string">&quot;]&quot;</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">ParsecT Void Text Identity ACL -&gt; ParsecT Void Text Identity [ACL]
+</span><span class="hs-identifier hs-var">between</span></span><span> </span><span class="annot"><span class="annottext">Parser Text
+</span><span class="hs-string">&quot;[&quot;</span></span><span> </span><span class="annot"><span class="annottext">Parser Text
+</span><span class="hs-string">&quot;]&quot;</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">ParsecT Void Text Identity ACL -&gt; ParsecT Void Text Identity [ACL]
 forall (m :: * -&gt; *) a. MonadPlus m =&gt; m a -&gt; m [a]
 </span><span class="hs-identifier hs-var">some</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">ParsecT Void Text Identity ACL -&gt; ParsecT Void Text Identity ACL
 forall a. Parser a -&gt; Parser a
 </span><a href="MQTTD.Config.html#sc%27"><span class="hs-identifier hs-var">sc'</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">ParsecT Void Text Identity ACL -&gt; ParsecT Void Text Identity ACL
 forall a. Parser a -&gt; Parser a
 </span><a href="MQTTD.Config.html#lexeme"><span class="hs-identifier hs-var">lexeme</span></a></span><span> </span><span class="annot"><span class="annottext">ParsecT Void Text Identity ACL
-</span><a href="#local-6989586621679276356"><span class="hs-identifier hs-var">aclEntry</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
-</span><span id="line-102"></span><span>        </span><span id="local-6989586621679276356"><span class="annot"><span class="annottext">aclEntry :: ParsecT Void Text Identity ACL
-</span><a href="#local-6989586621679276356"><span class="hs-identifier hs-var hs-var">aclEntry</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Text -&gt; ACL
+</span><a href="#local-6989586621679182662"><span class="hs-identifier hs-var">aclEntry</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-102"></span><span>        </span><span id="local-6989586621679182662"><span class="annot"><span class="annottext">aclEntry :: ParsecT Void Text Identity ACL
+</span><a href="#local-6989586621679182662"><span class="hs-identifier hs-var hs-var">aclEntry</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Text -&gt; ACL
 </span><a href="MQTTD.Config.html#Allow"><span class="hs-identifier hs-var">Allow</span></a></span><span> </span><span class="annot"><span class="annottext">(Text -&gt; ACL) -&gt; Parser Text -&gt; ParsecT Void Text Identity ACL
 forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
-</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Text -&gt; Parser Text
-</span><a href="MQTTD.Config.html#symbol"><span class="hs-identifier hs-var">symbol</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;allow&quot;</span></span><span> </span><span class="annot"><span class="annottext">Parser Text -&gt; Parser Text -&gt; Parser Text
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Parser Text -&gt; Parser Text
+forall a. Parser a -&gt; Parser a
+</span><a href="MQTTD.Config.html#lexeme"><span class="hs-identifier hs-var">lexeme</span></a></span><span> </span><span class="annot"><span class="annottext">Parser Text
+</span><span class="hs-string">&quot;allow&quot;</span></span><span> </span><span class="annot"><span class="annottext">Parser Text -&gt; Parser Text -&gt; Parser Text
 forall (f :: * -&gt; *) a b. Applicative f =&gt; f a -&gt; f b -&gt; f b
 </span><span class="hs-operator hs-var">*&gt;</span></span><span> </span><span class="annot"><span class="annottext">Parser Text -&gt; Parser Text
 forall a. Parser a -&gt; Parser a
@@ -622,8 +657,10 @@ forall (f :: * -&gt; *) a. Alternative f =&gt; f a -&gt; f a -&gt; f a
 </span><span class="hs-operator hs-var">&lt;|&gt;</span></span><span> </span><span class="annot"><span class="annottext">Text -&gt; ACL
 </span><a href="MQTTD.Config.html#Deny"><span class="hs-identifier hs-var">Deny</span></a></span><span> </span><span class="annot"><span class="annottext">(Text -&gt; ACL) -&gt; Parser Text -&gt; ParsecT Void Text Identity ACL
 forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
-</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Text -&gt; Parser Text
-</span><a href="MQTTD.Config.html#symbol"><span class="hs-identifier hs-var">symbol</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;deny&quot;</span></span><span> </span><span class="annot"><span class="annottext">Parser Text -&gt; Parser Text -&gt; Parser Text
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Parser Text -&gt; Parser Text
+forall a. Parser a -&gt; Parser a
+</span><a href="MQTTD.Config.html#lexeme"><span class="hs-identifier hs-var">lexeme</span></a></span><span> </span><span class="annot"><span class="annottext">Parser Text
+</span><span class="hs-string">&quot;deny&quot;</span></span><span> </span><span class="annot"><span class="annottext">Parser Text -&gt; Parser Text -&gt; Parser Text
 forall (f :: * -&gt; *) a b. Applicative f =&gt; f a -&gt; f b -&gt; f b
 </span><span class="hs-operator hs-var">*&gt;</span></span><span> </span><span class="annot"><span class="annottext">Parser Text -&gt; Parser Text
 forall a. Parser a -&gt; Parser a
@@ -631,20 +668,22 @@ forall a. Parser a -&gt; Parser a
 forall a. IsString a =&gt; Parser a
 </span><a href="MQTTD.Config.html#qstr"><span class="hs-identifier hs-var">qstr</span></a></span><span class="hs-special">)</span><span>
 </span><span id="line-104"></span><span>
-</span><span id="line-105"></span><span id="local-6989586621679276555"><span class="annot"><a href="MQTTD.Config.html#namedList"><span class="hs-identifier hs-type">namedList</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Text</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="MQTTD.Config.html#Parser"><span class="hs-identifier hs-type">Parser</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679276555"><span class="hs-identifier hs-type">p</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="MQTTD.Config.html#Parser"><span class="hs-identifier hs-type">Parser</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679276555"><span class="hs-identifier hs-type">p</span></a></span><span class="hs-special">]</span></span><span>
+</span><span id="line-105"></span><span id="local-6989586621679182862"><span class="annot"><a href="MQTTD.Config.html#namedList"><span class="hs-identifier hs-type">namedList</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Text</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="MQTTD.Config.html#Parser"><span class="hs-identifier hs-type">Parser</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679182862"><span class="hs-identifier hs-type">p</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="MQTTD.Config.html#Parser"><span class="hs-identifier hs-type">Parser</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679182862"><span class="hs-identifier hs-type">p</span></a></span><span class="hs-special">]</span></span><span>
 </span><span id="line-106"></span><span id="namedList"><span class="annot"><span class="annottext">namedList :: Text -&gt; Parser p -&gt; Parser [p]
-</span><a href="MQTTD.Config.html#namedList"><span class="hs-identifier hs-var hs-var">namedList</span></a></span></span><span> </span><span id="local-6989586621679276354"><span class="annot"><span class="annottext">s :: Text
-</span><a href="#local-6989586621679276354"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span id="local-6989586621679276353"><span class="annot"><span class="annottext">p :: Parser p
-</span><a href="#local-6989586621679276353"><span class="hs-identifier hs-var">p</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Text -&gt; Parser [p] -&gt; Parser [p]
+</span><a href="MQTTD.Config.html#namedList"><span class="hs-identifier hs-var hs-var">namedList</span></a></span></span><span> </span><span id="local-6989586621679182660"><span class="annot"><span class="annottext">Text
+</span><a href="#local-6989586621679182660"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span id="local-6989586621679182659"><span class="annot"><span class="annottext">Parser p
+</span><a href="#local-6989586621679182659"><span class="hs-identifier hs-var">p</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Text -&gt; Parser [p] -&gt; Parser [p]
 forall p. Text -&gt; Parser p -&gt; Parser p
 </span><a href="MQTTD.Config.html#namedValue"><span class="hs-identifier hs-var">namedValue</span></a></span><span> </span><span class="annot"><span class="annottext">Text
-</span><a href="#local-6989586621679276354"><span class="hs-identifier hs-var">s</span></a></span><span> </span><span class="annot"><span class="annottext">(Parser [p] -&gt; Parser [p]) -&gt; Parser [p] -&gt; Parser [p]
+</span><a href="#local-6989586621679182660"><span class="hs-identifier hs-var">s</span></a></span><span> </span><span class="annot"><span class="annottext">(Parser [p] -&gt; Parser [p]) -&gt; Parser [p] -&gt; Parser [p]
 forall a b. (a -&gt; b) -&gt; a -&gt; b
 </span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Parser Text -&gt; Parser Text -&gt; Parser [p] -&gt; Parser [p]
 forall (m :: * -&gt; *) open close a.
 Applicative m =&gt;
 m open -&gt; m close -&gt; m a -&gt; m a
-</span><span class="hs-identifier hs-var">between</span></span><span> </span><span class="annot"><span class="hs-string">&quot;[&quot;</span></span><span> </span><span class="annot"><span class="hs-string">&quot;]&quot;</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Parser p -&gt; Parser [p]
+</span><span class="hs-identifier hs-var">between</span></span><span> </span><span class="annot"><span class="annottext">Parser Text
+</span><span class="hs-string">&quot;[&quot;</span></span><span> </span><span class="annot"><span class="annottext">Parser Text
+</span><span class="hs-string">&quot;]&quot;</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Parser p -&gt; Parser [p]
 forall (m :: * -&gt; *) a. MonadPlus m =&gt; m a -&gt; m [a]
 </span><span class="hs-identifier hs-var">some</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Parser ()
 </span><a href="MQTTD.Config.html#sc"><span class="hs-identifier hs-var">sc</span></a></span><span> </span><span class="annot"><span class="annottext">Parser () -&gt; Parser p -&gt; Parser p
@@ -652,20 +691,20 @@ forall (f :: * -&gt; *) a b. Applicative f =&gt; f a -&gt; f b -&gt; f b
 </span><span class="hs-operator hs-var">*&gt;</span></span><span> </span><span class="annot"><span class="annottext">Parser p -&gt; Parser p
 forall a. Parser a -&gt; Parser a
 </span><a href="MQTTD.Config.html#lexeme"><span class="hs-identifier hs-var">lexeme</span></a></span><span> </span><span class="annot"><span class="annottext">Parser p
-</span><a href="#local-6989586621679276353"><span class="hs-identifier hs-var">p</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><a href="#local-6989586621679182659"><span class="hs-identifier hs-var">p</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
 </span><span id="line-107"></span><span>
-</span><span id="line-108"></span><span id="local-6989586621679276560"><span class="annot"><a href="MQTTD.Config.html#namedValue"><span class="hs-identifier hs-type">namedValue</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Text</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="MQTTD.Config.html#Parser"><span class="hs-identifier hs-type">Parser</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679276560"><span class="hs-identifier hs-type">p</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="MQTTD.Config.html#Parser"><span class="hs-identifier hs-type">Parser</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679276560"><span class="hs-identifier hs-type">p</span></a></span></span><span>
+</span><span id="line-108"></span><span id="local-6989586621679182867"><span class="annot"><a href="MQTTD.Config.html#namedValue"><span class="hs-identifier hs-type">namedValue</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Text</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="MQTTD.Config.html#Parser"><span class="hs-identifier hs-type">Parser</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679182867"><span class="hs-identifier hs-type">p</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="MQTTD.Config.html#Parser"><span class="hs-identifier hs-type">Parser</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679182867"><span class="hs-identifier hs-type">p</span></a></span></span><span>
 </span><span id="line-109"></span><span id="namedValue"><span class="annot"><span class="annottext">namedValue :: Text -&gt; Parser p -&gt; Parser p
-</span><a href="MQTTD.Config.html#namedValue"><span class="hs-identifier hs-var hs-var">namedValue</span></a></span></span><span> </span><span id="local-6989586621679276351"><span class="annot"><span class="annottext">s :: Text
-</span><a href="#local-6989586621679276351"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span id="local-6989586621679276350"><span class="annot"><span class="annottext">p :: Parser p
-</span><a href="#local-6989586621679276350"><span class="hs-identifier hs-var">p</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Text -&gt; Parser Text
+</span><a href="MQTTD.Config.html#namedValue"><span class="hs-identifier hs-var hs-var">namedValue</span></a></span></span><span> </span><span id="local-6989586621679182657"><span class="annot"><span class="annottext">Text
+</span><a href="#local-6989586621679182657"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span id="local-6989586621679182656"><span class="annot"><span class="annottext">Parser p
+</span><a href="#local-6989586621679182656"><span class="hs-identifier hs-var">p</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Text -&gt; Parser Text
 </span><a href="MQTTD.Config.html#symbeq"><span class="hs-identifier hs-var">symbeq</span></a></span><span> </span><span class="annot"><span class="annottext">Text
-</span><a href="#local-6989586621679276351"><span class="hs-identifier hs-var">s</span></a></span><span> </span><span class="annot"><span class="annottext">Parser Text -&gt; Parser p -&gt; Parser p
+</span><a href="#local-6989586621679182657"><span class="hs-identifier hs-var">s</span></a></span><span> </span><span class="annot"><span class="annottext">Parser Text -&gt; Parser p -&gt; Parser p
 forall (f :: * -&gt; *) a b. Applicative f =&gt; f a -&gt; f b -&gt; f b
 </span><span class="hs-operator hs-var">*&gt;</span></span><span> </span><span class="annot"><span class="annottext">Parser p -&gt; Parser p
 forall a. Parser a -&gt; Parser a
 </span><a href="MQTTD.Config.html#lexeme"><span class="hs-identifier hs-var">lexeme</span></a></span><span> </span><span class="annot"><span class="annottext">Parser p
-</span><a href="#local-6989586621679276350"><span class="hs-identifier hs-var">p</span></a></span><span>
+</span><a href="#local-6989586621679182656"><span class="hs-identifier hs-var">p</span></a></span><span>
 </span><span id="line-110"></span><span>
 </span><span id="line-111"></span><span class="annot"><a href="MQTTD.Config.html#parseListenOpts"><span class="hs-identifier hs-type">parseListenOpts</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="MQTTD.Config.html#Parser"><span class="hs-identifier hs-type">Parser</span></a></span><span> </span><span class="annot"><a href="MQTTD.Config.html#ListenerOptions"><span class="hs-identifier hs-type">ListenerOptions</span></a></span><span>
 </span><span id="line-112"></span><span id="parseListenOpts"><span class="annot"><span class="annottext">parseListenOpts :: ParsecT Void Text Identity ListenerOptions
@@ -676,7 +715,9 @@ forall a. Parser a -&gt; Parser a
 forall (m :: * -&gt; *) open close a.
 Applicative m =&gt;
 m open -&gt; m close -&gt; m a -&gt; m a
-</span><span class="hs-identifier hs-var">between</span></span><span> </span><span class="annot"><span class="hs-string">&quot;{&quot;</span></span><span> </span><span class="annot"><span class="hs-string">&quot;}&quot;</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Maybe Bool -&gt; ListenerOptions
+</span><span class="hs-identifier hs-var">between</span></span><span> </span><span class="annot"><span class="annottext">Parser Text
+</span><span class="hs-string">&quot;{&quot;</span></span><span> </span><span class="annot"><span class="annottext">Parser Text
+</span><span class="hs-string">&quot;}&quot;</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Maybe Bool -&gt; ListenerOptions
 </span><a href="MQTTD.Config.html#ListenerOptions"><span class="hs-identifier hs-var">ListenerOptions</span></a></span><span> </span><span class="annot"><span class="annottext">(Maybe Bool -&gt; ListenerOptions)
 -&gt; ParsecT Void Text Identity (Maybe Bool)
 -&gt; ParsecT Void Text Identity ListenerOptions
@@ -688,14 +729,15 @@ forall a. Parser a -&gt; Parser a
 -&gt; ParsecT Void Text Identity (Maybe Bool)
 forall a. Parser a -&gt; Parser a
 </span><a href="MQTTD.Config.html#lexeme"><span class="hs-identifier hs-var">lexeme</span></a></span><span> </span><span class="annot"><span class="annottext">ParsecT Void Text Identity (Maybe Bool)
-</span><a href="#local-6989586621679276349"><span class="hs-identifier hs-var">aListenOpt</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><a href="#local-6989586621679182655"><span class="hs-identifier hs-var">aListenOpt</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
 </span><span id="line-113"></span><span>  </span><span class="hs-keyword">where</span><span>
-</span><span id="line-114"></span><span>    </span><span id="local-6989586621679276349"><span class="annot"><span class="annottext">aListenOpt :: ParsecT Void Text Identity (Maybe Bool)
-</span><a href="#local-6989586621679276349"><span class="hs-identifier hs-var hs-var">aListenOpt</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Text
+</span><span id="line-114"></span><span>    </span><span id="local-6989586621679182655"><span class="annot"><span class="annottext">aListenOpt :: ParsecT Void Text Identity (Maybe Bool)
+</span><a href="#local-6989586621679182655"><span class="hs-identifier hs-var hs-var">aListenOpt</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Text
 -&gt; ParsecT Void Text Identity (Maybe Bool)
 -&gt; ParsecT Void Text Identity (Maybe Bool)
 forall p. Text -&gt; Parser p -&gt; Parser p
-</span><a href="MQTTD.Config.html#namedValue"><span class="hs-identifier hs-var">namedValue</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;allow_anonymous&quot;</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Bool -&gt; Maybe Bool
+</span><a href="MQTTD.Config.html#namedValue"><span class="hs-identifier hs-var">namedValue</span></a></span><span> </span><span class="annot"><span class="annottext">Text
+</span><span class="hs-string">&quot;allow_anonymous&quot;</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Bool -&gt; Maybe Bool
 forall a. a -&gt; Maybe a
 </span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">(Bool -&gt; Maybe Bool)
 -&gt; ParsecT Void Text Identity Bool
@@ -713,7 +755,9 @@ forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
 forall (m :: * -&gt; *) open close a.
 Applicative m =&gt;
 m open -&gt; m close -&gt; m a -&gt; m a
-</span><span class="hs-identifier hs-var">between</span></span><span> </span><span class="annot"><span class="hs-string">&quot;{&quot;</span></span><span> </span><span class="annot"><span class="hs-string">&quot;}&quot;</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">String -&gt; PersistenceConfig
+</span><span class="hs-identifier hs-var">between</span></span><span> </span><span class="annot"><span class="annottext">Parser Text
+</span><span class="hs-string">&quot;{&quot;</span></span><span> </span><span class="annot"><span class="annottext">Parser Text
+</span><span class="hs-string">&quot;}&quot;</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">String -&gt; PersistenceConfig
 </span><a href="MQTTD.Config.html#PersistenceConfig"><span class="hs-identifier hs-var">PersistenceConfig</span></a></span><span> </span><span class="annot"><span class="annottext">(String -&gt; PersistenceConfig)
 -&gt; ParsecT Void Text Identity String -&gt; Parser PersistenceConfig
 forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
@@ -724,14 +768,15 @@ forall a. Parser a -&gt; Parser a
 -&gt; ParsecT Void Text Identity String
 forall a. Parser a -&gt; Parser a
 </span><a href="MQTTD.Config.html#lexeme"><span class="hs-identifier hs-var">lexeme</span></a></span><span> </span><span class="annot"><span class="annottext">ParsecT Void Text Identity String
-</span><a href="#local-6989586621679276346"><span class="hs-identifier hs-var">aListenOpt</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><a href="#local-6989586621679182652"><span class="hs-identifier hs-var">aListenOpt</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
 </span><span id="line-118"></span><span>  </span><span class="hs-keyword">where</span><span>
-</span><span id="line-119"></span><span>    </span><span id="local-6989586621679276346"><span class="annot"><span class="annottext">aListenOpt :: ParsecT Void Text Identity String
-</span><a href="#local-6989586621679276346"><span class="hs-identifier hs-var hs-var">aListenOpt</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Text
+</span><span id="line-119"></span><span>    </span><span id="local-6989586621679182652"><span class="annot"><span class="annottext">aListenOpt :: ParsecT Void Text Identity String
+</span><a href="#local-6989586621679182652"><span class="hs-identifier hs-var hs-var">aListenOpt</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Text
 -&gt; ParsecT Void Text Identity String
 -&gt; ParsecT Void Text Identity String
 forall p. Text -&gt; Parser p -&gt; Parser p
-</span><a href="MQTTD.Config.html#namedValue"><span class="hs-identifier hs-var">namedValue</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;db&quot;</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">ParsecT Void Text Identity String
+</span><a href="MQTTD.Config.html#namedValue"><span class="hs-identifier hs-var">namedValue</span></a></span><span> </span><span class="annot"><span class="annottext">Text
+</span><span class="hs-string">&quot;db&quot;</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">ParsecT Void Text Identity String
 -&gt; ParsecT Void Text Identity String
 forall a. Parser a -&gt; Parser a
 </span><a href="MQTTD.Config.html#lexeme"><span class="hs-identifier hs-var">lexeme</span></a></span><span> </span><span class="annot"><span class="annottext">ParsecT Void Text Identity String
@@ -765,7 +810,8 @@ forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
 -&gt; ParsecT Void Text Identity Bool
 -&gt; ParsecT Void Text Identity Bool
 forall p. Text -&gt; Parser p -&gt; Parser p
-</span><a href="MQTTD.Config.html#namedValue"><span class="hs-identifier hs-var">namedValue</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;debug&quot;</span></span><span> </span><span class="annot"><span class="annottext">ParsecT Void Text Identity Bool
+</span><a href="MQTTD.Config.html#namedValue"><span class="hs-identifier hs-var">namedValue</span></a></span><span> </span><span class="annot"><span class="annottext">Text
+</span><span class="hs-string">&quot;debug&quot;</span></span><span> </span><span class="annot"><span class="annottext">ParsecT Void Text Identity Bool
 </span><a href="MQTTD.Config.html#parseBool"><span class="hs-identifier hs-var">parseBool</span></a></span><span class="hs-special">)</span><span class="hs-special">,</span><span>
 </span><span id="line-124"></span><span>  </span><span class="annot"><span class="annottext">ListenerOptions -&gt; Section
 </span><a href="MQTTD.Config.html#DefaultsSection"><span class="hs-identifier hs-var">DefaultsSection</span></a></span><span> </span><span class="annot"><span class="annottext">(ListenerOptions -&gt; Section)
@@ -775,7 +821,8 @@ forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
 -&gt; ParsecT Void Text Identity ListenerOptions
 -&gt; ParsecT Void Text Identity ListenerOptions
 forall p. Text -&gt; Parser p -&gt; Parser p
-</span><a href="MQTTD.Config.html#namedValue"><span class="hs-identifier hs-var">namedValue</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;defaults&quot;</span></span><span> </span><span class="annot"><span class="annottext">ParsecT Void Text Identity ListenerOptions
+</span><a href="MQTTD.Config.html#namedValue"><span class="hs-identifier hs-var">namedValue</span></a></span><span> </span><span class="annot"><span class="annottext">Text
+</span><span class="hs-string">&quot;defaults&quot;</span></span><span> </span><span class="annot"><span class="annottext">ParsecT Void Text Identity ListenerOptions
 </span><a href="MQTTD.Config.html#parseListenOpts"><span class="hs-identifier hs-var">parseListenOpts</span></a></span><span class="hs-special">,</span><span>
 </span><span id="line-125"></span><span>  </span><span class="annot"><span class="annottext">[User] -&gt; Section
 </span><a href="MQTTD.Config.html#UserSection"><span class="hs-identifier hs-var">UserSection</span></a></span><span> </span><span class="annot"><span class="annottext">([User] -&gt; Section)
@@ -783,7 +830,8 @@ forall p. Text -&gt; Parser p -&gt; Parser p
 forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
 </span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">Text -&gt; Parser User -&gt; ParsecT Void Text Identity [User]
 forall p. Text -&gt; Parser p -&gt; Parser [p]
-</span><a href="MQTTD.Config.html#namedList"><span class="hs-identifier hs-var">namedList</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;users&quot;</span></span><span> </span><span class="annot"><span class="annottext">Parser User
+</span><a href="MQTTD.Config.html#namedList"><span class="hs-identifier hs-var">namedList</span></a></span><span> </span><span class="annot"><span class="annottext">Text
+</span><span class="hs-string">&quot;users&quot;</span></span><span> </span><span class="annot"><span class="annottext">Parser User
 </span><a href="MQTTD.Config.html#parseUser"><span class="hs-identifier hs-var">parseUser</span></a></span><span class="hs-special">,</span><span>
 </span><span id="line-126"></span><span>  </span><span class="annot"><span class="annottext">[Listener] -&gt; Section
 </span><a href="MQTTD.Config.html#ListenerSection"><span class="hs-identifier hs-var">ListenerSection</span></a></span><span> </span><span class="annot"><span class="annottext">([Listener] -&gt; Section)
@@ -791,7 +839,8 @@ forall p. Text -&gt; Parser p -&gt; Parser [p]
 forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
 </span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">Text -&gt; Parser Listener -&gt; ParsecT Void Text Identity [Listener]
 forall p. Text -&gt; Parser p -&gt; Parser [p]
-</span><a href="MQTTD.Config.html#namedList"><span class="hs-identifier hs-var">namedList</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;listeners&quot;</span></span><span> </span><span class="annot"><span class="annottext">Parser Listener
+</span><a href="MQTTD.Config.html#namedList"><span class="hs-identifier hs-var">namedList</span></a></span><span> </span><span class="annot"><span class="annottext">Text
+</span><span class="hs-string">&quot;listeners&quot;</span></span><span> </span><span class="annot"><span class="annottext">Parser Listener
 </span><a href="MQTTD.Config.html#parseListener"><span class="hs-identifier hs-var">parseListener</span></a></span><span class="hs-special">,</span><span>
 </span><span id="line-127"></span><span>  </span><span class="annot"><span class="annottext">PersistenceConfig -&gt; Section
 </span><a href="MQTTD.Config.html#PersistenceSection"><span class="hs-identifier hs-var">PersistenceSection</span></a></span><span> </span><span class="annot"><span class="annottext">(PersistenceConfig -&gt; Section)
@@ -799,7 +848,8 @@ forall p. Text -&gt; Parser p -&gt; Parser [p]
 forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
 </span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">Text -&gt; Parser PersistenceConfig -&gt; Parser PersistenceConfig
 forall p. Text -&gt; Parser p -&gt; Parser p
-</span><a href="MQTTD.Config.html#namedValue"><span class="hs-identifier hs-var">namedValue</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;persistence&quot;</span></span><span> </span><span class="annot"><span class="annottext">Parser PersistenceConfig
+</span><a href="MQTTD.Config.html#namedValue"><span class="hs-identifier hs-var">namedValue</span></a></span><span> </span><span class="annot"><span class="annottext">Text
+</span><span class="hs-string">&quot;persistence&quot;</span></span><span> </span><span class="annot"><span class="annottext">Parser PersistenceConfig
 </span><a href="MQTTD.Config.html#parsePersistence"><span class="hs-identifier hs-var">parsePersistence</span></a></span><span>
 </span><span id="line-128"></span><span>  </span><span class="hs-special">]</span><span>
 </span><span id="line-129"></span><span>
@@ -810,7 +860,7 @@ forall (t :: * -&gt; *) a b.
 Foldable t =&gt;
 (a -&gt; b -&gt; b) -&gt; b -&gt; t a -&gt; b
 </span><span class="hs-identifier hs-var">foldr</span></span><span> </span><span class="annot"><span class="annottext">Section -&gt; Config -&gt; Config
-</span><a href="#local-6989586621679276342"><span class="hs-identifier hs-var">up</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Bool
+</span><a href="#local-6989586621679182648"><span class="hs-identifier hs-var">up</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Bool
 -&gt; Map ByteString User
 -&gt; [Listener]
 -&gt; ListenerOptions
@@ -824,7 +874,8 @@ forall a. Monoid a =&gt; a
 </span><span class="hs-identifier hs-var">mempty</span></span><span> </span><span class="annot"><span class="annottext">ListenerOptions
 forall a. Monoid a =&gt; a
 </span><span class="hs-identifier hs-var">mempty</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">String -&gt; PersistenceConfig
-</span><a href="MQTTD.Config.html#PersistenceConfig"><span class="hs-identifier hs-var">PersistenceConfig</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;:memory:&quot;</span></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">([Section] -&gt; Config)
+</span><a href="MQTTD.Config.html#PersistenceConfig"><span class="hs-identifier hs-var">PersistenceConfig</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;:memory:&quot;</span></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">([Section] -&gt; Config)
 -&gt; ParsecT Void Text Identity [Section] -&gt; Parser Config
 forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
 </span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">ParsecT Void Text Identity [Section]
@@ -836,22 +887,37 @@ forall (m :: * -&gt; *) a. MonadPlus m =&gt; m a -&gt; m [a]
 </span><a href="MQTTD.Config.html#parseSection"><span class="hs-identifier hs-var">parseSection</span></a></span><span class="hs-special">)</span><span>
 </span><span id="line-132"></span><span>
 </span><span id="line-133"></span><span>    </span><span class="hs-keyword">where</span><span>
-</span><span id="line-134"></span><span>      </span><span id="local-6989586621679276342"><span class="annot"><span class="annottext">up :: Section -&gt; Config -&gt; Config
-</span><a href="#local-6989586621679276342"><span class="hs-identifier hs-var hs-var">up</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="MQTTD.Config.html#DebugSection"><span class="hs-identifier hs-type">DebugSection</span></a></span><span> </span><span id="local-6989586621679276341"><span class="annot"><span class="annottext">d :: Bool
-</span><a href="#local-6989586621679276341"><span class="hs-identifier hs-var">d</span></a></span></span><span class="hs-special">)</span><span> </span><span id="local-6989586621679276340"><span class="annot"><span class="annottext">c :: Config
-</span><a href="#local-6989586621679276340"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Config
-</span><a href="#local-6989586621679276340"><span class="hs-identifier hs-var">c</span></a></span><span class="hs-special">{</span><span class="annot"><span class="annottext">_confDebug :: Bool
+</span><span id="line-134"></span><span>      </span><span id="local-6989586621679182648"><span class="annot"><span class="annottext">up :: Section -&gt; Config -&gt; Config
+</span><a href="#local-6989586621679182648"><span class="hs-identifier hs-var hs-var">up</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="MQTTD.Config.html#DebugSection"><span class="hs-identifier hs-type">DebugSection</span></a></span><span> </span><span id="local-6989586621679182647"><span class="annot"><span class="annottext">Bool
+</span><a href="#local-6989586621679182647"><span class="hs-identifier hs-var">d</span></a></span></span><span class="hs-special">)</span><span> </span><span id="local-6989586621679182646"><span class="annot"><span class="annottext">Config
+</span><a href="#local-6989586621679182646"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Config
+</span><a href="#local-6989586621679182646"><span class="hs-identifier hs-var">c</span></a></span><span class="hs-special">{</span><span class="annot"><span class="annottext">_confDebug :: Bool
 </span><a href="MQTTD.Config.html#_confDebug"><span class="hs-identifier hs-var">_confDebug</span></a></span><span class="hs-glyph">=</span><span class="annot"><span class="annottext">Bool
-</span><a href="#local-6989586621679276341"><span class="hs-identifier hs-var">d</span></a></span><span class="hs-special">}</span><span>
-</span><span id="line-135"></span><span>      </span><span class="annot"><a href="#local-6989586621679276342"><span class="hs-identifier hs-var">up</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="MQTTD.Config.html#UserSection"><span class="hs-identifier hs-type">UserSection</span></a></span><span> </span><span id="local-6989586621679276339"><span class="annot"><span class="annottext">l :: [User]
-</span><a href="#local-6989586621679276339"><span class="hs-identifier hs-var">l</span></a></span></span><span class="hs-special">)</span><span> </span><span id="local-6989586621679276338"><span class="annot"><span class="annottext">c :: Config
-</span><a href="#local-6989586621679276338"><span class="hs-identifier hs-var">c</span></a></span></span><span class="hs-glyph">@</span><span id="local-6989586621679276333"><span id="local-6989586621679276334"><span id="local-6989586621679276335"><span id="local-6989586621679276336"><span id="local-6989586621679276337"><span class="annot"><a href="MQTTD.Config.html#Config"><span class="hs-identifier hs-type">Config</span></a></span><span class="hs-special">{</span><span class="hs-glyph">..</span><span class="hs-special">}</span></span></span></span></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><a href="#local-6989586621679182647"><span class="hs-identifier hs-var">d</span></a></span><span class="hs-special">}</span><span>
+</span><span id="line-135"></span><span>      </span><span class="annot"><a href="#local-6989586621679182648"><span class="hs-identifier hs-var">up</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="MQTTD.Config.html#UserSection"><span class="hs-identifier hs-type">UserSection</span></a></span><span> </span><span id="local-6989586621679182645"><span class="annot"><span class="annottext">[User]
+</span><a href="#local-6989586621679182645"><span class="hs-identifier hs-var">l</span></a></span></span><span class="hs-special">)</span><span> </span><span id="local-6989586621679182644"><span class="annot"><span class="annottext">c :: Config
+</span><a href="#local-6989586621679182644"><span class="hs-identifier hs-var">c</span></a></span></span><span class="hs-glyph">@</span><span class="annot"><a href="MQTTD.Config.html#Config"><span class="hs-identifier hs-type">Config</span></a></span><span class="hs-special">{</span><span id="local-6989586621679182639"><span id="local-6989586621679182640"><span id="local-6989586621679182641"><span id="local-6989586621679182642"><span id="local-6989586621679182643"><span class="annot"><span class="annottext">Bool
+[Listener]
+Map ByteString User
+PersistenceConfig
+ListenerOptions
+_confPersist :: PersistenceConfig
+_confDefaults :: ListenerOptions
+_confListeners :: [Listener]
+_confUsers :: Map ByteString User
+_confDebug :: Bool
+_confPersist :: Config -&gt; PersistenceConfig
+_confDefaults :: Config -&gt; ListenerOptions
+_confListeners :: Config -&gt; [Listener]
+_confUsers :: Config -&gt; Map ByteString User
+_confDebug :: Config -&gt; Bool
+</span><a href="#local-6989586621679182639"><span class="hs-glyph hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">..</span></a></span></span></span></span></span></span><span class="hs-special">}</span><span> </span><span class="hs-glyph">=</span><span>
 </span><span id="line-136"></span><span>        </span><span class="annot"><span class="annottext">Config
-</span><a href="#local-6989586621679276338"><span class="hs-identifier hs-var">c</span></a></span><span class="hs-special">{</span><span class="annot"><span class="annottext">_confUsers :: Map ByteString User
+</span><a href="#local-6989586621679182644"><span class="hs-identifier hs-var">c</span></a></span><span class="hs-special">{</span><span class="annot"><span class="annottext">_confUsers :: Map ByteString User
 </span><a href="MQTTD.Config.html#_confUsers"><span class="hs-identifier hs-var">_confUsers</span></a></span><span class="hs-glyph">=</span><span class="annot"><span class="annottext">Map ByteString User -&gt; Map ByteString User -&gt; Map ByteString User
 forall k a. Ord k =&gt; Map k a -&gt; Map k a -&gt; Map k a
 </span><span class="hs-identifier hs-var">Map.union</span></span><span> </span><span class="annot"><span class="annottext">Map ByteString User
-</span><a href="#local-6989586621679276336"><span class="hs-identifier hs-var">_confUsers</span></a></span><span> </span><span class="annot"><span class="annottext">(Map ByteString User -&gt; Map ByteString User)
+</span><a href="#local-6989586621679182642"><span class="hs-identifier hs-var">_confUsers</span></a></span><span> </span><span class="annot"><span class="annottext">(Map ByteString User -&gt; Map ByteString User)
 -&gt; ([User] -&gt; Map ByteString User) -&gt; [User] -&gt; Map ByteString User
 forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
 </span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">[(ByteString, User)] -&gt; Map ByteString User
@@ -863,35 +929,52 @@ forall k a. Ord k =&gt; [(k, a)] -&gt; Map k a
 forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
 </span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">(User -&gt; (ByteString, User)) -&gt; [User] -&gt; [(ByteString, User)]
 forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
-</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span id="local-6989586621679276330"><span class="annot"><span class="annottext">u :: User
-</span><a href="#local-6989586621679276330"><span class="hs-identifier hs-var">u</span></a></span></span><span class="hs-glyph">@</span><span class="hs-special">(</span><span class="annot"><a href="MQTTD.Config.html#User"><span class="hs-identifier hs-type">User</span></a></span><span> </span><span id="local-6989586621679276329"><span class="annot"><span class="annottext">n :: ByteString
-</span><a href="#local-6989586621679276329"><span class="hs-identifier hs-var">n</span></a></span></span><span> </span><span class="hs-identifier">_</span><span> </span><span class="hs-identifier">_</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">ByteString
-</span><a href="#local-6989586621679276329"><span class="hs-identifier hs-var">n</span></a></span><span class="hs-special">,</span><span class="annot"><span class="annottext">User
-</span><a href="#local-6989586621679276330"><span class="hs-identifier hs-var">u</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">([User] -&gt; Map ByteString User) -&gt; [User] -&gt; Map ByteString User
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span id="local-6989586621679182636"><span class="annot"><span class="annottext">u :: User
+</span><a href="#local-6989586621679182636"><span class="hs-identifier hs-var">u</span></a></span></span><span class="hs-glyph">@</span><span class="hs-special">(</span><span class="annot"><a href="MQTTD.Config.html#User"><span class="hs-identifier hs-type">User</span></a></span><span> </span><span id="local-6989586621679182635"><span class="annot"><span class="annottext">ByteString
+</span><a href="#local-6989586621679182635"><span class="hs-identifier hs-var">n</span></a></span></span><span> </span><span class="annot"><span class="annottext">ByteString
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">[ACL]
+</span><span class="hs-identifier">_</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">ByteString
+</span><a href="#local-6989586621679182635"><span class="hs-identifier hs-var">n</span></a></span><span class="hs-special">,</span><span class="annot"><span class="annottext">User
+</span><a href="#local-6989586621679182636"><span class="hs-identifier hs-var">u</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">([User] -&gt; Map ByteString User) -&gt; [User] -&gt; Map ByteString User
 forall a b. (a -&gt; b) -&gt; a -&gt; b
 </span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">[User]
-</span><a href="#local-6989586621679276339"><span class="hs-identifier hs-var">l</span></a></span><span class="hs-special">}</span><span>
-</span><span id="line-137"></span><span>      </span><span class="annot"><a href="#local-6989586621679276342"><span class="hs-identifier hs-var">up</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="MQTTD.Config.html#ListenerSection"><span class="hs-identifier hs-type">ListenerSection</span></a></span><span> </span><span id="local-6989586621679276328"><span class="annot"><span class="annottext">l :: [Listener]
-</span><a href="#local-6989586621679276328"><span class="hs-identifier hs-var">l</span></a></span></span><span class="hs-special">)</span><span> </span><span id="local-6989586621679276327"><span class="annot"><span class="annottext">c :: Config
-</span><a href="#local-6989586621679276327"><span class="hs-identifier hs-var">c</span></a></span></span><span class="hs-glyph">@</span><span id="local-6989586621679276322"><span id="local-6989586621679276323"><span id="local-6989586621679276324"><span id="local-6989586621679276325"><span id="local-6989586621679276326"><span class="annot"><a href="MQTTD.Config.html#Config"><span class="hs-identifier hs-type">Config</span></a></span><span class="hs-special">{</span><span class="hs-glyph">..</span><span class="hs-special">}</span></span></span></span></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Config
-</span><a href="#local-6989586621679276327"><span class="hs-identifier hs-var">c</span></a></span><span class="hs-special">{</span><span class="annot"><span class="annottext">_confListeners :: [Listener]
+</span><a href="#local-6989586621679182645"><span class="hs-identifier hs-var">l</span></a></span><span class="hs-special">}</span><span>
+</span><span id="line-137"></span><span>      </span><span class="annot"><a href="#local-6989586621679182648"><span class="hs-identifier hs-var">up</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="MQTTD.Config.html#ListenerSection"><span class="hs-identifier hs-type">ListenerSection</span></a></span><span> </span><span id="local-6989586621679182634"><span class="annot"><span class="annottext">[Listener]
+</span><a href="#local-6989586621679182634"><span class="hs-identifier hs-var">l</span></a></span></span><span class="hs-special">)</span><span> </span><span id="local-6989586621679182633"><span class="annot"><span class="annottext">c :: Config
+</span><a href="#local-6989586621679182633"><span class="hs-identifier hs-var">c</span></a></span></span><span class="hs-glyph">@</span><span class="annot"><a href="MQTTD.Config.html#Config"><span class="hs-identifier hs-type">Config</span></a></span><span class="hs-special">{</span><span id="local-6989586621679182628"><span id="local-6989586621679182629"><span id="local-6989586621679182630"><span id="local-6989586621679182631"><span id="local-6989586621679182632"><span class="annot"><span class="annottext">Bool
+[Listener]
+Map ByteString User
+PersistenceConfig
+ListenerOptions
+_confPersist :: PersistenceConfig
+_confDefaults :: ListenerOptions
+_confListeners :: [Listener]
+_confUsers :: Map ByteString User
+_confDebug :: Bool
+_confPersist :: Config -&gt; PersistenceConfig
+_confDefaults :: Config -&gt; ListenerOptions
+_confListeners :: Config -&gt; [Listener]
+_confUsers :: Config -&gt; Map ByteString User
+_confDebug :: Config -&gt; Bool
+</span><a href="#local-6989586621679182628"><span class="hs-glyph hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">..</span></a></span></span></span></span></span></span><span class="hs-special">}</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Config
+</span><a href="#local-6989586621679182633"><span class="hs-identifier hs-var">c</span></a></span><span class="hs-special">{</span><span class="annot"><span class="annottext">_confListeners :: [Listener]
 </span><a href="MQTTD.Config.html#_confListeners"><span class="hs-identifier hs-var">_confListeners</span></a></span><span class="hs-glyph">=</span><span class="annot"><span class="annottext">[Listener]
-</span><a href="#local-6989586621679276324"><span class="hs-identifier hs-var">_confListeners</span></a></span><span> </span><span class="annot"><span class="annottext">[Listener] -&gt; [Listener] -&gt; [Listener]
+</span><a href="#local-6989586621679182630"><span class="hs-identifier hs-var">_confListeners</span></a></span><span> </span><span class="annot"><span class="annottext">[Listener] -&gt; [Listener] -&gt; [Listener]
 forall a. Semigroup a =&gt; a -&gt; a -&gt; a
 </span><span class="hs-operator hs-var">&lt;&gt;</span></span><span> </span><span class="annot"><span class="annottext">[Listener]
-</span><a href="#local-6989586621679276328"><span class="hs-identifier hs-var">l</span></a></span><span class="hs-special">}</span><span>
-</span><span id="line-138"></span><span>      </span><span class="annot"><a href="#local-6989586621679276342"><span class="hs-identifier hs-var">up</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="MQTTD.Config.html#DefaultsSection"><span class="hs-identifier hs-type">DefaultsSection</span></a></span><span> </span><span id="local-6989586621679276321"><span class="annot"><span class="annottext">l :: ListenerOptions
-</span><a href="#local-6989586621679276321"><span class="hs-identifier hs-var">l</span></a></span></span><span class="hs-special">)</span><span> </span><span id="local-6989586621679276320"><span class="annot"><span class="annottext">c :: Config
-</span><a href="#local-6989586621679276320"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Config
-</span><a href="#local-6989586621679276320"><span class="hs-identifier hs-var">c</span></a></span><span class="hs-special">{</span><span class="annot"><span class="annottext">_confDefaults :: ListenerOptions
+</span><a href="#local-6989586621679182634"><span class="hs-identifier hs-var">l</span></a></span><span class="hs-special">}</span><span>
+</span><span id="line-138"></span><span>      </span><span class="annot"><a href="#local-6989586621679182648"><span class="hs-identifier hs-var">up</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="MQTTD.Config.html#DefaultsSection"><span class="hs-identifier hs-type">DefaultsSection</span></a></span><span> </span><span id="local-6989586621679182627"><span class="annot"><span class="annottext">ListenerOptions
+</span><a href="#local-6989586621679182627"><span class="hs-identifier hs-var">l</span></a></span></span><span class="hs-special">)</span><span> </span><span id="local-6989586621679182626"><span class="annot"><span class="annottext">Config
+</span><a href="#local-6989586621679182626"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Config
+</span><a href="#local-6989586621679182626"><span class="hs-identifier hs-var">c</span></a></span><span class="hs-special">{</span><span class="annot"><span class="annottext">_confDefaults :: ListenerOptions
 </span><a href="MQTTD.Config.html#_confDefaults"><span class="hs-identifier hs-var">_confDefaults</span></a></span><span class="hs-glyph">=</span><span class="annot"><span class="annottext">ListenerOptions
-</span><a href="#local-6989586621679276321"><span class="hs-identifier hs-var">l</span></a></span><span class="hs-special">}</span><span>
-</span><span id="line-139"></span><span>      </span><span class="annot"><a href="#local-6989586621679276342"><span class="hs-identifier hs-var">up</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="MQTTD.Config.html#PersistenceSection"><span class="hs-identifier hs-type">PersistenceSection</span></a></span><span> </span><span id="local-6989586621679276319"><span class="annot"><span class="annottext">l :: PersistenceConfig
-</span><a href="#local-6989586621679276319"><span class="hs-identifier hs-var">l</span></a></span></span><span class="hs-special">)</span><span> </span><span id="local-6989586621679276318"><span class="annot"><span class="annottext">c :: Config
-</span><a href="#local-6989586621679276318"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Config
-</span><a href="#local-6989586621679276318"><span class="hs-identifier hs-var">c</span></a></span><span class="hs-special">{</span><span class="annot"><span class="annottext">_confPersist :: PersistenceConfig
+</span><a href="#local-6989586621679182627"><span class="hs-identifier hs-var">l</span></a></span><span class="hs-special">}</span><span>
+</span><span id="line-139"></span><span>      </span><span class="annot"><a href="#local-6989586621679182648"><span class="hs-identifier hs-var">up</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="MQTTD.Config.html#PersistenceSection"><span class="hs-identifier hs-type">PersistenceSection</span></a></span><span> </span><span id="local-6989586621679182625"><span class="annot"><span class="annottext">PersistenceConfig
+</span><a href="#local-6989586621679182625"><span class="hs-identifier hs-var">l</span></a></span></span><span class="hs-special">)</span><span> </span><span id="local-6989586621679182624"><span class="annot"><span class="annottext">Config
+</span><a href="#local-6989586621679182624"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Config
+</span><a href="#local-6989586621679182624"><span class="hs-identifier hs-var">c</span></a></span><span class="hs-special">{</span><span class="annot"><span class="annottext">_confPersist :: PersistenceConfig
 </span><a href="MQTTD.Config.html#_confPersist"><span class="hs-identifier hs-var">_confPersist</span></a></span><span class="hs-glyph">=</span><span class="annot"><span class="annottext">PersistenceConfig
-</span><a href="#local-6989586621679276319"><span class="hs-identifier hs-var">l</span></a></span><span class="hs-special">}</span><span>
+</span><a href="#local-6989586621679182625"><span class="hs-identifier hs-var">l</span></a></span><span class="hs-special">}</span><span>
 </span><span id="line-140"></span><span>
 </span><span id="line-141"></span><span class="annot"><a href="MQTTD.Config.html#parseBool"><span class="hs-identifier hs-type">parseBool</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="MQTTD.Config.html#Parser"><span class="hs-identifier hs-type">Parser</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
 </span><span id="line-142"></span><span id="parseBool"><span class="annot"><span class="annottext">parseBool :: ParsecT Void Text Identity Bool
@@ -900,7 +983,8 @@ forall a. Semigroup a =&gt; a -&gt; a -&gt; a
 forall (f :: * -&gt; *) a b. Functor f =&gt; a -&gt; f b -&gt; f a
 </span><span class="hs-operator hs-var">&lt;$</span></span><span> </span><span class="annot"><span class="annottext">Parser Text -&gt; Parser Text
 forall a. Parser a -&gt; Parser a
-</span><a href="MQTTD.Config.html#lexeme"><span class="hs-identifier hs-var">lexeme</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;true&quot;</span></span><span> </span><span class="annot"><span class="annottext">ParsecT Void Text Identity Bool
+</span><a href="MQTTD.Config.html#lexeme"><span class="hs-identifier hs-var">lexeme</span></a></span><span> </span><span class="annot"><span class="annottext">Parser Text
+</span><span class="hs-string">&quot;true&quot;</span></span><span> </span><span class="annot"><span class="annottext">ParsecT Void Text Identity Bool
 -&gt; ParsecT Void Text Identity Bool
 -&gt; ParsecT Void Text Identity Bool
 forall (f :: * -&gt; *) a. Alternative f =&gt; f a -&gt; f a -&gt; f a
@@ -909,15 +993,16 @@ forall (f :: * -&gt; *) a. Alternative f =&gt; f a -&gt; f a -&gt; f a
 forall (f :: * -&gt; *) a b. Functor f =&gt; a -&gt; f b -&gt; f a
 </span><span class="hs-operator hs-var">&lt;$</span></span><span> </span><span class="annot"><span class="annottext">Parser Text -&gt; Parser Text
 forall a. Parser a -&gt; Parser a
-</span><a href="MQTTD.Config.html#lexeme"><span class="hs-identifier hs-var">lexeme</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;false&quot;</span></span><span>
+</span><a href="MQTTD.Config.html#lexeme"><span class="hs-identifier hs-var">lexeme</span></a></span><span> </span><span class="annot"><span class="annottext">Parser Text
+</span><span class="hs-string">&quot;false&quot;</span></span><span>
 </span><span id="line-143"></span><span>
-</span><span id="line-144"></span><span id="local-6989586621679276526"><span class="annot"><a href="MQTTD.Config.html#parseFile"><span class="hs-identifier hs-type">parseFile</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="MQTTD.Config.html#Parser"><span class="hs-identifier hs-type">Parser</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679276526"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="annot"><a href="#local-6989586621679276526"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-144"></span><span id="local-6989586621679182832"><span class="annot"><a href="MQTTD.Config.html#parseFile"><span class="hs-identifier hs-type">parseFile</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="MQTTD.Config.html#Parser"><span class="hs-identifier hs-type">Parser</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679182832"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="annot"><a href="#local-6989586621679182832"><span class="hs-identifier hs-type">a</span></a></span></span><span>
 </span><span id="line-145"></span><span id="parseFile"><span class="annot"><span class="annottext">parseFile :: Parser a -&gt; String -&gt; IO a
-</span><a href="MQTTD.Config.html#parseFile"><span class="hs-identifier hs-var hs-var">parseFile</span></a></span></span><span> </span><span id="local-6989586621679276315"><span class="annot"><span class="annottext">f :: Parser a
-</span><a href="#local-6989586621679276315"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span id="local-6989586621679276314"><span class="annot"><span class="annottext">s :: String
-</span><a href="#local-6989586621679276314"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String -&gt; IO String
+</span><a href="MQTTD.Config.html#parseFile"><span class="hs-identifier hs-var hs-var">parseFile</span></a></span></span><span> </span><span id="local-6989586621679182621"><span class="annot"><span class="annottext">Parser a
+</span><a href="#local-6989586621679182621"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span id="local-6989586621679182620"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679182620"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String -&gt; IO String
 </span><span class="hs-identifier hs-var">readFile</span></span><span> </span><span class="annot"><span class="annottext">String
-</span><a href="#local-6989586621679276314"><span class="hs-identifier hs-var">s</span></a></span><span> </span><span class="annot"><span class="annottext">IO String -&gt; (String -&gt; IO a) -&gt; IO a
+</span><a href="#local-6989586621679182620"><span class="hs-identifier hs-var">s</span></a></span><span> </span><span class="annot"><span class="annottext">IO String -&gt; (String -&gt; IO a) -&gt; IO a
 forall (m :: * -&gt; *) a b. Monad m =&gt; m a -&gt; (a -&gt; m b) -&gt; m b
 </span><span class="hs-operator hs-var">&gt;&gt;=</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(ParseErrorBundle Text Void -&gt; IO a)
 -&gt; (a -&gt; IO a) -&gt; Either (ParseErrorBundle Text Void) a -&gt; IO a
@@ -931,7 +1016,7 @@ forall (m :: * -&gt; *) a. MonadFail m =&gt; String -&gt; m a
 forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
 </span><span class="hs-operator hs-var">.</span></span><span class="annot"><span class="annottext">ParseErrorBundle Text Void -&gt; String
 forall s e.
-(Stream s, ShowErrorComponent e) =&gt;
+(VisualStream s, TraversableStream s, ShowErrorComponent e) =&gt;
 ParseErrorBundle s e -&gt; String
 </span><span class="hs-identifier hs-var">errorBundlePretty</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">a -&gt; IO a
 forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
@@ -942,8 +1027,8 @@ forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
 forall e s a.
 Parsec e s a -&gt; String -&gt; s -&gt; Either (ParseErrorBundle s e) a
 </span><span class="hs-identifier hs-var">parse</span></span><span> </span><span class="annot"><span class="annottext">Parser a
-</span><a href="#local-6989586621679276315"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">String
-</span><a href="#local-6989586621679276314"><span class="hs-identifier hs-var">s</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(Text -&gt; IO a) -&gt; (String -&gt; Text) -&gt; String -&gt; IO a
+</span><a href="#local-6989586621679182621"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679182620"><span class="hs-identifier hs-var">s</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(Text -&gt; IO a) -&gt; (String -&gt; Text) -&gt; String -&gt; IO a
 forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
 </span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; Text
 </span><span class="hs-identifier hs-var">pack</span></span><span>
