@@ -46,7 +46,6 @@ dependencies:
 - uuid
 - megaparsec
 - checkers
-- sqlite-simple
 - raw-strings-qq
 - attoparsec
 
