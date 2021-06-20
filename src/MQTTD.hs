@@ -36,7 +36,7 @@ import qualified Network.MQTT.Types     as T
 import           System.Random          (getStdGen, newStdGen, randomR)
 import           UnliftIO               (MonadUnliftIO (..), atomically, readTVarIO)
 
-import           MQTTD.Config           (ACL (..), User (..))
+import           MQTTD.Config           (ACL (..), ACLAction (..), User (..))
 import           MQTTD.DB
 import           MQTTD.GCStats
 import           MQTTD.Retention
@@ -75,6 +75,8 @@ instance (Monad m, MonadReader Env m) => HasDBConnection m where
   dbQueue = asks dbQ
 
 instance Monad m => HasStats (MQTTD m) where statStore = asks stats
+
+data Intention = IntentPublish | IntentSubscribe deriving (Eq, Show)
 
 runIO :: (MonadIO m, MonadLogger m) => Env -> MQTTD m a -> m a
 runIO e m = runReaderT (runMQTTD m) e
@@ -169,7 +171,7 @@ resolveAliasIn Session{_sessionClient=Just ConnectedClient{_clientAliasIn}} r =
       pure $ r & pubTopic .~ t & properties %~ cleanProps
     cleanProps = filter (\case
                             (T.PropTopicAlias _) -> False
-                            _ -> True)
+                            _                    -> True)
 
 findSubs :: MonadIO m => T.Topic -> MQTTD m [(Session, T.SubOptions)]
 findSubs t = liftA2 (<>) getRegularSubs getSharedSubs
@@ -219,7 +221,7 @@ subscribe sess@Session{..} (T.SubscribeRequest pid topics props) = do
   subsShared <- asks sharedSubs
   let topics' = map (\(t,o) -> let t' = blToText t in
                                  bimap (const T.SubErrNotAuthorized)
-                                       (const (t', o)) $ authTopic (classifyTopic t') _sessionACL) topics
+                                       (const (t', o)) $ authTopic (classifyTopic t') IntentSubscribe _sessionACL) topics
       (shared, normal) = partitionShared (rights topics')
       new = Map.fromList normal
   atomically $ do
@@ -482,19 +484,23 @@ topicTypeTopic (Normal t)               = t
 topicTypeTopic (SharedSubscription _ t) = t
 topicTypeTopic _                        = ""
 
-authTopic :: TopicType -> [ACL] -> Either String ()
-authTopic InvalidTopic = const $ Left "invalid topics are invalid"
-authTopic tt
+authTopic :: TopicType -> Intention -> [ACL] -> Either String ()
+authTopic InvalidTopic _ = const $ Left "invalid topics are invalid"
+authTopic tt _
   | topicTypeTopic tt == "" = const $ Left "empty topics are not valid"
-authTopic tt = foldr check (Right ())
+authTopic tt action = foldr check (Right ())
   where
     t = topicTypeTopic tt
-    check (Allow f) o
-      | T.match f t = Right ()
+    check (Allow aclt f) o
+      | actOK aclt action && T.match f t = Right ()
       | otherwise = o
     check (Deny f) o
       | T.match f t = Left "unauthorized topic"
       | otherwise = o
+    actOK ACLSub IntentSubscribe    = True
+    actOK ACLPubSub IntentSubscribe = True
+    actOK ACLPubSub IntentPublish   = True
+    actOK _ _                       = False
 
 releasePubSlot :: StatStore -> Session -> STM ()
 releasePubSlot ss sess@Session{..} = do
@@ -564,7 +570,7 @@ dispatch sess@Session{..} (T.PublishPkt req) = do
       authPub t acl = case t of
                         Normal _ -> Right ()
                         _        -> Left "invalid topic"
-                      >> authTopic t acl
+                      >> authTopic t IntentPublish acl
 
 dispatch sess (T.DisconnectPkt (T.DisconnectRequest T.DiscoNormalDisconnection _props)) = do
   let Just sid = sess ^? sessionClient . _Just . clientConnReq . connID

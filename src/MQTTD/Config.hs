@@ -1,4 +1,4 @@
-module MQTTD.Config (Config(..), User(..), ACL(..), PersistenceConfig(..),
+module MQTTD.Config (Config(..), User(..), ACLAction(..), ACL(..), PersistenceConfig(..),
                      Listener(..), ListenerOptions(..), listenerOpts,
                      parseConfFile) where
 
@@ -6,6 +6,7 @@ import           Control.Applicative        ((<|>))
 import           Control.Lens
 import qualified Data.ByteString.Lazy       as BL
 import           Data.Conduit.Network       (HostPreference)
+import           Data.Foldable              (asum)
 import           Data.Map.Strict            (Map)
 import qualified Data.Map.Strict            as Map
 import           Data.String                (IsString (..))
@@ -22,7 +23,9 @@ type Parser = Parsec Void Text
 type ListenAddress = String
 type PortNumber = Int
 
-data ACL = Allow T.Filter | Deny T.Filter deriving (Show, Eq)
+data ACLAction = ACLSub | ACLPubSub deriving (Show, Eq)
+
+data ACL = Allow ACLAction T.Filter | Deny T.Filter deriving (Show, Eq)
 
 data User = User BL.ByteString BL.ByteString [ACL] deriving (Show, Eq)
 
@@ -44,12 +47,12 @@ data Listener = MQTTListener HostPreference PortNumber ListenerOptions
 listenerOpts :: Lens' Listener ListenerOptions
 listenerOpts = lens r w
   where
-    r (MQTTListener _ _ o) = o
+    r (MQTTListener _ _ o)      = o
     r (MQTTSListener _ _ _ _ o) = o
-    r (WSListener _ _ o) = o
-    w (MQTTListener a b _) o = MQTTListener a b o
+    r (WSListener _ _ o)        = o
+    w (MQTTListener a b _) o      = MQTTListener a b o
     w (MQTTSListener a b c d _) o = MQTTSListener a b c d o
-    w (WSListener a b _) o = WSListener a b o
+    w (WSListener a b _) o        = WSListener a b o
 
 newtype PersistenceConfig = PersistenceConfig { _persistenceDBPath :: FilePath } deriving (Show, Eq)
 
@@ -99,8 +102,9 @@ parseUser :: Parser User
 parseUser = User <$> (lexeme "user" *> lexeme qstr) <*> (lexeme "password" *> lexeme qstr)
             <*> option [] (lexeme parseACL)
   where parseACL = lexeme "acls" *> between "[" "]" (some (sc' (lexeme aclEntry)))
-        aclEntry = Allow <$> (lexeme "allow" *> lexeme qstr)
-                   <|> Deny <$> (lexeme "deny" *> lexeme qstr)
+        aclEntry = asum . map try $ [Allow ACLPubSub <$> (lexeme "allow" *> lexeme qstr),
+                                     Allow ACLSub <$> (lexeme "allow" *> lexeme "read" *> lexeme qstr),
+                                     Deny <$> (lexeme "deny" *> lexeme qstr)]
 
 namedList :: Text -> Parser p -> Parser [p]
 namedList s p = namedValue s $ between "[" "]" (some (sc *> lexeme p))

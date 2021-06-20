@@ -35,7 +35,7 @@ testConfigFiles =
                             _confUsers = Map.fromList [
                                ("myuser", User "myuser" "mypw" []),
                                ("otheruser", User "otheruser" "otherpw" [
-                                   Allow "tmp/#", Deny "#"
+                                   Allow ACLPubSub "tmp/#", Allow ACLSub "$SYS/#", Deny "#"
                                    ])
                                ],
                             _confListeners = [MQTTListener "*" 1883 mempty,
@@ -87,16 +87,21 @@ testSubTree =
 
 testACLs :: Assertion
 testACLs = mapM_ aTest [
-  ([], "empty/stuffs", isRight),
-  ([Deny "#"], "deny", isLeft),
-  ([Allow "#"], "allow", isRight),
-  ([Allow "tmp/#", Deny "#"], "denied", isLeft),
-  ([Allow "tmp/#", Deny "#"], "tmp/ok", isRight),
-  ([Deny "tmp/#", Allow "#"], "tmp/denied", isLeft),
-  ([Deny "tmp/#", Allow "#"], "allowed", isRight)
+  -- Subscription tests
+  ([], IntentSubscribe, "empty/stuffs", isRight),
+  ([Deny "#"], IntentSubscribe, "deny", isLeft),
+  ([Allow ACLPubSub "tmp/#", Deny "#"], IntentSubscribe, "denied", isLeft),
+  ([Allow ACLPubSub "tmp/#", Deny "#"], IntentSubscribe, "tmp/ok", isRight),
+  ([Deny "tmp/#", Allow ACLPubSub "#"], IntentSubscribe, "tmp/denied", isLeft),
+  -- Publish tests
+  ([], IntentPublish, "empty/stuffs", isRight),
+  ([Deny "#"], IntentPublish, "deny", isLeft),
+  ([Allow ACLPubSub "#"], IntentPublish, "allow", isRight),
+  ([Deny "tmp/#", Allow ACLPubSub "#"], IntentPublish, "allowed", isRight),
+  ([Deny "tmp/#", Allow ACLSub "#"], IntentPublish, "allowed", isRight)
   ]
   where
-    aTest (a,t,f) = assertBool (show (a, t)) $ f (authTopic (classifyTopic t) a)
+    aTest (a,i,t,f) = assertBool (show (a, i, t)) $ f (authTopic (classifyTopic t) i a)
 
 testTopicClassification :: Assertion
 testTopicClassification = mapM_ aTest [
