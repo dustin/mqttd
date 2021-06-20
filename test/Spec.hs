@@ -62,10 +62,9 @@ instance Eq a => EqProp (SubTree a) where (=-=) = eq
 
 instance (Monoid a, Arbitrary a, Eq a) => Arbitrary (SubTree a) where
   arbitrary = do
-    filters <- choose (1, 20) >>= flip vectorOf (unTopic <$> arbitraryTopic ['a'..'d'] (1,7) (1,3))
-    subbers <- choose (1, 20) >>= vector
-    leaves <- choose (1, 50)
-    Sub.fromList <$> vectorOf leaves (liftA2 (,) (elements filters) (elements subbers))
+    filters <- resize 20 $ listOf1 (unTopic <$> arbitraryTopic ['a'..'d'] (1,7) (1,3))
+    subbers <- resize 20 $ listOf1 arbitrary
+    Sub.fromList <$> (resize 50 $ listOf1 (liftA2 (,) (elements filters) (elements subbers)))
 
   shrink = fmap Sub.fromList . shrinkList (const []) . Sub.flatten
 
