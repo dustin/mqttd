@@ -48,6 +48,10 @@ runServerLogging Config{..} = do
         _authUsers = _confUsers
         }
 
+  -- withConnection is not used here because this action spawns a
+  -- bunch of Asyncs and returns a list of them.  withConnection would
+  -- close the connection before it returns.  Instead, I hold the
+  -- connection inside its own Async and add that to the list.
   db <- liftIO $ open (_persistenceDBPath _confPersist)
   liftIO $ initDB db
   dbc <- async $ finally pause (logDebugN "Closing DB connection" >> liftIO (close db))
