@@ -15,8 +15,11 @@ Config :: Bool -> Map ByteString User -> [Listener] -> ListenerOptions -> Persis
 [_confListeners] :: Config -> [Listener]
 [_confDefaults] :: Config -> ListenerOptions
 [_confPersist] :: Config -> PersistenceConfig
+data Creds
+Plaintext :: ByteString -> Creds
+HashedPass :: PasswordHash Bcrypt -> Creds
 data User
-User :: ByteString -> ByteString -> [ACL] -> User
+User :: ByteString -> Creds -> [ACL] -> User
 data ACLAction
 ACLSub :: ACLAction
 ACLPubSub :: ACLAction
@@ -39,6 +42,8 @@ instance GHC.Classes.Eq MQTTD.Config.ACLAction
 instance GHC.Show.Show MQTTD.Config.ACLAction
 instance GHC.Classes.Eq MQTTD.Config.ACL
 instance GHC.Show.Show MQTTD.Config.ACL
+instance GHC.Classes.Eq MQTTD.Config.Creds
+instance GHC.Show.Show MQTTD.Config.Creds
 instance GHC.Classes.Eq MQTTD.Config.User
 instance GHC.Show.Show MQTTD.Config.User
 instance GHC.Show.Show MQTTD.Config.ListenerOptions
