@@ -17,7 +17,7 @@ import           Data.Set                 (Set)
 import           Data.Word                (Word16, Word8)
 
 import           Data.Password.Bcrypt     (PasswordHash (..))
-import           Network.MQTT.Arbitrary   (arbitraryMatchingTopic, arbitraryTopic, unTopic)
+import           Network.MQTT.Arbitrary   (MatchingTopic (..), arbitraryMatchingTopic, arbitraryTopic, unTopic)
 import           Network.MQTT.Topic       (Filter, Topic)
 
 import           MQTTD
@@ -98,10 +98,46 @@ testACLs = mapM_ aTest [
   ([Deny "#"], IntentPublish, "deny", isLeft),
   ([Allow ACLPubSub "#"], IntentPublish, "allow", isRight),
   ([Deny "tmp/#", Allow ACLPubSub "#"], IntentPublish, "allowed", isRight),
-  ([Deny "tmp/#", Allow ACLSub "#"], IntentPublish, "allowed", isRight)
+  ([Deny "tmp/#", Allow ACLSub "#"], IntentPublish, "denied", isLeft)
   ]
   where
     aTest (a,i,t,f) = assertBool (show (a, i, t)) $ f (authTopic (classifyTopic t) i a)
+
+-- ACLParams is used to create arbitary parameters for the ACL test
+-- property below.
+--
+-- Apologies for the Bool blindness, but it's True if
+-- the given topic should be allowed to perform the given Intention
+-- with the given ACL.
+--
+-- The ACL includes a non-matching ACL entry before and after the one
+-- we want to match.  It doesn't match by virtue of it not looking
+-- like anything we'd generate.
+newtype ACLParams = ACLParams (Topic, Intention, [ACL], Bool) deriving (Eq, Show)
+
+instance Arbitrary ACLParams where
+  arbitrary = do
+    MatchingTopic (t, ms) <- arbitrary
+    let m = head ms
+    i <- elements [IntentPublish, IntentSubscribe]
+    acl <- ($ m) <$> anACL
+    let want = case (i, acl) of
+                 (IntentPublish, Allow ACLPubSub _)   -> True
+                 (IntentSubscribe, Allow ACLPubSub _) -> True
+                 (IntentSubscribe, Allow ACLSub _)    -> True
+                 _                                    -> False
+    (a1, a3) <- liftA2 (,) anACL anACL
+    pure $ ACLParams (t, i, [a1 "$$$", acl, a3 "$$$"], want)
+
+      where
+        anACL = elements [Deny, Allow ACLPubSub, Allow ACLSub]
+
+  shrink (ACLParams (t, i, [a,b,c], w)) = [ACLParams (t, i, [a,b], w),
+                                           ACLParams (t, i, [b,c], w)]
+  shrink _ = []
+
+propACL :: ACLParams -> Property
+propACL (ACLParams (t, i, a, want)) = want === isRight (authTopic (classifyTopic t) i a)
 
 testTopicClassification :: Assertion
 testTopicClassification = mapM_ aTest [
@@ -141,6 +177,7 @@ tests :: [TestTree]
 tests = [
   testCase "config files" testConfigFiles,
   testCase "ACLs" testACLs,
+  testProperty "ACL props" propACL,
 
   localOption (QC.QuickCheckTests 500) $
     testProperty "packet IDs (8bit) are never 0" (propNextPacket :: NonZero Word8 -> Property),

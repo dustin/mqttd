@@ -493,6 +493,7 @@ authTopic tt action = foldr check (Right ())
     t = topicTypeTopic tt
     check (Allow aclt f) o
       | actOK aclt action && T.match f t = Right ()
+      | T.match f t = Left "unauthorized topic"
       | otherwise = o
     check (Deny f) o
       | T.match f t = Left "unauthorized topic"
