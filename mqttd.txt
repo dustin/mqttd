@@ -17,8 +17,11 @@ Config :: Bool -> Map ByteString User -> [Listener] -> ListenerOptions -> Persis
 [_confPersist] :: Config -> PersistenceConfig
 data User
 User :: ByteString -> ByteString -> [ACL] -> User
+data ACLAction
+ACLSub :: ACLAction
+ACLPubSub :: ACLAction
 data ACL
-Allow :: Filter -> ACL
+Allow :: ACLAction -> Filter -> ACL
 Deny :: Filter -> ACL
 newtype PersistenceConfig
 PersistenceConfig :: FilePath -> PersistenceConfig
@@ -32,6 +35,8 @@ ListenerOptions :: Maybe Bool -> ListenerOptions
 [_optAllowAnonymous] :: ListenerOptions -> Maybe Bool
 listenerOpts :: Lens' Listener ListenerOptions
 parseConfFile :: String -> IO Config
+instance GHC.Classes.Eq MQTTD.Config.ACLAction
+instance GHC.Show.Show MQTTD.Config.ACLAction
 instance GHC.Classes.Eq MQTTD.Config.ACL
 instance GHC.Show.Show MQTTD.Config.ACL
 instance GHC.Classes.Eq MQTTD.Config.User
@@ -303,6 +308,9 @@ Env :: TVar (Map SessionID Session) -> TVar Word16 -> TVar ClientID -> TVar (Sub
 newtype MQTTD m a
 MQTTD :: ReaderT Env m a -> MQTTD m a
 [runMQTTD] :: MQTTD m a -> ReaderT Env m a
+data Intention
+IntentPublish :: Intention
+IntentSubscribe :: Intention
 runIO :: (MonadIO m, MonadLogger m) => Env -> MQTTD m a -> m a
 newEnv :: MonadIO m => Authorizer -> Connection -> m Env
 modifyAuthorizer :: Monad m => (Authorizer -> Authorizer) -> MQTTD m a -> MQTTD m a
@@ -335,7 +343,7 @@ publish :: PublishConstraint m => Session -> PublishRequest -> MQTTD m ()
 deliver :: StatStore -> Session -> PublishRequest -> STM ()
 aliasOut :: ConnectedClient -> PublishRequest -> STM PublishRequest
 topicTypeTopic :: TopicType -> Topic
-authTopic :: TopicType -> [ACL] -> Either String ()
+authTopic :: TopicType -> Intention -> [ACL] -> Either String ()
 releasePubSlot :: StatStore -> Session -> STM ()
 dispatch :: PublishConstraint m => Session -> MQTTPkt -> MQTTD m ()
 instance Control.Monad.Fail.MonadFail m => Control.Monad.Fail.MonadFail (MQTTD.MQTTD m)
@@ -348,6 +356,8 @@ instance Control.Monad.IO.Class.MonadIO m => Control.Monad.IO.Class.MonadIO (MQT
 instance GHC.Base.Monad m => GHC.Base.Monad (MQTTD.MQTTD m)
 instance GHC.Base.Functor m => GHC.Base.Functor (MQTTD.MQTTD m)
 instance GHC.Base.Applicative m => GHC.Base.Applicative (MQTTD.MQTTD m)
+instance GHC.Show.Show MQTTD.Intention
+instance GHC.Classes.Eq MQTTD.Intention
 instance Control.Monad.IO.Unlift.MonadUnliftIO m => Control.Monad.IO.Unlift.MonadUnliftIO (MQTTD.MQTTD m)
 instance GHC.Base.Monad m => MQTTD.Stats.HasStats (MQTTD.MQTTD m)
 instance (GHC.Base.Monad m, Control.Monad.Reader.Class.MonadReader MQTTD.Env m) => MQTTD.DB.HasDBConnection m
