@@ -16,6 +16,7 @@ import           Data.Monoid              (Sum (..))
 import           Data.Set                 (Set)
 import           Data.Word                (Word16, Word8)
 
+import           Data.Password.Bcrypt     (PasswordHash (..))
 import           Network.MQTT.Arbitrary   (arbitraryMatchingTopic, arbitraryTopic, unTopic)
 import           Network.MQTT.Topic       (Filter, Topic)
 
@@ -33,8 +34,8 @@ testConfigFiles =
       ("test.conf", Config {_confDebug = True,
                             _confDefaults = ListenerOptions (Just True),
                             _confUsers = Map.fromList [
-                               ("myuser", User "myuser" "mypw" []),
-                               ("otheruser", User "otheruser" "otherpw" [
+                               ("myuser", User "myuser" (Plaintext "mypw") []),
+                               ("otheruser", User "otheruser" (HashedPass (PasswordHash "otherpw")) [
                                    Allow ACLPubSub "tmp/#", Allow ACLSub "$SYS/#", Deny "#"
                                    ])
                                ],

@@ -48,6 +48,7 @@ dependencies:
 - checkers
 - raw-strings-qq
 - attoparsec
+- password
 
 library:
   source-dirs: src
@@ -70,6 +71,15 @@ executables:
       - -Wall
     dependencies:
     - mqttd
+
+  mqttdpass:
+    main:                Main.hs
+    source-dirs:         app/mqttdpass
+    ghc-options:
+      - -threaded
+      - -rtsopts
+      - -with-rtsopts "-N -T"
+      - -Wall
 
 tests:
   mqttd-test:

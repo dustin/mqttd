@@ -23,8 +23,10 @@ import           Data.Conduit.Attoparsec  (conduitParser, sinkParser)
 import qualified Data.Conduit.Combinators as C
 import           Data.Conduit.Network     (AppData, appSink, appSockAddr, appSource)
 import qualified Data.Map.Strict          as Map
+import           Data.Password.Bcrypt     (PasswordCheck (..), checkPassword, mkPassword)
 import           Data.String              (IsString (..))
 import           Data.Text                (Text, intercalate, pack, unpack)
+import qualified Data.Text.Encoding       as TE
 import qualified Data.UUID                as UUID
 import qualified Network.MQTT.Lens        as T
 import qualified Network.MQTT.Types       as T
@@ -45,9 +47,14 @@ authorize T.ConnectRequest{..} = do
   Authorizer{..} <- asks authorizer
   pure . unless _authAnon $ do
     uname <- maybe (Left "anonymous clients are not allowed") Right _username
-    (User _ want _) <- maybe (Left "invalid username or password") Right (Map.lookup uname _authUsers)
+    (User _ want _) <- maybe inv Right (Map.lookup uname _authUsers)
     pass <- maybe (Right "") Right _password
-    when (pass /= want) $ Left "invalid username or password"
+    case want of
+      Plaintext p   -> when (pass /= p) inv
+      HashedPass hp -> when (checkPassword (topw pass) hp == PasswordCheckFail) inv
+
+  where inv = Left "invalid username or password"
+        topw = mkPassword . TE.decodeUtf8 . BL.toStrict
 
 runMQTTDConduit :: forall m. PublishConstraint m => MQTTConduit m -> MQTTD m ()
 runMQTTDConduit (src, sink, addr) = runConduit $ do

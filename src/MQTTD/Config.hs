@@ -1,4 +1,4 @@
-module MQTTD.Config (Config(..), User(..), ACLAction(..), ACL(..), PersistenceConfig(..),
+module MQTTD.Config (Config(..), Creds(..), User(..), ACLAction(..), ACL(..), PersistenceConfig(..),
                      Listener(..), ListenerOptions(..), listenerOpts,
                      parseConfFile) where
 
@@ -9,6 +9,7 @@ import           Data.Conduit.Network       (HostPreference)
 import           Data.Foldable              (asum)
 import           Data.Map.Strict            (Map)
 import qualified Data.Map.Strict            as Map
+import           Data.Password.Bcrypt       (Bcrypt, PasswordHash (..))
 import           Data.String                (IsString (..))
 import           Data.Text                  (Text, pack)
 import           Data.Void                  (Void)
@@ -27,7 +28,9 @@ data ACLAction = ACLSub | ACLPubSub deriving (Show, Eq)
 
 data ACL = Allow ACLAction T.Filter | Deny T.Filter deriving (Show, Eq)
 
-data User = User BL.ByteString BL.ByteString [ACL] deriving (Show, Eq)
+data Creds = Plaintext BL.ByteString | HashedPass (PasswordHash Bcrypt) deriving (Show, Eq)
+
+data User = User BL.ByteString Creds [ACL] deriving (Show, Eq)
 
 data ListenerOptions = ListenerOptions {
   _optAllowAnonymous :: Maybe Bool
@@ -99,12 +102,14 @@ parseListener = lexeme "listener" *> (choice . map (sc' . try)) [mqtt, mqtts, ws
     o = option mempty (lexeme parseListenOpts)
 
 parseUser :: Parser User
-parseUser = User <$> (lexeme "user" *> lexeme qstr) <*> (lexeme "password" *> lexeme qstr)
+parseUser = User <$> (lexeme "user" *> lexeme qstr) <*> passwd
             <*> option [] (lexeme parseACL)
   where parseACL = lexeme "acls" *> between "[" "]" (some (sc' (lexeme aclEntry)))
         aclEntry = asum . map try $ [Allow ACLPubSub <$> (lexeme "allow" *> lexeme qstr),
                                      Allow ACLSub <$> (lexeme "allow" *> lexeme "read" *> lexeme qstr),
                                      Deny <$> (lexeme "deny" *> lexeme qstr)]
+        passwd = Plaintext <$> (lexeme "password" *> lexeme qstr)
+                 <|> HashedPass . PasswordHash <$> (lexeme "hashedpass" *> lexeme qstr)
 
 namedList :: Text -> Parser p -> Parser [p]
 namedList s p = namedValue s $ between "[" "]" (some (sc *> lexeme p))

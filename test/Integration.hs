@@ -16,6 +16,7 @@ import           Data.Either            (isLeft)
 import           Data.List              (sort)
 import qualified Data.Map.Strict        as Map
 import           Data.Maybe             (fromJust)
+import           Data.Password.Bcrypt   (PasswordHash (..))
 import           Network.MQTT.Client    as MC
 import qualified Network.MQTT.Types     as T
 import           Network.Socket.Free    (getFreePort)
@@ -181,8 +182,12 @@ assertFails msg a = catch (a >> assertFailure msg) (\(_ :: MC.MQTTException) -> 
 testAAA :: (String -> IO ()) -> Assertion
 testAAA step = let conf = testConfig{
                      _confUsers = Map.fromList [
-                         ("all", User "all" "allpass" []),
-                         ("test", User "test" "testpass" [Allow ACLPubSub "test/#", Allow ACLSub "ro/#", Deny "#"])
+                         ("all", User "all" (Plaintext "allpass") []),
+                         ("test", User "test" (Plaintext "testpass") [
+                             Allow ACLPubSub "test/#", Allow ACLSub "ro/#", Deny "#"]),
+                         ("test2", User "test" (HashedPass (PasswordHash
+                                                            "$2b$10$RDhbUlKDkvTZsgfhiBlu9./SDwgQDv9UXkD6ZgxMhZ/67D0R7aW5m")) [
+                             Allow ACLPubSub "test/#", Allow ACLSub "ro/#", Deny "#"])
                          ],
                      _confDefaults = (ListenerOptions (Just False))
                      }
@@ -221,6 +226,11 @@ testAAA step = let conf = testConfig{
   assertFails "test user publish to share" (MC.pubAliased testUser "$share/blah/test/a" "x" True MC.QoS1 [])
   assertFails "publish from bad user" (MC.pubAliased testUser "fail/a" "x" True MC.QoS1 [])
   assertFails "publish to ro topic" (MC.pubAliased testUser "ro/a" "x" True MC.QoS1 [])
+
+  step "test user 2"
+  assertFails "bad password for test2" $ MC.connectURI baseConfig (withCreds u "test2" "testpass")
+  _ <- MC.connectURI baseConfig (withCreds u "test2" "testpass2")
+  pure ()
 
   where
     withCreds url u p = let Just a = uriAuthority url in url{uriAuthority=Just a{uriUserInfo = u <> ":" <> p <> "@"}}
