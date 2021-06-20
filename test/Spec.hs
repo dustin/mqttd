@@ -1,7 +1,6 @@
 {-# OPTIONS_GHC -Wno-orphans #-}
 {-# LANGUAGE TypeApplications #-}
 
-import           Data.Function            ((&))
 import           Test.QuickCheck.Checkers
 import           Test.QuickCheck.Classes
 import           Test.Tasty
@@ -15,9 +14,10 @@ import           Data.List                (sort)
 import qualified Data.Map.Strict          as Map
 import           Data.Monoid              (Sum (..))
 import           Data.Set                 (Set)
-import           Data.Text                (Text)
-import qualified Data.Text                as Text
 import           Data.Word                (Word16, Word8)
+
+import           Network.MQTT.Arbitrary   (arbitraryMatchingTopic, arbitraryTopic, unTopic)
+import           Network.MQTT.Topic       (Filter, Topic)
 
 import           MQTTD
 import           MQTTD.Config
@@ -62,10 +62,10 @@ instance Eq a => EqProp (SubTree a) where (=-=) = eq
 
 instance (Monoid a, Arbitrary a, Eq a) => Arbitrary (SubTree a) where
   arbitrary = do
-    topics <- choose (1, 20) >>= flip vectorOf (unTopic <$> arbitraryTopic ['a'..'d'] (1,7) (1,3))
+    filters <- choose (1, 20) >>= flip vectorOf (unTopic <$> arbitraryTopic ['a'..'d'] (1,7) (1,3))
     subbers <- choose (1, 20) >>= vector
     leaves <- choose (1, 50)
-    Sub.fromList <$> vectorOf leaves (liftA2 (,) (elements topics) (elements subbers))
+    Sub.fromList <$> vectorOf leaves (liftA2 (,) (elements filters) (elements subbers))
 
   shrink = fmap Sub.fromList . shrinkList (const []) . Sub.flatten
 
@@ -114,45 +114,7 @@ testTopicClassification = mapM_ aTest [
   where
     aTest (i, want) = assertEqual (show i) want (classifyTopic i)
 
-newtype Topic = Topic [Text] deriving (Show, Eq)
-
-arbitraryTopicSegment :: [Char] -> Int -> Gen Text
-arbitraryTopicSegment alphabet n = Text.pack <$> vectorOf n (elements alphabet)
-
-arbitraryTopic :: [Char] -> (Int,Int) -> (Int,Int) -> Gen Topic
-arbitraryTopic alphabet seglen nsegs = do
-  Topic <$> someSegs
-    where someSegs = choose nsegs >>= flip vectorOf aSeg
-          aSeg = choose seglen >>= arbitraryTopicSegment alphabet
-
-arbitraryMatchingTopic :: [Char] -> (Int,Int) -> (Int,Int) -> (Int,Int) -> Gen (Topic, [Topic])
-arbitraryMatchingTopic alphabet seglen nsegs nfilts = do
-    t@(Topic tsegs) <- arbitraryTopic alphabet seglen nsegs
-    fn <- choose nfilts
-    reps <- vectorOf fn $ vectorOf (length tsegs) (elements [id, const "+", const "#"])
-    let m = map (Topic . clean . zipWith (&) tsegs) reps
-    pure $ (t, m)
-      where
-        clean []      = []
-        clean ("#":_) = ["#"]
-        clean (x:xs)  = x : clean xs
-
-instance Arbitrary Topic where
-  arbitrary = arbitraryTopic ['a'..'z'] (1,6) (1,6)
-
-  shrink (Topic x) = fmap Topic . shrinkList shrinkWord $ x
-    where shrinkWord = fmap Text.pack . shrink . Text.unpack
-
-newtype MatchingTopic = MatchingTopic (Topic, [Topic]) deriving Eq
-
-instance Show MatchingTopic where
-  show (MatchingTopic (t, m)) = concat ["MatchingTopic ",
-                                        (Text.unpack $ unTopic t), " -> ", (show . fmap unTopic $ m)]
-
-instance Arbitrary MatchingTopic where
-  arbitrary = MatchingTopic <$> arbitraryMatchingTopic ['a'..'z'] (1,6) (1,6) (1,6)
-
-newtype CollidingMatchingTopic = CollidingMatchingTopic (Topic, [Topic]) deriving (Show, Eq)
+newtype CollidingMatchingTopic = CollidingMatchingTopic (Topic, [Filter]) deriving (Show, Eq)
 
 instance Arbitrary CollidingMatchingTopic where
   arbitrary = CollidingMatchingTopic <$> arbitraryMatchingTopic ['a'..'c'] (1,3) (1,6) (1,3)
@@ -161,7 +123,7 @@ propSubTreeMapping :: [CollidingMatchingTopic] -> Property
 propSubTreeMapping matches = label ("collisions " <> collisions) $
                              all (\(t, m) -> m `elem` Sub.find t st) tp
   where
-    tp = [(unTopic t, unTopic m) | (CollidingMatchingTopic (t, ms)) <- matches, m <- ms]
+    tp = [(t, m) | (CollidingMatchingTopic (t, ms)) <- matches, m <- ms]
     st = foldr (\(_,t) -> Sub.add t [t]) mempty tp
     collisions = (\n -> show n <> "-" <> show (n+9)) . (*10) . (`div` 10) . getSum . foldMap (Sum . subtract 1 . length) $ st
 
@@ -171,9 +133,6 @@ propNextPacket (NonZero n) =
     v <- newTVarIO n
     i <- atomically $ nextPktID v
     pure (i /= 0)
-
-unTopic :: Topic -> Text
-unTopic (Topic t) = Text.intercalate "/" t
 
 roundTrips :: (Eq a, Show a, Arbitrary a) => (a -> b) -> (b -> a) -> a -> Property
 roundTrips t f = f.t >>= (===)
