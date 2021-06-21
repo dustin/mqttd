@@ -39,6 +39,7 @@ jobs:
         stack install
         mkdir dist
         cp $HOME/.local/bin/mqttd dist
+        cp $HOME/.local/bin/mqttdpass dist
 
     - name: Store Artifact
       uses: actions/upload-artifact@v1
