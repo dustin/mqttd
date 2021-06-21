@@ -1,4 +1,4 @@
-name: "Test"
+name: "Nix Build"
 on:
   pull_request:
   push:
@@ -15,5 +15,6 @@ jobs:
         name: dustin
         signingKey: '${{ secrets.CACHIX_SIGNING_KEY }}'
     - run: nix-build -A mqttd.components.exes.mqttd
+    - run: nix-build -A mqttd.components.exes.mqttdpass
     - run: nix-build -A mqttd.components.tests.mqttd-test
     - run: nix-shell -p ./result --run mqttd-test
