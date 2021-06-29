@@ -194,10 +194,10 @@ retainMsg :: Lens' Retained PublishRequest
 retainExp :: Lens' Retained (Maybe UTCTime)
 type PublishConstraint m = (MonadLogger m, MonadFail m, MonadMask m, MonadUnliftIO m, MonadIO m)
 data TopicType
-Normal :: Topic -> TopicType
+Normal :: Filter -> TopicType
 SharedSubscription :: SubscriberName -> Filter -> TopicType
 InvalidTopic :: TopicType
-classifyTopic :: Text -> TopicType
+classifyTopic :: Filter -> TopicType
 partitionShared :: [(Filter, o)] -> ([(SubscriberName, Filter, o)], [(Filter, o)])
 instance GHC.Show.Show MQTTD.Types.TopicType
 instance GHC.Classes.Eq MQTTD.Types.TopicType
@@ -258,6 +258,8 @@ loadRetained :: (HasDBConnection m, MonadIO m) => m [Retained]
 instance Database.SQLite.Simple.FromRow.FromRow MQTTD.DB.StoredSession
 instance Database.SQLite.Simple.FromRow.FromRow MQTTD.DB.StoredSub
 instance Database.SQLite.Simple.ToRow.ToRow MQTTD.Types.Session
+instance Database.SQLite.Simple.ToField.ToField Network.MQTT.Topic.Filter
+instance Database.SQLite.Simple.FromField.FromField Network.MQTT.Topic.Filter
 instance Database.SQLite.Simple.ToRow.ToRow MQTTD.Types.Retained
 instance Database.SQLite.Simple.FromRow.FromRow MQTTD.Types.Retained
 
@@ -347,7 +349,7 @@ broadcast :: PublishConstraint m => Maybe SessionID -> PublishRequest -> MQTTD m
 publish :: PublishConstraint m => Session -> PublishRequest -> MQTTD m ()
 deliver :: StatStore -> Session -> PublishRequest -> STM ()
 aliasOut :: ConnectedClient -> PublishRequest -> STM PublishRequest
-topicTypeTopic :: TopicType -> Topic
+topicTypeFilter :: TopicType -> Filter
 authTopic :: TopicType -> Intention -> [ACL] -> Either String ()
 releasePubSlot :: StatStore -> Session -> STM ()
 dispatch :: PublishConstraint m => Session -> MQTTPkt -> MQTTD m ()
