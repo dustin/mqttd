@@ -72,7 +72,7 @@ matchRetained Retainer{..} f = do
   fmap (adj now) . filter match . Map.elems <$> readTVarIO _store
 
   where
-    match = T.match f . blToText . T._pubTopic . _retainMsg
+    match x = maybe False (T.match f) (T.mkTopic . blToText . T._pubTopic . _retainMsg $ x)
     adj _ Retained{_retainExp=Nothing, _retainMsg} = _retainMsg
     adj now Retained{_retainExp=Just e, _retainMsg} =
       _retainMsg & properties . traversed . _PropMessageExpiryInterval .~ relExp now e

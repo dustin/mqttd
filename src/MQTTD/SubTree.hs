@@ -6,10 +6,10 @@ module MQTTD.SubTree (
 
 import           Data.Map.Strict    (Map)
 import qualified Data.Map.Strict    as Map
-import           Data.Maybe         (maybeToList)
-import           Data.Text          (intercalate, isPrefixOf, splitOn)
+import           Data.Maybe         (fromJust, maybeToList)
+import           Data.Text          (intercalate, isPrefixOf)
 
-import           Network.MQTT.Topic (Filter, Topic)
+import           Network.MQTT.Topic (Filter, Topic, mkFilter, split, unFilter, unTopic)
 
 -- | MQTT Topic Subscription tree.
 data SubTree a = SubTree {
@@ -35,7 +35,7 @@ instance Monoid a => Monoid (SubTree a) where
 -- This will create structure along the path and will not clean up any
 -- unused structure.
 modify :: Filter -> (Maybe a -> Maybe a) -> SubTree a -> SubTree a
-modify top f = go (splitOn "/" top)
+modify top f = go (split top)
   where
     go [] n@SubTree{..}     = n{subs=f subs}
     go (x:xs) n@SubTree{..} = n{children=Map.alter (fmap (go xs) . maybe (Just empty) Just) x children}
@@ -50,14 +50,14 @@ addWith top f i = modify top (fmap (f i) . maybe (Just mempty) Just)
 
 -- | Find all matching subscribers
 findMap :: Monoid m => Topic -> (a -> m) -> SubTree a -> m
-findMap top f = go mwc (splitOn "/" top)
+findMap top f = go mwc (maybe [] split (mkFilter . unTopic $ top))
   where
     go _ [] SubTree{subs} = maybe mempty f subs
     go d (x:xs) SubTree{children} = maybe mempty (go id xs)                 (Map.lookup x children)
                                     <> maybe mempty (go id xs)              (d $ Map.lookup "+" children)
                                     <> maybe mempty (maybe mempty f . subs) (d $ Map.lookup "#" children)
     mwc deeper
-      | "$" `isPrefixOf` top = Nothing
+      | "$" `isPrefixOf` (unTopic top) = Nothing
       | otherwise = deeper
 
 -- | Find subscribers of a given topic.
@@ -68,8 +68,9 @@ find top = findMap top id
 flatten :: SubTree a -> [(Filter, a)]
 flatten = Map.foldMapWithKey (\k sn -> go [k] sn) . children
   where
-    go ks SubTree{..} = [(intercalate "/" (reverse ks), s) | s <- maybeToList subs]
+    go ks SubTree{..} = [(cat ks, s) | s <- maybeToList subs]
                         <> Map.foldMapWithKey (\k sn -> go (k:ks) sn) children
+    cat = fromJust . mkFilter . intercalate "/" . reverse . fmap unFilter
 
 -- | Construct a SubTree from a list of filters and subscribers (assuming monoidal values).
 fromList :: Monoid a => [(Filter, a)] -> SubTree a

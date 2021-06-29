@@ -25,8 +25,10 @@ import           Data.Either            (rights)
 import           Data.Foldable          (fold, foldl')
 import           Data.Map.Strict        (Map)
 import qualified Data.Map.Strict        as Map
-import           Data.Maybe             (fromMaybe, isJust)
+import           Data.Maybe             (catMaybes, fromMaybe, isJust)
 import           Data.Monoid            (Sum (..))
+import           Data.String            (IsString (..))
+import qualified Data.Text              as Txt
 import           Data.Time.Clock        (addUTCTime, getCurrentTime)
 import           Data.Word              (Word16)
 import           Database.SQLite.Simple (Connection)
@@ -219,9 +221,13 @@ subscribe :: PublishConstraint m => Session -> T.SubscribeRequest -> MQTTD m ()
 subscribe sess@Session{..} (T.SubscribeRequest pid topics props) = do
   subs <- asks allSubs
   subsShared <- asks sharedSubs
-  let topics' = map (\(t,o) -> let t' = blToText t in
-                                 bimap (const T.SubErrNotAuthorized)
-                                       (const (t', o)) $ authTopic (classifyTopic t') IntentSubscribe _sessionACL) topics
+  let topics' = map (\(t,o) ->
+                       case (T.mkFilter . blToText) t of
+                         Nothing -> Left T.SubErrNotAuthorized
+                         Just t' ->
+                           bimap (const T.SubErrNotAuthorized)
+                                 (const (t', o))
+                                 (authTopic (classifyTopic t') IntentSubscribe _sessionACL)) topics
       (shared, normal) = partitionShared (rights topics')
       new = Map.fromList normal
   atomically $ do
@@ -266,7 +272,7 @@ removeSubs sharedt subt sid ts = do
 
   where
     up l s = foldr (\(t,_) -> SubTree.modify t (Map.delete sid <$>)) s l
-    upShared l s = foldr (\(t,_,_) -> SubTree.modify t cleanShared) s l
+    upShared l s = foldr (\(t,_,_) s' -> maybe s' (\t' -> SubTree.modify t' cleanShared s') (T.mkFilter t)) s l
       where
         cleanShared = (fmap . fmap) (filter ((== sid) . fst))
 
@@ -274,14 +280,16 @@ unsubscribe :: MonadIO m => Session -> [BLFilter] -> MQTTD m [T.UnsubStatus]
 unsubscribe Session{..} topics = asks allSubs >>= \subs -> asks sharedSubs >>= \ssubs ->
   atomically $ do
     m <- readTVar _sessionSubs
-    let (uns, n) = foldl' (\(r,m') t -> first ((:r) . unm) $ up t m') ([], m) topics
+    let mtopics = T.mkFilter . blToText <$> topics
+        (uns, n) = foldl' (\(r,m') t -> first ((:r) . unm) $ up t m') ([], m) mtopics
     writeTVar _sessionSubs n
-    removeSubs ssubs subs _sessionID (blToText <$> topics)
+    removeSubs ssubs subs _sessionID (catMaybes mtopics)
     pure (reverse uns)
 
     where
       unm = maybe T.UnsubNoSubscriptionExisted (const T.UnsubSuccess)
-      up t = Map.updateLookupWithKey (const.const $ Nothing) (blToText t)
+      up Nothing  = (Nothing,)
+      up (Just t) = Map.updateLookupWithKey (const.const $ Nothing) t
 
 modifySession :: MonadIO m => SessionID -> (Session -> Maybe Session) -> MQTTD m ()
 modifySession k f = asks sessions >>= \s -> atomically $ modifyTVar' s (Map.update f k)
@@ -432,7 +440,7 @@ nextPktID x = modifyTVarRet x $ \pid -> if pid == maxBound then 1 else succ pid
 broadcast :: PublishConstraint m => Maybe SessionID -> T.PublishRequest -> MQTTD m ()
 broadcast src req@T.PublishRequest{..} = do
   asks retainer >>= retain req
-  subs <- findSubs (blToText _pubTopic)
+  subs <- maybe (pure []) findSubs ((T.mkTopic . blToText) _pubTopic)
   pid <- atomically . nextPktID =<< asks lastPktID
   mapM_ (\(s@Session{..}, o) -> justM (publish s) (pkt _sessionID o pid)) subs
   where
@@ -479,29 +487,31 @@ aliasOut ConnectedClient{..} pkt@T.PublishRequest{..} =
           pure pkt{T._pubProps=T.PropTopicAlias l:_pubProps}
 
 
-topicTypeTopic :: TopicType -> T.Topic
-topicTypeTopic (Normal t)               = t
-topicTypeTopic (SharedSubscription _ t) = t
-topicTypeTopic _                        = ""
+topicTypeFilter :: TopicType -> T.Filter
+topicTypeFilter (Normal t)               = t
+topicTypeFilter (SharedSubscription _ t) = t
+topicTypeFilter _                        = ""
 
 authTopic :: TopicType -> Intention -> [ACL] -> Either String ()
 authTopic InvalidTopic _ = const $ Left "invalid topics are invalid"
 authTopic tt _
-  | topicTypeTopic tt == "" = const $ Left "empty topics are not valid"
+  | topicTypeFilter tt == "" = const $ Left "empty topics are not valid"
 authTopic tt action = foldr check (Right ())
   where
-    t = topicTypeTopic tt
+    t = topicTypeFilter tt
     check (Allow aclt f) o
-      | actOK aclt action && T.match f t = Right ()
-      | T.match f t = Left "unauthorized topic"
+      | actOK aclt action && T.match f (ftot t) = Right ()
+      | T.match f (ftot t) = Left "unauthorized topic"
       | otherwise = o
     check (Deny f) o
-      | T.match f t = Left "unauthorized topic"
+      | T.match f (ftot t) = Left "unauthorized topic"
       | otherwise = o
     actOK ACLSub IntentSubscribe    = True
     actOK ACLPubSub IntentSubscribe = True
     actOK ACLPubSub IntentPublish   = True
     actOK _ _                       = False
+
+    ftot = fromString . Txt.unpack . T.unFilter
 
 releasePubSlot :: StatStore -> Session -> STM ()
 releasePubSlot ss sess@Session{..} = do
@@ -544,7 +554,7 @@ dispatch sess@Session{..} (T.UnsubscribePkt (T.UnsubscribeRequest pid subs props
 
 dispatch sess@Session{..} (T.PublishPkt req) = do
   r@T.PublishRequest{..} <- resolveAliasIn sess req
-  case authPub (classifyTopic $ blToText _pubTopic) _sessionACL of
+  case authPub (maybe InvalidTopic classifyTopic $ (T.mkFilter . blToText) _pubTopic) _sessionACL of
     Left _  -> logInfoN ("Unauthorized topic: " <> tshow _pubTopic) >> nak _pubQoS r
     Right _ -> satisfyQoS _pubQoS r
 

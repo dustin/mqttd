@@ -8,26 +8,28 @@
 
 module MQTTD.DB where
 
-import           Control.Concurrent.STM          (TBQueue, check, flushTBQueue, isEmptyTBQueue, newTBQueueIO, newTVarIO,
-                                                  readTVarIO)
+import           Control.Concurrent.STM           (TBQueue, check, flushTBQueue, isEmptyTBQueue, newTBQueueIO,
+                                                   newTVarIO, readTVarIO)
 import           Control.Lens
-import           Control.Monad                   (forever)
-import           Control.Monad.IO.Class          (MonadIO (..))
-import           Control.Monad.Logger            (MonadLogger (..), logDebugN)
-import qualified Data.Attoparsec.ByteString.Lazy as A
-import qualified Data.ByteString.Lazy            as BL
-import qualified Data.Map.Strict                 as Map
-import           Data.Maybe                      (fromMaybe)
-import           Data.String                     (fromString)
-import           Data.Time.Clock                 (addUTCTime, getCurrentTime)
-import           Database.SQLite.Simple          hiding (bind, close)
+import           Control.Monad                    (forever)
+import           Control.Monad.IO.Class           (MonadIO (..))
+import           Control.Monad.Logger             (MonadLogger (..), logDebugN)
+import qualified Data.Attoparsec.ByteString.Lazy  as A
+import qualified Data.ByteString.Lazy             as BL
+import qualified Data.Map.Strict                  as Map
+import           Data.Maybe                       (fromMaybe)
+import           Data.String                      (fromString)
+import           Data.Time.Clock                  (addUTCTime, getCurrentTime)
+import           Database.SQLite.Simple           hiding (bind, close)
+import           Database.SQLite.Simple.FromField
+import           Database.SQLite.Simple.Ok
 import           Database.SQLite.Simple.ToField
-import           Text.RawString.QQ               (r)
-import           UnliftIO                        (atomically, writeTBQueue)
+import           Text.RawString.QQ                (r)
+import           UnliftIO                         (atomically, writeTBQueue)
 
-import qualified Network.MQTT.Lens               as T
-import qualified Network.MQTT.Topic              as T
-import qualified Network.MQTT.Types              as T
+import qualified Network.MQTT.Lens                as T
+import qualified Network.MQTT.Topic               as T
+import qualified Network.MQTT.Types               as T
 
 import           MQTTD.Stats
 import           MQTTD.Types
@@ -233,6 +235,14 @@ loadSessions = liftIO . fetch =<< dbConn
 
             where will = T.LastWill <$> _sts_willRetain <*> _sts_willQoS
                          <*> _sts_willTopic <*> _sts_willBody <*> pure _sts_willProps
+
+instance ToField T.Filter where
+  toField = toField . T.unFilter
+
+instance FromField T.Filter where
+    fromField f = case fieldData f of
+                    (SQLText t) -> maybe (returnError ConversionFailed f "invalid filter") Ok $ T.mkFilter t
+                    _           -> returnError ConversionFailed f "need a text"
 
 instance ToRow Retained where
   toRow Retained{_retainTS, _retainExp, _retainMsg} = [

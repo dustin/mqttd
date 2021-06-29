@@ -9,6 +9,7 @@
 {-# LANGUAGE TemplateHaskell            #-}
 {-# LANGUAGE TypeApplications           #-}
 {-# LANGUAGE UndecidableInstances       #-}
+{-# LANGUAGE ViewPatterns               #-}
 
 module MQTTD.Types where
 
@@ -94,17 +95,19 @@ makeLenses ''Retained
 type PublishConstraint m = (MonadLogger m, MonadFail m, MonadMask m, MonadUnliftIO m, MonadIO m)
 
 data TopicType
-  = Normal T.Topic
+  = Normal T.Filter
   | SharedSubscription SubscriberName T.Filter
   | InvalidTopic
   deriving (Eq, Show)
 
-classifyTopic :: Txt.Text -> TopicType
-classifyTopic t
-  | "$share/" `Txt.isPrefixOf` t = case Txt.break (== '/') (Txt.drop 7 t) of
-                                     (_, "") -> InvalidTopic
-                                     (n, f)  -> SharedSubscription n (Txt.drop 1 f)
-  | otherwise = Normal t
+classifyTopic :: T.Filter -> TopicType
+classifyTopic f@(T.unFilter -> txt)
+  | "$share/" `Txt.isPrefixOf` txt = case Txt.break (== '/') (Txt.drop 7 txt) of
+                                       (_, "") -> InvalidTopic
+                                       (n, f')  -> case (T.mkFilter . Txt.drop 1) f' of
+                                                    Just f'' -> SharedSubscription n f''
+                                                    _        -> InvalidTopic
+  | otherwise = Normal f
 
 partitionShared :: [(T.Filter, o)] -> ([(SubscriberName, T.Filter, o)], [(T.Filter, o)])
 partitionShared = foldr (\x@(t,o) (s,n) -> case classifyTopic t of
