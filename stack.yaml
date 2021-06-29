@@ -41,7 +41,7 @@ packages:
 #
 extra-deps:
 - git: https://github.com/dustin/mqtt-hs
-  commit: 9d61810030bb3c1c3fea9aadcab332f9233e316e
+  commit: 9024e328d85871e853dd6a9d960b2530b04dc1c3
 - git: https://github.com/dustin/net-mqtt-lens
   commit: 545e9bb0dd26911278d779880fd9fb135c5eda54
 

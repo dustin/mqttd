@@ -4,12 +4,15 @@ module MQTTD.SubTree (
   SubTree, empty, modify, add, addWith, find, findMap, flatten, fromList,
   ) where
 
-import           Data.Map.Strict    (Map)
-import qualified Data.Map.Strict    as Map
-import           Data.Maybe         (fromJust, maybeToList)
-import           Data.Text          (intercalate, isPrefixOf)
+import           Data.List.NonEmpty      (NonEmpty (..), (<|))
+import qualified Data.List.NonEmpty      as NE
+import           Data.Map.Strict         (Map)
+import qualified Data.Map.Strict         as Map
+import           Data.Maybe              (maybeToList)
+import           Data.Semigroup.Foldable (fold1)
+import           Data.Text               (isPrefixOf)
 
-import           Network.MQTT.Topic (Filter, Topic, mkFilter, split, unFilter, unTopic)
+import           Network.MQTT.Topic      (Filter, Topic, mkFilter, split, unTopic)
 
 -- | MQTT Topic Subscription tree.
 data SubTree a = SubTree {
@@ -66,11 +69,11 @@ find top = findMap top id
 
 -- | flatten a SubTree to a list of (topic,a) pairs.
 flatten :: SubTree a -> [(Filter, a)]
-flatten = Map.foldMapWithKey (\k sn -> go [k] sn) . children
+flatten = Map.foldMapWithKey (\k sn -> go (k:|[]) sn) . children
   where
     go ks SubTree{..} = [(cat ks, s) | s <- maybeToList subs]
-                        <> Map.foldMapWithKey (\k sn -> go (k:ks) sn) children
-    cat = fromJust . mkFilter . intercalate "/" . reverse . fmap unFilter
+                        <> Map.foldMapWithKey (\k sn -> go (k <| ks) sn) children
+    cat = fold1 . NE.reverse
 
 -- | Construct a SubTree from a list of filters and subscribers (assuming monoidal values).
 fromList :: Monoid a => [(Filter, a)] -> SubTree a

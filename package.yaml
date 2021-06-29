@@ -49,6 +49,7 @@ dependencies:
 - raw-strings-qq
 - attoparsec
 - password
+- semigroupoids
 
 library:
   source-dirs: src
