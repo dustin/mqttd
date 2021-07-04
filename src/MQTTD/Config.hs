@@ -77,9 +77,6 @@ data Section = DebugSection Bool
 sc :: Parser ()
 sc = L.space space1 (L.skipLineComment "#" <* space) (L.skipBlockComment "/*" "*/")
 
-sc' :: Parser a -> Parser a
-sc' = (sc *>)
-
 lexeme :: Parser a -> Parser a
 lexeme = L.lexeme sc
 
@@ -92,43 +89,41 @@ symbeq x = symbol x <* symbol "="
 qstr :: IsString a => Parser a
 qstr = fromString <$> (char '"' >> manyTill L.charLiteral (char '"'))
 
-parseListener :: Parser Listener
-parseListener = lexeme "listener" *> (choice . map (sc' . try)) [mqtt, mqtts, ws] <*> o
-  where
-    mqtt =  lexeme "mqtt"  *> (MQTTListener <$> lexeme qstr <*> lexeme L.decimal)
-    mqtts = lexeme "mqtts" *> (MQTTSListener <$> lexeme qstr <*> lexeme L.decimal <*> lexeme qstr <*> lexeme qstr)
-    ws =    lexeme "ws"    *> (WSListener <$> lexeme qstr <*> lexeme L.decimal)
+bt :: Parser a -> Parser b -> Parser c -> Parser c
+bt a b = between (lexeme a) (lexeme b)
 
-    o = option mempty (lexeme parseListenOpts)
+parseListener :: Parser Listener
+parseListener = lexeme "listener" *> lexeme ((choice . fmap try) [mqtt, mqtts, ws]) <*> o
+  where
+    mqtt =  lexeme "mqtt"  *> (MQTTListener <$> lexeme qstr <*> L.decimal)
+    mqtts = lexeme "mqtts" *> (MQTTSListener <$> lexeme qstr <*> lexeme L.decimal <*> lexeme qstr <*> qstr)
+    ws =    lexeme "ws"    *> (WSListener <$> lexeme qstr <*> L.decimal)
+
+    o = option mempty parseListenOpts
 
 parseUser :: Parser User
-parseUser = User <$> (lexeme "user" *> lexeme qstr) <*> passwd
-            <*> option [] (lexeme parseACL)
-  where parseACL = lexeme "acls" *> between "[" "]" (some (sc' (lexeme aclEntry)))
-        aclEntry = asum . map try $ [Allow ACLPubSub <$> (lexeme "allow" *> lexeme qstr),
-                                     Allow ACLSub <$> (lexeme "allow" *> lexeme "read" *> lexeme qstr),
-                                     Deny <$> (lexeme "deny" *> lexeme qstr)]
-        passwd = Plaintext <$> (lexeme "password" *> lexeme qstr)
-                 <|> HashedPass . PasswordHash <$> (lexeme "hashedpass" *> lexeme qstr)
+parseUser = User <$> (lexeme "user" *> lexeme qstr) <*> lexeme passwd <*> option [] parseACL
+  where parseACL = lexeme "acls" *> bt "[" "]" (some (lexeme aclEntry))
+        aclEntry = asum . map try $ [Allow ACLPubSub <$> (lexeme "allow" *> qstr),
+                                     Allow ACLSub <$> (lexeme "allow" *> lexeme "read" *> qstr),
+                                     Deny <$> (lexeme "deny" *> qstr)]
+        passwd = Plaintext <$> (lexeme "password" *> qstr)
+                 <|> HashedPass . PasswordHash <$> (lexeme "hashedpass" *> qstr)
 
 namedList :: Text -> Parser p -> Parser [p]
-namedList s p = namedValue s $ between "[" "]" (some (sc *> lexeme p))
+namedList s p = namedValue s $ bt "[" "]" (some (lexeme p))
 
 namedValue :: Text -> Parser p -> Parser p
-namedValue s p = symbeq s *> lexeme p
+namedValue s p = symbeq s *> p
 
 parseListenOpts :: Parser ListenerOptions
-parseListenOpts = between "{" "}" (ListenerOptions <$> sc' (lexeme aListenOpt))
-  where
-    aListenOpt = namedValue "allow_anonymous" (Just <$> parseBool)
+parseListenOpts = bt "{" "}" (ListenerOptions <$> namedValue "allow_anonymous" (Just <$> parseBool))
 
 parsePersistence :: Parser PersistenceConfig
-parsePersistence = between "{" "}" (PersistenceConfig <$> sc' (lexeme aListenOpt))
-  where
-    aListenOpt = namedValue "db" (lexeme qstr)
+parsePersistence = bt "{" "}" (PersistenceConfig <$> namedValue "db" (lexeme qstr))
 
 parseSection :: Parser Section
-parseSection = (choice . map sc') [
+parseSection = lexeme $ choice [
   try (DebugSection <$> namedValue "debug" parseBool),
   DefaultsSection <$> namedValue "defaults" parseListenOpts,
   UserSection <$> namedList "users" parseUser,
@@ -137,7 +132,7 @@ parseSection = (choice . map sc') [
   ]
 
 parseConfig :: Parser Config
-parseConfig = foldr up (Config False mempty mempty mempty (PersistenceConfig ":memory:")) <$> sc' (some parseSection)
+parseConfig = foldr up (Config False mempty mempty mempty (PersistenceConfig ":memory:")) <$> some parseSection
 
     where
       up (DebugSection d) c = c{_confDebug=d}
@@ -154,4 +149,4 @@ parseFile :: Parser a -> String -> IO a
 parseFile f s = readFile s >>= (either (fail.errorBundlePretty) pure . parse f s) . pack
 
 parseConfFile :: String -> IO Config
-parseConfFile = parseFile parseConfig
+parseConfFile = parseFile (sc *> parseConfig)
