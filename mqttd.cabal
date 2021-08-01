@@ -1,0 +1,221 @@
+cabal-version: 1.12
+
+-- This file has been generated from package.yaml by hpack version 0.34.4.
+--
+-- see: https://github.com/sol/hpack
+--
+-- hash: 0e97ebb45f27e156966925c72d189bfe0ec199db87c77134f5ff62fb2e519040
+
+name:           mqttd
+version:        0.9.1.0
+description:    Please see the README on GitHub at <https://github.com/dustin/mqttd#readme>
+homepage:       https://github.com/dustin/mqttd#readme
+bug-reports:    https://github.com/dustin/mqttd/issues
+author:         Dustin Sallings
+maintainer:     dustin@spy.net
+copyright:      MIT
+license:        BSD3
+license-file:   LICENSE
+build-type:     Simple
+extra-source-files:
+    README.md
+    ChangeLog.md
+
+source-repository head
+  type: git
+  location: https://github.com/dustin/mqttd
+
+library
+  exposed-modules:
+      MQTTD
+      MQTTD.Conduit
+      MQTTD.Config
+      MQTTD.DB
+      MQTTD.GCStats
+      MQTTD.Main
+      MQTTD.Retention
+      MQTTD.Stats
+      MQTTD.SubTree
+      MQTTD.Types
+      MQTTD.Util
+      Scheduler
+  other-modules:
+      Paths_mqttd
+  hs-source-dirs:
+      src
+  default-extensions:
+      OverloadedStrings
+      RecordWildCards
+      NamedFieldPuns
+  ghc-options: -Wall
+  build-depends:
+      async
+    , attoparsec
+    , base >=4.7 && <5
+    , bytestring
+    , checkers
+    , conduit
+    , conduit-extra
+    , containers
+    , exceptions
+    , lens
+    , megaparsec
+    , monad-logger
+    , mtl
+    , net-mqtt ==0.8.*
+    , net-mqtt-lens
+    , network-conduit-tls
+    , optparse-applicative
+    , password
+    , random
+    , raw-strings-qq
+    , sqlite-simple
+    , stm
+    , text
+    , time
+    , transformers
+    , unliftio
+    , uuid
+    , vector
+    , websockets
+  default-language: Haskell2010
+
+executable mqttd
+  main-is: Main.hs
+  other-modules:
+      Paths_mqttd
+  hs-source-dirs:
+      app
+  default-extensions:
+      OverloadedStrings
+      RecordWildCards
+      NamedFieldPuns
+  ghc-options: -threaded -rtsopts -with-rtsopts "-N -T" -Wall
+  build-depends:
+      async
+    , attoparsec
+    , base >=4.7 && <5
+    , bytestring
+    , checkers
+    , conduit
+    , conduit-extra
+    , containers
+    , exceptions
+    , lens
+    , megaparsec
+    , monad-logger
+    , mqttd
+    , mtl
+    , net-mqtt ==0.8.*
+    , net-mqtt-lens
+    , network-conduit-tls
+    , optparse-applicative
+    , password
+    , random
+    , raw-strings-qq
+    , sqlite-simple
+    , stm
+    , text
+    , time
+    , transformers
+    , unliftio
+    , uuid
+    , vector
+    , websockets
+  default-language: Haskell2010
+
+executable mqttdpass
+  main-is: Main.hs
+  other-modules:
+      Paths_mqttd
+  hs-source-dirs:
+      app/mqttdpass
+  default-extensions:
+      OverloadedStrings
+      RecordWildCards
+      NamedFieldPuns
+  ghc-options: -threaded -rtsopts -with-rtsopts "-N -T" -Wall
+  build-depends:
+      async
+    , attoparsec
+    , base >=4.7 && <5
+    , bytestring
+    , checkers
+    , conduit
+    , conduit-extra
+    , containers
+    , exceptions
+    , lens
+    , megaparsec
+    , monad-logger
+    , mtl
+    , net-mqtt ==0.8.*
+    , net-mqtt-lens
+    , network-conduit-tls
+    , optparse-applicative
+    , password
+    , random
+    , raw-strings-qq
+    , sqlite-simple
+    , stm
+    , text
+    , time
+    , transformers
+    , unliftio
+    , uuid
+    , vector
+    , websockets
+  default-language: Haskell2010
+
+test-suite mqttd-test
+  type: exitcode-stdio-1.0
+  main-is: Spec.hs
+  other-modules:
+      Integration
+      Paths_mqttd
+  hs-source-dirs:
+      test
+  default-extensions:
+      OverloadedStrings
+      RecordWildCards
+      NamedFieldPuns
+  ghc-options: -Wall -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      HUnit
+    , QuickCheck
+    , async
+    , attoparsec
+    , base >=4.7 && <5
+    , bytestring
+    , checkers
+    , conduit
+    , conduit-extra
+    , containers
+    , exceptions
+    , lens
+    , megaparsec
+    , monad-logger
+    , mqttd
+    , mtl
+    , net-mqtt ==0.8.*
+    , net-mqtt-lens
+    , network-conduit-tls
+    , network-uri
+    , optparse-applicative
+    , password
+    , port-utils
+    , random
+    , raw-strings-qq
+    , sqlite-simple
+    , stm
+    , tasty
+    , tasty-hunit
+    , tasty-quickcheck
+    , text
+    , time
+    , transformers
+    , unliftio
+    , uuid
+    , vector
+    , websockets
+  default-language: Haskell2010

@@ -1,5 +1,3 @@
 *~
 .stack-work/
 /mqttd.db
-/stack.yaml.lock
-mqttd.cabal
