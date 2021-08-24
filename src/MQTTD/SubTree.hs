@@ -4,15 +4,15 @@ module MQTTD.SubTree (
   SubTree, empty, modify, add, addWith, find, findMap, flatten, fromList,
   ) where
 
-import           Data.List.NonEmpty      (NonEmpty (..), (<|))
-import qualified Data.List.NonEmpty      as NE
-import           Data.Map.Strict         (Map)
-import qualified Data.Map.Strict         as Map
-import           Data.Maybe              (maybeToList)
-import           Data.Semigroup          (sconcat)
-import           Data.Text               (isPrefixOf)
+import           Data.List.NonEmpty (NonEmpty (..), (<|))
+import qualified Data.List.NonEmpty as NE
+import           Data.Map.Strict    (Map)
+import qualified Data.Map.Strict    as Map
+import           Data.Maybe         (maybeToList)
+import           Data.Semigroup     (sconcat)
+import           Data.Text          (isPrefixOf)
 
-import           Network.MQTT.Topic      (Filter, Topic, mkFilter, split, unTopic)
+import           Network.MQTT.Topic (Filter, Topic, split, toFilter, unTopic)
 
 -- | MQTT Topic Subscription tree.
 data SubTree a = SubTree {
@@ -53,7 +53,7 @@ addWith top f i = modify top (fmap (f i) . maybe (Just mempty) Just)
 
 -- | Find all matching subscribers
 findMap :: Monoid m => Topic -> (a -> m) -> SubTree a -> m
-findMap top f = go mwc (maybe [] split (mkFilter . unTopic $ top))
+findMap top f = go mwc (split (toFilter top))
   where
     go _ [] SubTree{subs} = maybe mempty f subs
     go d (x:xs) SubTree{children} = maybe mempty (go id xs)                 (Map.lookup x children)

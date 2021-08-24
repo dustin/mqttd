@@ -14,13 +14,11 @@ import           Data.List                (sort)
 import qualified Data.Map.Strict          as Map
 import           Data.Monoid              (Sum (..))
 import           Data.Set                 (Set)
-import           Data.String              (IsString (..))
-import qualified Data.Text                as Txt
 import           Data.Word                (Word16, Word8)
 
 import           Data.Password.Bcrypt     (PasswordHash (..))
 import           Network.MQTT.Arbitrary   (MatchingTopic (..), arbitraryMatchingTopic, arbitraryTopic)
-import           Network.MQTT.Topic       (Filter, Topic, unTopic)
+import           Network.MQTT.Topic       (Filter, Topic, toFilter)
 
 import           MQTTD
 import           MQTTD.Config
@@ -65,11 +63,9 @@ instance Eq a => EqProp (SubTree a) where (=-=) = eq
 
 instance (Monoid a, Arbitrary a, Eq a) => Arbitrary (SubTree a) where
   arbitrary = do
-    filters <- resize 20 $ listOf1 (ttof <$> arbitraryTopic ['a'..'d'] (1,7) (1,3))
+    filters <- resize 20 $ listOf1 (toFilter <$> arbitraryTopic ['a'..'d'] (1,7) (1,3))
     subbers <- resize 20 $ listOf1 arbitrary
     Sub.fromList <$> (resize 50 $ listOf1 (liftA2 (,) (elements filters) (elements subbers)))
-
-      where ttof = fromString . Txt.unpack . unTopic
 
   shrink = fmap Sub.fromList . shrinkList (const []) . Sub.flatten
 
@@ -141,9 +137,7 @@ instance Arbitrary ACLParams where
   shrink _ = []
 
 propACL :: ACLParams -> Property
-propACL (ACLParams (t, i, a, want)) = want === isRight (authTopic (classifyTopic (ttof t)) i a)
-  where ttof = fromString . Txt.unpack . unTopic
-
+propACL (ACLParams (t, i, a, want)) = want === isRight (authTopic (classifyTopic (toFilter t)) i a)
 
 testTopicClassification :: Assertion
 testTopicClassification = mapM_ aTest [
