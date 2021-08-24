@@ -21,7 +21,7 @@ description:         Please see the README on GitHub at <https://github.com/dust
 
 dependencies:
 - base >= 4.7 && < 5
-- net-mqtt >= 0.8 && < 0.9
+- net-mqtt >= 0.8.1 && < 0.9
 - net-mqtt-lens
 - optparse-applicative
 - sqlite-simple

@@ -5,12 +5,12 @@
 
 packages:
 - completed:
-    hackage: net-mqtt-0.8.0.2@sha256:def2fa42d89763550c758a2b367e54d3b23f1f9202c6e0fff8798f04b92f5333,4146
+    hackage: net-mqtt-0.8.1.0@sha256:dd47ac74d2675cae9b55e59e505fbd36794b3fdee7e4bf9d214f27629be10898,4069
     pantry-tree:
       size: 701
-      sha256: 839dcd69a478c4746b9f8739bc27243540efcf82a528739e0335081c7c50106a
+      sha256: 683c4115e7d7b32cd1942f72bb6354cf01d81adfe5bb60e2f460b5aadf8d77f2
   original:
-    hackage: net-mqtt-0.8.0.2
+    hackage: net-mqtt-0.8.1.0
 snapshots:
 - completed:
     size: 585817
