@@ -4,15 +4,16 @@ import           Control.Concurrent.STM (TVar, check, modifyTVar', newTVarIO, or
                                          writeTVar)
 import           Control.Monad          (forever)
 import           Control.Monad.IO.Class (MonadIO (..))
-import           Control.Monad.Logger   (MonadLogger (..), logDebugN)
+import           Control.Monad.Logger   (MonadLogger (..))
 import           Data.Map.Strict        (Map)
 import qualified Data.Map.Strict        as Map
 import           Data.Maybe             (fromMaybe)
-import           Data.Text              (pack)
 import           Data.Time.Clock        (NominalDiffTime, UTCTime (..), diffUTCTime, getCurrentTime)
 import           UnliftIO               (atomically)
 
+import           MQTTD.Logging
 import           MQTTD.Stats
+import           MQTTD.Util
 
 -- This bit is just about managing a schedule of tasks.
 
@@ -68,7 +69,7 @@ runOnce action QueueRunner{..} = block >> go
         (todo, nq) <- ready now <$> readTVar _tq
         writeTVar _tq nq
         pure todo
-      logDebugN ("Running " <> (pack . show . length) todo <> " actions")
+      logDbgL ["Running ", (tshow . length) todo, " actions"]
       incrementStat StatsActionExecuted (length todo)
       mapM_ action todo
 

@@ -4,7 +4,7 @@ import           Control.Concurrent.STM (TVar, modifyTVar', newTVarIO, readTVar)
 import           Control.Lens
 import           Control.Monad          (unless, when, (<=<))
 import           Control.Monad.IO.Class (MonadIO (..))
-import           Control.Monad.Logger   (MonadLogger (..), logDebugN)
+import           Control.Monad.Logger   (MonadLogger (..))
 import qualified Data.ByteString.Lazy   as BL
 import           Data.Map.Strict        (Map)
 import qualified Data.Map.Strict        as Map
@@ -15,6 +15,7 @@ import qualified Network.MQTT.Types     as T
 import           UnliftIO               (MonadUnliftIO (..), atomically, readTVarIO)
 
 import           MQTTD.DB
+import           MQTTD.Logging
 import           MQTTD.Stats
 import           MQTTD.Types
 import           MQTTD.Util
@@ -33,7 +34,7 @@ cleanRetainer Retainer{..} = Scheduler.run cleanup _qrunner
     where
       cleanup k = do
         now <- liftIO getCurrentTime
-        unless (isSys k) $ logDebugN ("Probably removing persisted item: " <> tshow k)
+        unless (isSys k) $ logDbgL ["Probably removing persisted item: ", tshow k]
         jk <- atomically $ do
           r <- (_retainExp <=< Map.lookup k) <$> readTVar _store
           when (r < Just now) $ modifyTVar' _store (Map.delete k)
@@ -50,7 +51,7 @@ retain T.PublishRequest{_pubTopic,_pubBody=""} Retainer{..} = do
   atomically $ modifyTVar' _store (Map.delete _pubTopic)
 retain pr@T.PublishRequest{..} Retainer{..} = do
   now <- liftIO getCurrentTime
-  unless (isSys _pubTopic) $ logDebugN ("Persisting " <> tshow _pubTopic)
+  unless (isSys _pubTopic) $ logDbgL ["Persisting ", tshow _pubTopic]
   let e = pr ^? properties . folded . _PropMessageExpiryInterval . to (absExp now)
       ret = Retained now e pr
   atomically $ modifyTVar' _store (Map.insert _pubTopic ret)

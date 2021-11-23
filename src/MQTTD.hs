@@ -18,7 +18,7 @@ import           Control.Lens
 import           Control.Monad          (forever, unless, void, when)
 import           Control.Monad.Catch    (MonadCatch (..), MonadMask (..), MonadThrow (..))
 import           Control.Monad.IO.Class (MonadIO (..))
-import           Control.Monad.Logger   (MonadLogger (..), logDebugN, logInfoN)
+import           Control.Monad.Logger   (MonadLogger (..))
 import           Control.Monad.Reader   (MonadReader (..), ReaderT (..), asks, local)
 import           Data.Bifunctor         (first, second)
 import           Data.Either            (rights)
@@ -41,6 +41,7 @@ import           UnliftIO               (MonadUnliftIO (..), atomically, readTVa
 import           MQTTD.Config           (ACL (..), ACLAction (..), User (..))
 import           MQTTD.DB
 import           MQTTD.GCStats
+import           MQTTD.Logging
 import           MQTTD.Retention
 import           MQTTD.Stats
 import           MQTTD.SubTree          (SubTree)
@@ -248,7 +249,7 @@ subscribe sess@Session{..} (T.SubscribeRequest pid topics props) = do
     upShared m subs = foldr (\(n,f,o) -> SubTree.addWith f (Map.unionWith (<>)) (Map.singleton n [(_sessionID, o)])) subs m
 
     doRetained _ (_, T.SubOptions{T._retainHandling=T.DoNotSendOnSubscribe}) = pure ()
-    doRetained p (t, ops) = mapM_ (sendOne ops) =<< matchRetained p t
+    doRetained p (t, ops)                                                    = mapM_ (sendOne ops) =<< matchRetained p t
 
     sendOne opts@T.SubOptions{..} ir@T.PublishRequest{..} = do
       pid' <- atomically . nextPktID =<< asks lastPktID
@@ -341,7 +342,7 @@ expireSession k = do
 
   where
     possiblyCleanup Nothing = pure ()
-    possiblyCleanup (Just Session{_sessionClient=Just _}) = logDebugN (tshow k <> " is in use")
+    possiblyCleanup (Just Session{_sessionClient=Just _}) = logDbgL [tshow k, " is in use"]
     possiblyCleanup (Just Session{_sessionClient=Nothing,
                                   _sessionExpires=Nothing}) = expireNow
     possiblyCleanup (Just Session{_sessionClient=Nothing,
@@ -369,9 +370,9 @@ expireSession k = do
                     else
                       pure Nothing
       case kilt of
-        Nothing -> logDebugN ("Nothing expired for " <> tshow k)
+        Nothing -> logDbgL ["Nothing expired for ", tshow k]
         Just s@Session{..}  -> do
-          logDebugN ("Expired session for " <> tshow k)
+          logDbgL ["Expired session for ", tshow k]
           subt <- asks allSubs
           ssubst <- asks sharedSubs
           atomically $ do
@@ -381,9 +382,9 @@ expireSession k = do
           sessionDied s
 
     sessionDied Session{_sessionWill=Nothing} =
-      logDebugN ("Session without will: " <> tshow k <> " has died")
+      logDbgL ["Session without will: ", tshow k, " has died"]
     sessionDied Session{_sessionWill=Just T.LastWill{..}} = do
-      logDebugN ("Session with will " <> tshow k <> " has died")
+      logDbgL ["Session with will ", tshow k, " has died"]
       broadcast Nothing (T.PublishRequest{
                             T._pubDup=False,
                             T._pubQoS=_willQoS,
@@ -555,7 +556,7 @@ dispatch sess@Session{..} (T.UnsubscribePkt (T.UnsubscribeRequest pid subs props
 dispatch sess@Session{..} (T.PublishPkt req) = do
   r@T.PublishRequest{..} <- resolveAliasIn sess req
   case authPub (maybe InvalidTopic classifyTopic $ (T.mkFilter . blToText) _pubTopic) _sessionACL of
-    Left _  -> logInfoN ("Unauthorized topic: " <> tshow _pubTopic) >> nak _pubQoS r
+    Left _  -> logInfoL ["Unauthorized topic: ", tshow _pubTopic] >> nak _pubQoS r
     Right _ -> satisfyQoS _pubQoS r
 
     where

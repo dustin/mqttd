@@ -13,7 +13,6 @@ import           Control.Lens
 import           Control.Monad            (forever, guard, unless, void, when)
 import qualified Control.Monad.Catch      as E
 import           Control.Monad.IO.Class   (MonadIO (..))
-import           Control.Monad.Logger     (logDebugN, logInfoN)
 import           Control.Monad.Reader     (asks)
 import           Control.Monad.Trans      (lift)
 import qualified Data.ByteString.Char8    as BCS
@@ -36,6 +35,7 @@ import           UnliftIO                 (async, atomically, waitAnyCancel)
 
 import           MQTTD
 import           MQTTD.Config
+import           MQTTD.Logging
 import           MQTTD.Stats
 import           MQTTD.Types
 import           MQTTD.Util
@@ -76,7 +76,7 @@ runMQTTDConduit (src, sink, addr) = runConduit $ do
     run _ _ pkt _ = fail ("Unhandled start packet from " <> unpack addr <> ": " <> show pkt)
 
     notAuthorized pl req s = do
-      logInfoN ("Unauthorized connection from " <> addr <> ": " <> tshow req)
+      logInfoL ["Unauthorized connection from ", addr, ": ", tshow req]
       runConduit $ do
         yield (T.ConnACKPkt $ T.ConnACKFlags T.NewSession (noauth pl) []) .| commonOut pl
         yield (T.DisconnectPkt $ T.DisconnectRequest T.DiscoNotAuthorized [
@@ -102,12 +102,12 @@ runMQTTDConduit (src, sink, addr) = runConduit $ do
       void $ waitAnyCancel [i, o, w]
 
     logConn h T.ConnectRequest{..} =
-      logInfoN (h <> " from " <> addr <> lu
-                <> " s=" <> tshow _connID
-                <> lw _lastWill
-                <> " c=" <> tf _cleanSession
-                <> " ka=" <> tshow _keepAlive
-                <> sp _connProperties)
+      logInfoL [h,  " from ",  addr,  lu,
+                " s=",  tshow _connID,
+                lw _lastWill,
+                " c=",  tf _cleanSession,
+                " ka=",  tshow _keepAlive,
+                sp _connProperties]
       where
         tf True  = "t"
         tf False = "f"
@@ -125,13 +125,13 @@ runMQTTDConduit (src, sink, addr) = runConduit $ do
 
     processIn wdch sess pl = runConduit $ commonIn
         .| conduitParser (T.parsePacket pl)
-        .| C.mapM (\i@(_,x) -> logDebugN ("<< " <> tshow x) >> pure i)
+        .| C.mapM (\i@(_,x) -> logDbgL ["<< ", tshow x] >> pure i)
         .| C.mapM_ (\(_,x) -> feed wdch >> dispatch sess x)
 
 
     commonIn = src .| C.mapM (count StatBytesRcvd)
 
-    commonOut pl = C.mapM (\x -> logDebugN (">> " <> tshow x) >> pure x)
+    commonOut pl = C.mapM (\x -> logDbgL [">> ", tshow x] >> pure x)
                    .| C.map (BL.toStrict . T.toByteString pl)
                    .| C.mapM (count StatBytesSent)
                    .| sink
@@ -149,7 +149,7 @@ runMQTTDConduit (src, sink, addr) = runConduit $ do
 
     ensureID (T.ConnPkt c@T.ConnectRequest{_connID=""} pl) = do
       nid <- BL.fromStrict . UUID.toASCIIBytes <$> liftIO randomIO
-      logDebugN ("Generating ID for anonymous client: " <> tshow nid)
+      logDbgL ["Generating ID for anonymous client: ", tshow nid]
       pure (T.ConnPkt c{T._connID=nid} pl, Just nid)
     ensureID x = pure (x, Nothing)
 
@@ -159,7 +159,7 @@ runMQTTDConduit (src, sink, addr) = runConduit $ do
       toch <- liftIO $ registerDelay pp
       timedOut <- atomically $ ((check =<< readTVar toch) >> pure True) `orElse` (readTChan wdch >> pure False)
       when timedOut $ do
-        logInfoN ("Client with session " <> tshow sid <> " timed out")
+        logInfoL ["Client with session ", tshow sid, " timed out"]
         liftIO $ throwTo t MQTTPingTimeout
 
     retransmit Session{..} = do

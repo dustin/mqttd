@@ -4,8 +4,7 @@ import           Control.Concurrent       (newChan, newEmptyMVar, putMVar, readC
 import           Control.Lens
 import           Control.Monad.Catch      (MonadMask (..))
 import           Control.Monad.IO.Class   (MonadIO (..))
-import           Control.Monad.Logger     (LogLevel (..), MonadLogger (..), filterLogger, logDebugN, logInfoN,
-                                           runStderrLoggingT)
+import           Control.Monad.Logger     (LogLevel (..), MonadLogger (..), filterLogger, runStderrLoggingT)
 import           Data.Conduit.Network     (runGeneralTCPServer, serverSettings, setAfterBind)
 import           Data.Conduit.Network.TLS (runGeneralTCPServerTLS, tlsConfig)
 import           Data.Maybe               (fromMaybe)
@@ -17,13 +16,14 @@ import           MQTTD
 import           MQTTD.Conduit
 import           MQTTD.Config
 import           MQTTD.DB
+import           MQTTD.Logging
 import           MQTTD.Stats              (applyStats)
 import           MQTTD.Types
 import           MQTTD.Util
 
 runListener :: (MonadUnliftIO m, MonadLogger m, MonadFail m, MonadMask m) => Listener -> MQTTD m (Async ())
 runListener (MQTTListener a p _) = do
-  logInfoN ("Starting mqtt service on " <> tshow a <> ":" <> tshow p)
+  logInfoL ["Starting mqtt service on ", tshow a, ":", tshow p]
   -- The generic TCP listener is featureful enough to allow us to
   -- block until binding is done.
   bound <- liftIO newEmptyMVar
@@ -31,10 +31,10 @@ runListener (MQTTListener a p _) = do
   _ <- liftIO $ takeMVar bound
   pure rv
 runListener (WSListener a p _) = do
-  logInfoN ("Starting websocket service on " <> tshow a <> ":" <> tshow p)
+  logInfoL ["Starting websocket service on ", tshow a, ":", tshow p]
   withRunInIO $ \unl -> async $ WS.runServer a p (unl . webSocketsApp)
 runListener (MQTTSListener a p c k _) = do
-  logInfoN ("Starting mqtts service on " <> tshow a <> ":" <> tshow p)
+  logInfoL ["Starting mqtts service on ", tshow a, ":", tshow p]
   async $ runGeneralTCPServerTLS (tlsConfig a p c k) tcpApp
 
 -- Block forever.
@@ -54,7 +54,7 @@ runServerLogging Config{..} = do
   -- connection inside its own Async and add that to the list.
   db <- liftIO $ open (_persistenceDBPath _confPersist)
   liftIO $ initDB db
-  dbc <- async $ finally pause (logDebugN "Closing DB connection" >> liftIO (close db))
+  dbc <- async $ finally pause (logDbg "Closing DB connection" >> liftIO (close db))
 
   withRunInIO $ \unl -> do
     e <- newEnv baseAuth db

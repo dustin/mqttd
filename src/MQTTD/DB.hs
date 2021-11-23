@@ -13,7 +13,7 @@ import           Control.Concurrent.STM           (TBQueue, check, flushTBQueue,
 import           Control.Lens
 import           Control.Monad                    (forever)
 import           Control.Monad.IO.Class           (MonadIO (..))
-import           Control.Monad.Logger             (MonadLogger (..), logDebugN)
+import           Control.Monad.Logger             (MonadLogger (..))
 import qualified Data.Attoparsec.ByteString.Lazy  as A
 import qualified Data.ByteString.Lazy             as BL
 import qualified Data.Map.Strict                  as Map
@@ -31,6 +31,7 @@ import qualified Network.MQTT.Lens                as T
 import qualified Network.MQTT.Topic               as T
 import qualified Network.MQTT.Types               as T
 
+import           MQTTD.Logging
 import           MQTTD.Stats
 import           MQTTD.Types
 import           MQTTD.Util
@@ -93,7 +94,7 @@ runOperations = do
         store ops
           where
             store ops = do
-              logDebugN ("Storing a batch of " <> tshow (length ops) <> " operations")
+              logDbgL ["Storing a batch of ", tshow (length ops), " operations"]
               incrementStat StatStoreTransactions 1
               incrementStat StatStoreOperations (length ops)
               liftIO . withTransaction db $

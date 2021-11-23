@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 2291c8f3cdad303ead1ba662271c86e431f3760cd23a9833ca3498120183d929
+-- hash: 1644a18f1260672c992721a817e4dd2353813dba2f5a4d5582aa91e44e555489
 
 name:           mqttd
 version:        0.9.1.0
@@ -32,6 +32,7 @@ library
       MQTTD.Config
       MQTTD.DB
       MQTTD.GCStats
+      MQTTD.Logging
       MQTTD.Main
       MQTTD.Retention
       MQTTD.Stats
