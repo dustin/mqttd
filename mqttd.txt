@@ -366,8 +366,8 @@ instance GHC.Base.Applicative m => GHC.Base.Applicative (MQTTD.MQTTD m)
 instance GHC.Show.Show MQTTD.Intention
 instance GHC.Classes.Eq MQTTD.Intention
 instance Control.Monad.IO.Unlift.MonadUnliftIO m => Control.Monad.IO.Unlift.MonadUnliftIO (MQTTD.MQTTD m)
+instance GHC.Base.Monad m => MQTTD.DB.HasDBConnection (MQTTD.MQTTD m)
 instance GHC.Base.Monad m => MQTTD.Stats.HasStats (MQTTD.MQTTD m)
-instance (GHC.Base.Monad m, Control.Monad.Reader.Class.MonadReader MQTTD.Env m) => MQTTD.DB.HasDBConnection m
 
 module MQTTD.Conduit
 type MQTTConduit m = (ConduitT () ByteString (MQTTD m) (), ConduitT ByteString Void (MQTTD m) (), Text)
