@@ -90,6 +90,41 @@ testBasicPubSub = withTestService $ \u -> do
                                                 ("test/retained2", "future message2")])
     m
 
+testUnsub :: Assertion
+testUnsub = withTestService $ \u -> do
+  mv <- newTVarIO mempty
+  (pubber, subber) <- concurrently
+                      (MC.connectURI MC.mqttConfig u)
+                      (MC.connectURI MC.mqttConfig{_msgCB=MC.SimpleCallback (\_ t v _ -> atomically $ modifyTVar' mv (Map.insert t v)),
+                                                   _protocol=MC.Protocol50} u)
+
+  MC.publishq pubber "test/retained0" "future message0" True MC.QoS0 []
+  MC.publishq pubber "test/retained1" "future message1" True MC.QoS1 []
+  MC.publishq pubber "test/retained2" "future message2" True MC.QoS2 []
+  MC.publishq pubber "test2/dontcare" "another retained" True MC.QoS1 []
+
+  -- Subscriber client
+  _ <- MC.subscribe subber [("test/#", MC.subOptions),
+                            ("test2/+", MC.subOptions{_retainHandling=T.DoNotSendOnSubscribe})] []
+
+  _ <- MC.unsubscribe subber ["test2/+"] []
+
+  -- Publish a few things
+  MC.publishq pubber "nope/nosub" "no subscribers here" False MC.QoS0 []
+  MC.publishq pubber "test/tv0" "test message 0" False MC.QoS0 []
+  MC.publishq pubber "test2/noreceipt" "test message 0" False MC.QoS0 []
+
+  -- Wait for results.
+  m <- atomically $ do
+    m <- readTVar mv
+    check (length m >= 4)
+    pure m
+  assertEqual "Got the messages" (Map.fromList [("test/tv0", "test message 0"),
+                                                ("test/retained0", "future message0"),
+                                                ("test/retained1", "future message1"),
+                                                ("test/retained2", "future message2")])
+    m
+
 testRetainAsPublished :: Assertion
 testRetainAsPublished = withTestService $ \u -> do
   mv <- newTVarIO mempty
@@ -238,6 +273,7 @@ testAAA step = let conf = testConfig{
 tests :: [TestTree]
 tests = [
   testCase "Basic" testBasicPubSub,
+  testCase "Unsub" testUnsub,
   testCase "Retain as Published" testRetainAsPublished,
   testCase "Aliases" testAliases,
   testCaseSteps "Shared" testShared,
