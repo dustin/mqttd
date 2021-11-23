@@ -1,0 +1,49 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">MQTTD.Logging</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-2"></span><span>
+</span><span id="line-3"></span><span class="hs-keyword">import</span><span>           </span><span class="annot"><span class="hs-identifier">Control.Monad.Logger</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">MonadLogger</span></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">logDebugN</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">logErrorN</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">logInfoN</span></span><span class="hs-special">)</span><span>
+</span><span id="line-4"></span><span class="hs-keyword">import</span><span>           </span><span class="annot"><span class="hs-identifier">Data.Foldable</span></span><span>        </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">fold</span></span><span class="hs-special">)</span><span>
+</span><span id="line-5"></span><span>
+</span><span id="line-6"></span><span class="hs-keyword">import</span><span>           </span><span class="annot"><span class="hs-identifier">Data.Text</span></span><span>            </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Text</span></span><span class="hs-special">)</span><span>
+</span><span id="line-7"></span><span>
+</span><span id="line-8"></span><span id="local-6989586621679187968"><span class="annot"><a href="MQTTD.Logging.html#logError"><span class="hs-identifier hs-type">logError</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="MQTTD.Logging.html#logInfo"><span class="hs-identifier hs-type">logInfo</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="MQTTD.Logging.html#logDbg"><span class="hs-identifier hs-type">logDbg</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MonadLogger</span></span><span> </span><span class="annot"><a href="#local-6989586621679187968"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Text</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679187968"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span></span><span>
+</span><span id="line-9"></span><span>
+</span><span id="line-10"></span><span id="logError"><span class="annot"><span class="annottext">logError :: Text -&gt; m ()
+</span><a href="MQTTD.Logging.html#logError"><span class="hs-identifier hs-var hs-var">logError</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Text -&gt; m ()
+forall (m :: * -&gt; *). MonadLogger m =&gt; Text -&gt; m ()
+</span><span class="hs-identifier hs-var">logErrorN</span></span><span>
+</span><span id="line-11"></span><span id="logInfo"><span class="annot"><span class="annottext">logInfo :: Text -&gt; m ()
+</span><a href="MQTTD.Logging.html#logInfo"><span class="hs-identifier hs-var hs-var">logInfo</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Text -&gt; m ()
+forall (m :: * -&gt; *). MonadLogger m =&gt; Text -&gt; m ()
+</span><span class="hs-identifier hs-var">logInfoN</span></span><span>
+</span><span id="line-12"></span><span id="logDbg"><span class="annot"><span class="annottext">logDbg :: Text -&gt; m ()
+</span><a href="MQTTD.Logging.html#logDbg"><span class="hs-identifier hs-var hs-var">logDbg</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Text -&gt; m ()
+forall (m :: * -&gt; *). MonadLogger m =&gt; Text -&gt; m ()
+</span><span class="hs-identifier hs-var">logDebugN</span></span><span>
+</span><span id="line-13"></span><span>
+</span><span id="line-14"></span><span id="local-6989586621679187963"><span id="local-6989586621679187964"><span class="annot"><a href="MQTTD.Logging.html#logErrorL"><span class="hs-identifier hs-type">logErrorL</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="MQTTD.Logging.html#logInfoL"><span class="hs-identifier hs-type">logInfoL</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="MQTTD.Logging.html#logDbgL"><span class="hs-identifier hs-type">logDbgL</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Foldable</span></span><span> </span><span class="annot"><a href="#local-6989586621679187964"><span class="hs-identifier hs-type">f</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MonadLogger</span></span><span> </span><span class="annot"><a href="#local-6989586621679187963"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679187964"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Text</span></span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679187963"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span></span></span><span>
+</span><span id="line-15"></span><span>
+</span><span id="line-16"></span><span id="logErrorL"><span class="annot"><span class="annottext">logErrorL :: f Text -&gt; m ()
+</span><a href="MQTTD.Logging.html#logErrorL"><span class="hs-identifier hs-var hs-var">logErrorL</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Text -&gt; m ()
+forall (m :: * -&gt; *). MonadLogger m =&gt; Text -&gt; m ()
+</span><span class="hs-identifier hs-var">logErrorN</span></span><span> </span><span class="annot"><span class="annottext">(Text -&gt; m ()) -&gt; (f Text -&gt; Text) -&gt; f Text -&gt; m ()
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">f Text -&gt; Text
+forall (t :: * -&gt; *) m. (Foldable t, Monoid m) =&gt; t m -&gt; m
+</span><span class="hs-identifier hs-var">fold</span></span><span>
+</span><span id="line-17"></span><span id="logInfoL"><span class="annot"><span class="annottext">logInfoL :: f Text -&gt; m ()
+</span><a href="MQTTD.Logging.html#logInfoL"><span class="hs-identifier hs-var hs-var">logInfoL</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Text -&gt; m ()
+forall (m :: * -&gt; *). MonadLogger m =&gt; Text -&gt; m ()
+</span><span class="hs-identifier hs-var">logInfoN</span></span><span> </span><span class="annot"><span class="annottext">(Text -&gt; m ()) -&gt; (f Text -&gt; Text) -&gt; f Text -&gt; m ()
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">f Text -&gt; Text
+forall (t :: * -&gt; *) m. (Foldable t, Monoid m) =&gt; t m -&gt; m
+</span><span class="hs-identifier hs-var">fold</span></span><span>
+</span><span id="line-18"></span><span id="logDbgL"><span class="annot"><span class="annottext">logDbgL :: f Text -&gt; m ()
+</span><a href="MQTTD.Logging.html#logDbgL"><span class="hs-identifier hs-var hs-var">logDbgL</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Text -&gt; m ()
+forall (m :: * -&gt; *). MonadLogger m =&gt; Text -&gt; m ()
+</span><span class="hs-identifier hs-var">logDebugN</span></span><span> </span><span class="annot"><span class="annottext">(Text -&gt; m ()) -&gt; (f Text -&gt; Text) -&gt; f Text -&gt; m ()
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">f Text -&gt; Text
+forall (t :: * -&gt; *) m. (Foldable t, Monoid m) =&gt; t m -&gt; m
+</span><span class="hs-identifier hs-var">fold</span></span><span>
+</span><span id="line-19"></span></pre></body></html>

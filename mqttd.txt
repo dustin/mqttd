@@ -58,6 +58,14 @@ instance GHC.Show.Show MQTTD.Config.Section
 instance GHC.Base.Semigroup MQTTD.Config.ListenerOptions
 instance GHC.Base.Monoid MQTTD.Config.ListenerOptions
 
+module MQTTD.Logging
+logError :: MonadLogger m => Text -> m ()
+logInfo :: MonadLogger m => Text -> m ()
+logDbg :: MonadLogger m => Text -> m ()
+logErrorL :: (Foldable f, MonadLogger m) => f Text -> m ()
+logInfoL :: (Foldable f, MonadLogger m) => f Text -> m ()
+logDbgL :: (Foldable f, MonadLogger m) => f Text -> m ()
+
 module MQTTD.Stats
 data StatKey
 StatMsgSent :: StatKey
