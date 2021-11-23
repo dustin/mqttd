@@ -4,7 +4,8 @@ import           Control.Exception    (bracket_)
 import           Data.Password.Bcrypt
 import           Data.Text            (Text)
 import qualified Data.Text            as T
-import           Options.Applicative
+import           Options.Applicative  (Parser, argument, execParser, fullDesc, helper, info, many, metavar, progDesc,
+                                       str, (<**>))
 import           System.IO            (hFlush, hGetEcho, hSetEcho, stdin, stdout)
 
 data Options = Options { optArgs :: [Text] }

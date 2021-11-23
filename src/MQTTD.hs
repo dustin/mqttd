@@ -72,7 +72,7 @@ newtype MQTTD m a = MQTTD
 instance MonadUnliftIO m => MonadUnliftIO (MQTTD m) where
   withRunInIO inner = MQTTD $ withRunInIO $ \run -> inner (run . runMQTTD)
 
-instance (Monad m, MonadReader Env m) => HasDBConnection m where
+instance Monad m => HasDBConnection (MQTTD m) where
   dbConn = asks dbConnection
   dbQueue = asks dbQ
 
