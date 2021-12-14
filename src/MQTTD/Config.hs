@@ -11,7 +11,8 @@ import           Data.Map.Strict            (Map)
 import qualified Data.Map.Strict            as Map
 import           Data.Password.Bcrypt       (Bcrypt, PasswordHash (..))
 import           Data.String                (IsString (..))
-import           Data.Text                  (Text, pack)
+import           Data.Text                  (Text)
+import qualified Data.Text.IO               as TIO
 import           Data.Void                  (Void)
 import qualified Network.MQTT.Topic         as T
 import           Text.Megaparsec            (Parsec, between, choice, manyTill, option, parse, some, try)
@@ -146,7 +147,7 @@ parseBool :: Parser Bool
 parseBool = True <$ lexeme "true" <|> False <$ lexeme "false"
 
 parseFile :: Parser a -> String -> IO a
-parseFile f s = readFile s >>= (either (fail.errorBundlePretty) pure . parse f s) . pack
+parseFile f s = TIO.readFile s >>= either (fail.errorBundlePretty) pure . parse f s
 
 parseConfFile :: String -> IO Config
 parseConfFile = parseFile (sc *> parseConfig)
