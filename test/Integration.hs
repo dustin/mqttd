@@ -7,7 +7,7 @@ import           Test.Tasty.HUnit
 
 import           Control.Concurrent     (newChan, threadDelay)
 import           Control.Concurrent.STM (TChan, check, modifyTVar', newTChanIO, newTVarIO, orElse, readTChan, readTVar,
-                                         registerDelay, writeTChan)
+                                         readTVarIO, registerDelay, writeTChan)
 import           Control.Exception      (catch)
 import           Control.Monad          (replicateM, when)
 import           Control.Monad.Logger   (runChanLoggingT)
@@ -124,6 +124,55 @@ testUnsub = withTestService $ \u -> do
                                                 ("test/retained1", "future message1"),
                                                 ("test/retained2", "future message2")])
     m
+
+-- This is similar to the above, but guarantees the order of messages.
+testOrderedPubSub :: Assertion
+testOrderedPubSub = withTestService $ \u -> do
+  mv <- newTVarIO mempty
+  -- We have some processing delay that speeds up as we process,
+  -- causing things to basically happen out of order.
+  tdv <- newTVarIO 9
+  (pubber, subber) <- concurrently
+                      (MC.connectURI MC.mqttConfig u)
+                      (MC.connectURI MC.mqttConfig{_msgCB=MC.OrderedCallback (
+                                                      \_ t v _ -> do
+                                                        threadDelay =<< (* 1000) <$> readTVarIO tdv
+                                                        atomically $ do
+                                                          modifyTVar' tdv pred
+                                                          modifyTVar' mv ((t, v):)),
+                                                   _protocol=MC.Protocol50} u)
+
+  MC.publishq pubber "test/retained0" "future message0" True MC.QoS0 []
+  MC.publishq pubber "test/retained1" "future message1" True MC.QoS1 []
+  MC.publishq pubber "test/retained2" "future message2" True MC.QoS2 []
+  MC.publishq pubber "test2/dontcare" "another retained" True MC.QoS1 []
+
+  -- Subscriber client
+  _ <- MC.subscribe subber [("test/#", MC.subOptions),
+                            ("test2/+", MC.subOptions{_retainHandling=T.DoNotSendOnSubscribe})] []
+
+  -- Publish a few things
+  MC.publishq pubber "nope/nosub" "no subscribers here" False MC.QoS0 []
+  MC.publishq pubber "test/tv0" "test message 0" False MC.QoS0 []
+  MC.publishq pubber "test/tv1" "test message 1" False MC.QoS1 []
+  MC.publishq pubber "test/tv2" "test message 2" False MC.QoS2 []
+
+  -- Wait for results.
+  m <- atomically $ do
+    m <- readTVar mv
+    check (length m >= 6)
+    pure m
+
+  assertEqual "Got the messages" ([
+                                     ("test/tv2", "test message 2"),
+                                     ("test/tv1", "test message 1"),
+                                     ("test/tv0", "test message 0"),
+                                     ("test/retained2", "future message2"),
+                                     ("test/retained1", "future message1"),
+                                     ("test/retained0", "future message0")
+                                  ])
+    m
+
 
 testRetainAsPublished :: Assertion
 testRetainAsPublished = withTestService $ \u -> do
@@ -273,6 +322,7 @@ testAAA step = let conf = testConfig{
 tests :: [TestTree]
 tests = [
   testCase "Basic" testBasicPubSub,
+  testCase "Ordered" testOrderedPubSub,
   testCase "Unsub" testUnsub,
   testCase "Retain as Published" testRetainAsPublished,
   testCase "Aliases" testAliases,
