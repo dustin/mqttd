@@ -83,7 +83,7 @@ executables:
 
 tests:
   mqttd-test:
-    main:                Spec.hs
+    main:                Main.hs
     source-dirs:         test
     ghc-options:
     - -Wall
@@ -95,6 +95,7 @@ tests:
     - HUnit
     - tasty
     - tasty-hunit
+    - tasty-discover
     - tasty-quickcheck
     - QuickCheck
     - port-utils

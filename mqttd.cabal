@@ -1,10 +1,10 @@
 cabal-version: 1.12
 
--- This file has been generated from package.yaml by hpack version 0.34.4.
+-- This file has been generated from package.yaml by hpack version 0.34.6.
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 1644a18f1260672c992721a817e4dd2353813dba2f5a4d5582aa91e44e555489
+-- hash: e1935330b5f986da02ea22739e3dc3a1379ac4125f156a114f5d9a78183b2ffe
 
 name:           mqttd
 version:        0.9.1.0
@@ -170,9 +170,11 @@ executable mqttdpass
 
 test-suite mqttd-test
   type: exitcode-stdio-1.0
-  main-is: Spec.hs
+  main-is: Main.hs
   other-modules:
       Integration
+      Spec
+      SubTree
       Paths_mqttd
   hs-source-dirs:
       test
@@ -210,6 +212,7 @@ test-suite mqttd-test
     , sqlite-simple
     , stm
     , tasty
+    , tasty-discover
     , tasty-hunit
     , tasty-quickcheck
     , text

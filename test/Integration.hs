@@ -2,7 +2,6 @@
 
 module Integration where
 
-import           Test.Tasty
 import           Test.Tasty.HUnit
 
 import           Control.Concurrent     (newChan, threadDelay)
@@ -54,8 +53,8 @@ withTestService = withTestServiceConfig testConfig
 sleep :: Int -> IO ()
 sleep = threadDelay . seconds
 
-testBasicPubSub :: Assertion
-testBasicPubSub = withTestService $ \u -> do
+unit_basicPubSub :: Assertion
+unit_basicPubSub = withTestService $ \u -> do
   mv <- newTVarIO mempty
   (pubber, subber) <- concurrently
                       (MC.connectURI MC.mqttConfig u)
@@ -90,8 +89,8 @@ testBasicPubSub = withTestService $ \u -> do
                                                 ("test/retained2", "future message2")])
     m
 
-testUnsub :: Assertion
-testUnsub = withTestService $ \u -> do
+unit_unsub :: Assertion
+unit_unsub = withTestService $ \u -> do
   mv <- newTVarIO mempty
   (pubber, subber) <- concurrently
                       (MC.connectURI MC.mqttConfig u)
@@ -126,8 +125,8 @@ testUnsub = withTestService $ \u -> do
     m
 
 -- This is similar to the above, but guarantees the order of messages.
-testOrderedPubSub :: Assertion
-testOrderedPubSub = withTestService $ \u -> do
+unit_orderedPubSub :: Assertion
+unit_orderedPubSub = withTestService $ \u -> do
   mv <- newTVarIO mempty
   -- We have some processing delay that speeds up as we process,
   -- causing things to basically happen out of order.
@@ -174,8 +173,8 @@ testOrderedPubSub = withTestService $ \u -> do
     m
 
 
-testRetainAsPublished :: Assertion
-testRetainAsPublished = withTestService $ \u -> do
+unit_retainAsPublished :: Assertion
+unit_retainAsPublished = withTestService $ \u -> do
   mv <- newTVarIO mempty
   (pubber, subber) <- concurrently
                       (MC.connectURI MC.mqttConfig u)
@@ -196,8 +195,8 @@ testRetainAsPublished = withTestService $ \u -> do
 chCallback :: TChan (Topic, BL.ByteString) -> MessageCallback
 chCallback ch = MC.SimpleCallback (\_ t v _ -> atomically $ writeTChan ch (t,v))
 
-testAliases :: Assertion
-testAliases = withTestService $ \u -> do
+unit_aliases :: Assertion
+unit_aliases = withTestService $ \u -> do
   -- Publisher client
   mv <- newTChanIO
   (pubber, subber) <- concurrently
@@ -219,8 +218,8 @@ testAliases = withTestService $ \u -> do
                                                         "delta", "echo", "foxtrot"]]
     (sort m)
 
-testShared :: (String -> IO ()) -> Assertion
-testShared step = withTestService $ \u -> do
+unit_shared :: (String -> IO ()) -> Assertion
+unit_shared step = withTestService $ \u -> do
   mv <- newTVarIO mempty
   let baseConfig = MC.mqttConfig{_protocol=MC.Protocol50}
       vals = ["alpha", "bravo", "charlie", "delta", "echo", "foxtrot"]
@@ -263,8 +262,8 @@ testShared step = withTestService $ \u -> do
 assertFails :: String -> IO a -> Assertion
 assertFails msg a = catch (a >> assertFailure msg) (\(_ :: MC.MQTTException) -> pure ())
 
-testAAA :: (String -> IO ()) -> Assertion
-testAAA step = let conf = testConfig{
+unit_AAA :: (String -> IO ()) -> Assertion
+unit_AAA step = let conf = testConfig{
                      _confUsers = Map.fromList [
                          ("all", User "all" (Plaintext "allpass") []),
                          ("test", User "test" (Plaintext "testpass") [
@@ -275,7 +274,7 @@ testAAA step = let conf = testConfig{
                          ],
                      _confDefaults = (ListenerOptions (Just False))
                      }
-                   baseConfig = MC.mqttConfig{_protocol=MC.Protocol50} in
+                    baseConfig = MC.mqttConfig{_protocol=MC.Protocol50} in
   withTestServiceConfig conf $ \u -> do
   step "anonymous"
   assertFails "anonymous connection" (MC.connectURI baseConfig u)
@@ -318,14 +317,3 @@ testAAA step = let conf = testConfig{
 
   where
     withCreds url u p = let Just a = uriAuthority url in url{uriAuthority=Just a{uriUserInfo = u <> ":" <> p <> "@"}}
-
-tests :: [TestTree]
-tests = [
-  testCase "Basic" testBasicPubSub,
-  testCase "Ordered" testOrderedPubSub,
-  testCase "Unsub" testUnsub,
-  testCase "Retain as Published" testRetainAsPublished,
-  testCase "Aliases" testAliases,
-  testCaseSteps "Shared" testShared,
-  testCaseSteps "AAA" testAAA
-  ]
