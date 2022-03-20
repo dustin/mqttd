@@ -15,12 +15,12 @@
 </span><span id="line-15"></span><span class="hs-keyword">import</span><span>           </span><span class="annot"><span class="hs-identifier">Network.MQTT.Topic</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Filter</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">Topic</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">split</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">toFilter</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">unTopic</span></span><span class="hs-special">)</span><span>
 </span><span id="line-16"></span><span>
 </span><span id="line-17"></span><span class="hs-comment">-- | MQTT Topic Subscription tree.</span><span>
-</span><span id="line-18"></span><span class="hs-keyword">data</span><span> </span><span id="SubTree"><span class="annot"><a href="MQTTD.SubTree.html#SubTree"><span class="hs-identifier hs-var">SubTree</span></a></span></span><span> </span><span id="local-6989586621679188038"><span class="annot"><a href="#local-6989586621679188038"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="SubTree"><span class="annot"><a href="MQTTD.SubTree.html#SubTree"><span class="hs-identifier hs-var">SubTree</span></a></span></span><span> </span><span class="hs-special">{</span><span>
-</span><span id="line-19"></span><span>  </span><span id="subs"><span class="annot"><span class="annottext">SubTree a -&gt; Maybe a
-</span><a href="MQTTD.SubTree.html#subs"><span class="hs-identifier hs-var hs-var">subs</span></a></span></span><span>       </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="#local-6989586621679188038"><span class="hs-identifier hs-type">a</span></a></span><span>
-</span><span id="line-20"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="children"><span class="annot"><span class="annottext">SubTree a -&gt; Map Filter (SubTree a)
-</span><a href="MQTTD.SubTree.html#children"><span class="hs-identifier hs-var hs-var">children</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Map</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Filter</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="MQTTD.SubTree.html#SubTree"><span class="hs-identifier hs-type">SubTree</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679188038"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span>
-</span><span id="line-21"></span><span>  </span><span class="hs-special">}</span><span> </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679187965"><span id="local-6989586621679187967"><span id="local-6989586621679187969"><span class="annot"><span class="annottext">Int -&gt; SubTree a -&gt; ShowS
+</span><span id="line-18"></span><span class="hs-keyword">data</span><span> </span><span id="SubTree"><span class="annot"><a href="MQTTD.SubTree.html#SubTree"><span class="hs-identifier hs-var">SubTree</span></a></span></span><span> </span><span id="local-6989586621679192491"><span class="annot"><a href="#local-6989586621679192491"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="SubTree"><span class="annot"><a href="MQTTD.SubTree.html#SubTree"><span class="hs-identifier hs-var">SubTree</span></a></span></span><span> </span><span class="hs-special">{</span><span>
+</span><span id="line-19"></span><span>  </span><span id="subs"><span class="annot"><span class="annottext">forall a. SubTree a -&gt; Maybe a
+</span><a href="MQTTD.SubTree.html#subs"><span class="hs-identifier hs-var hs-var">subs</span></a></span></span><span>       </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="#local-6989586621679192491"><span class="hs-identifier hs-type">a</span></a></span><span>
+</span><span id="line-20"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="children"><span class="annot"><span class="annottext">forall a. SubTree a -&gt; Map Filter (SubTree a)
+</span><a href="MQTTD.SubTree.html#children"><span class="hs-identifier hs-var hs-var">children</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Map</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Filter</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="MQTTD.SubTree.html#SubTree"><span class="hs-identifier hs-type">SubTree</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679192491"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-21"></span><span>  </span><span class="hs-special">}</span><span> </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679192291"><span id="local-6989586621679192293"><span id="local-6989586621679192303"><span class="annot"><span class="annottext">Int -&gt; SubTree a -&gt; ShowS
 [SubTree a] -&gt; ShowS
 SubTree a -&gt; String
 (Int -&gt; SubTree a -&gt; ShowS)
@@ -38,7 +38,7 @@ show :: SubTree a -&gt; String
 $cshow :: forall a. Show a =&gt; SubTree a -&gt; String
 showsPrec :: Int -&gt; SubTree a -&gt; ShowS
 $cshowsPrec :: forall a. Show a =&gt; Int -&gt; SubTree a -&gt; ShowS
-</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679187960"><span id="local-6989586621679187962"><span class="annot"><span class="annottext">SubTree a -&gt; SubTree a -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679192279"><span id="local-6989586621679192287"><span class="annot"><span class="annottext">SubTree a -&gt; SubTree a -&gt; Bool
 (SubTree a -&gt; SubTree a -&gt; Bool)
 -&gt; (SubTree a -&gt; SubTree a -&gt; Bool) -&gt; Eq (SubTree a)
 forall a. Eq a =&gt; SubTree a -&gt; SubTree a -&gt; Bool
@@ -47,23 +47,18 @@ forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
 $c/= :: forall a. Eq a =&gt; SubTree a -&gt; SubTree a -&gt; Bool
 == :: SubTree a -&gt; SubTree a -&gt; Bool
 $c== :: forall a. Eq a =&gt; SubTree a -&gt; SubTree a -&gt; Bool
-</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679187955"><span id="local-6989586621679187957"><span class="annot"><span class="annottext">a -&gt; SubTree b -&gt; SubTree a
-(a -&gt; b) -&gt; SubTree a -&gt; SubTree b
-(forall a b. (a -&gt; b) -&gt; SubTree a -&gt; SubTree b)
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679192267"><span id="local-6989586621679192275"><span class="annot"><span class="annottext">(forall a b. (a -&gt; b) -&gt; SubTree a -&gt; SubTree b)
 -&gt; (forall a b. a -&gt; SubTree b -&gt; SubTree a) -&gt; Functor SubTree
 forall a b. a -&gt; SubTree b -&gt; SubTree a
 forall a b. (a -&gt; b) -&gt; SubTree a -&gt; SubTree b
 forall (f :: * -&gt; *).
 (forall a b. (a -&gt; b) -&gt; f a -&gt; f b)
 -&gt; (forall a b. a -&gt; f b -&gt; f a) -&gt; Functor f
-&lt;$ :: a -&gt; SubTree b -&gt; SubTree a
+&lt;$ :: forall a b. a -&gt; SubTree b -&gt; SubTree a
 $c&lt;$ :: forall a b. a -&gt; SubTree b -&gt; SubTree a
-fmap :: (a -&gt; b) -&gt; SubTree a -&gt; SubTree b
+fmap :: forall a b. (a -&gt; b) -&gt; SubTree a -&gt; SubTree b
 $cfmap :: forall a b. (a -&gt; b) -&gt; SubTree a -&gt; SubTree b
-</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Functor</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679187920"><span id="local-6989586621679187922"><span id="local-6989586621679187924"><span id="local-6989586621679187926"><span id="local-6989586621679187928"><span id="local-6989586621679187930"><span id="local-6989586621679187932"><span id="local-6989586621679187934"><span id="local-6989586621679187936"><span id="local-6989586621679187938"><span id="local-6989586621679187940"><span id="local-6989586621679187942"><span id="local-6989586621679187944"><span id="local-6989586621679187946"><span id="local-6989586621679187948"><span id="local-6989586621679187950"><span id="local-6989586621679187952"><span class="annot"><span class="annottext">SubTree a -&gt; Bool
-(a -&gt; m) -&gt; SubTree a -&gt; m
-(a -&gt; b -&gt; b) -&gt; b -&gt; SubTree a -&gt; b
-(forall m. Monoid m =&gt; SubTree m -&gt; m)
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Functor</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679192213"><span id="local-6989586621679192215"><span id="local-6989586621679192217"><span id="local-6989586621679192219"><span id="local-6989586621679192221"><span id="local-6989586621679192223"><span id="local-6989586621679192228"><span id="local-6989586621679192230"><span id="local-6989586621679192232"><span id="local-6989586621679192234"><span id="local-6989586621679192236"><span id="local-6989586621679192238"><span id="local-6989586621679192240"><span id="local-6989586621679192245"><span id="local-6989586621679192247"><span id="local-6989586621679192259"><span id="local-6989586621679192261"><span class="annot"><span class="annottext">(forall m. Monoid m =&gt; SubTree m -&gt; m)
 -&gt; (forall m a. Monoid m =&gt; (a -&gt; m) -&gt; SubTree a -&gt; m)
 -&gt; (forall m a. Monoid m =&gt; (a -&gt; m) -&gt; SubTree a -&gt; m)
 -&gt; (forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; SubTree a -&gt; b)
@@ -111,41 +106,41 @@ forall (t :: * -&gt; *).
 -&gt; (forall a. Num a =&gt; t a -&gt; a)
 -&gt; (forall a. Num a =&gt; t a -&gt; a)
 -&gt; Foldable t
-product :: SubTree a -&gt; a
+product :: forall a. Num a =&gt; SubTree a -&gt; a
 $cproduct :: forall a. Num a =&gt; SubTree a -&gt; a
-sum :: SubTree a -&gt; a
+sum :: forall a. Num a =&gt; SubTree a -&gt; a
 $csum :: forall a. Num a =&gt; SubTree a -&gt; a
-minimum :: SubTree a -&gt; a
+minimum :: forall a. Ord a =&gt; SubTree a -&gt; a
 $cminimum :: forall a. Ord a =&gt; SubTree a -&gt; a
-maximum :: SubTree a -&gt; a
+maximum :: forall a. Ord a =&gt; SubTree a -&gt; a
 $cmaximum :: forall a. Ord a =&gt; SubTree a -&gt; a
-elem :: a -&gt; SubTree a -&gt; Bool
+elem :: forall a. Eq a =&gt; a -&gt; SubTree a -&gt; Bool
 $celem :: forall a. Eq a =&gt; a -&gt; SubTree a -&gt; Bool
-length :: SubTree a -&gt; Int
+length :: forall a. SubTree a -&gt; Int
 $clength :: forall a. SubTree a -&gt; Int
-null :: SubTree a -&gt; Bool
+null :: forall a. SubTree a -&gt; Bool
 $cnull :: forall a. SubTree a -&gt; Bool
-toList :: SubTree a -&gt; [a]
+toList :: forall a. SubTree a -&gt; [a]
 $ctoList :: forall a. SubTree a -&gt; [a]
-foldl1 :: (a -&gt; a -&gt; a) -&gt; SubTree a -&gt; a
+foldl1 :: forall a. (a -&gt; a -&gt; a) -&gt; SubTree a -&gt; a
 $cfoldl1 :: forall a. (a -&gt; a -&gt; a) -&gt; SubTree a -&gt; a
-foldr1 :: (a -&gt; a -&gt; a) -&gt; SubTree a -&gt; a
+foldr1 :: forall a. (a -&gt; a -&gt; a) -&gt; SubTree a -&gt; a
 $cfoldr1 :: forall a. (a -&gt; a -&gt; a) -&gt; SubTree a -&gt; a
-foldl' :: (b -&gt; a -&gt; b) -&gt; b -&gt; SubTree a -&gt; b
+foldl' :: forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; SubTree a -&gt; b
 $cfoldl' :: forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; SubTree a -&gt; b
-foldl :: (b -&gt; a -&gt; b) -&gt; b -&gt; SubTree a -&gt; b
+foldl :: forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; SubTree a -&gt; b
 $cfoldl :: forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; SubTree a -&gt; b
-foldr' :: (a -&gt; b -&gt; b) -&gt; b -&gt; SubTree a -&gt; b
+foldr' :: forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; SubTree a -&gt; b
 $cfoldr' :: forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; SubTree a -&gt; b
-foldr :: (a -&gt; b -&gt; b) -&gt; b -&gt; SubTree a -&gt; b
+foldr :: forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; SubTree a -&gt; b
 $cfoldr :: forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; SubTree a -&gt; b
-foldMap' :: (a -&gt; m) -&gt; SubTree a -&gt; m
+foldMap' :: forall m a. Monoid m =&gt; (a -&gt; m) -&gt; SubTree a -&gt; m
 $cfoldMap' :: forall m a. Monoid m =&gt; (a -&gt; m) -&gt; SubTree a -&gt; m
-foldMap :: (a -&gt; m) -&gt; SubTree a -&gt; m
+foldMap :: forall m a. Monoid m =&gt; (a -&gt; m) -&gt; SubTree a -&gt; m
 $cfoldMap :: forall m a. Monoid m =&gt; (a -&gt; m) -&gt; SubTree a -&gt; m
-fold :: SubTree m -&gt; m
+fold :: forall m. Monoid m =&gt; SubTree m -&gt; m
 $cfold :: forall m. Monoid m =&gt; SubTree m -&gt; m
-</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Foldable</span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679187909"><span id="local-6989586621679187911"><span id="local-6989586621679187913"><span id="local-6989586621679187915"><span class="annot"><span class="annottext">Functor SubTree
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Foldable</span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679192190"><span id="local-6989586621679192192"><span id="local-6989586621679192194"><span id="local-6989586621679192206"><span class="annot"><span class="annottext">Functor SubTree
 Foldable SubTree
 Functor SubTree
 -&gt; Foldable SubTree
@@ -162,7 +157,6 @@ Functor SubTree
     Monad m =&gt;
     SubTree (m a) -&gt; m (SubTree a))
 -&gt; Traversable SubTree
-(a -&gt; f b) -&gt; SubTree a -&gt; f (SubTree b)
 forall (t :: * -&gt; *).
 Functor t
 -&gt; Foldable t
@@ -185,39 +179,43 @@ Monad m =&gt;
 forall (f :: * -&gt; *) a b.
 Applicative f =&gt;
 (a -&gt; f b) -&gt; SubTree a -&gt; f (SubTree b)
-sequence :: SubTree (m a) -&gt; m (SubTree a)
+sequence :: forall (m :: * -&gt; *) a. Monad m =&gt; SubTree (m a) -&gt; m (SubTree a)
 $csequence :: forall (m :: * -&gt; *) a. Monad m =&gt; SubTree (m a) -&gt; m (SubTree a)
-mapM :: (a -&gt; m b) -&gt; SubTree a -&gt; m (SubTree b)
+mapM :: forall (m :: * -&gt; *) a b.
+Monad m =&gt;
+(a -&gt; m b) -&gt; SubTree a -&gt; m (SubTree b)
 $cmapM :: forall (m :: * -&gt; *) a b.
 Monad m =&gt;
 (a -&gt; m b) -&gt; SubTree a -&gt; m (SubTree b)
-sequenceA :: SubTree (f a) -&gt; f (SubTree a)
+sequenceA :: forall (f :: * -&gt; *) a.
+Applicative f =&gt;
+SubTree (f a) -&gt; f (SubTree a)
 $csequenceA :: forall (f :: * -&gt; *) a.
 Applicative f =&gt;
 SubTree (f a) -&gt; f (SubTree a)
-traverse :: (a -&gt; f b) -&gt; SubTree a -&gt; f (SubTree b)
+traverse :: forall (f :: * -&gt; *) a b.
+Applicative f =&gt;
+(a -&gt; f b) -&gt; SubTree a -&gt; f (SubTree b)
 $ctraverse :: forall (f :: * -&gt; *) a b.
 Applicative f =&gt;
 (a -&gt; f b) -&gt; SubTree a -&gt; f (SubTree b)
-$cp2Traversable :: Foldable SubTree
-$cp1Traversable :: Functor SubTree
 </span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Traversable</span></span></span></span></span></span><span class="hs-special">)</span><span>
 </span><span id="line-22"></span><span>
-</span><span id="line-23"></span><span id="local-6989586621679187907"><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621679187902"><span id="local-6989586621679187904"><span class="annot"><span class="hs-identifier hs-type">Semigroup</span></span><span> </span><span class="annot"><a href="#local-6989586621679187907"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Semigroup</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="MQTTD.SubTree.html#SubTree"><span class="hs-identifier hs-type">SubTree</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679187907"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span></span><span> </span><span class="hs-keyword">where</span><span>
-</span><span id="line-24"></span><span>  </span><span id="local-6989586621679187900"><span class="annot"><span class="annottext">SubTree a
-</span><a href="#local-6989586621679187900"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="local-6989586621679187899"><span class="annot"><span class="annottext">&lt;&gt; :: SubTree a -&gt; SubTree a -&gt; SubTree a
-</span><span class="hs-operator hs-var hs-var hs-var hs-var">&lt;&gt;</span></span></span><span> </span><span id="local-6989586621679187898"><span class="annot"><span class="annottext">SubTree a
-</span><a href="#local-6989586621679187898"><span class="hs-identifier hs-var">b</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Maybe a -&gt; Map Filter (SubTree a) -&gt; SubTree a
+</span><span id="line-23"></span><span id="local-6989586621679192438"><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621679192184"><span id="local-6989586621679192186"><span class="annot"><span class="hs-identifier hs-type">Semigroup</span></span><span> </span><span class="annot"><a href="#local-6989586621679192438"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Semigroup</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="MQTTD.SubTree.html#SubTree"><span class="hs-identifier hs-type">SubTree</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679192438"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-24"></span><span>  </span><span id="local-6989586621679192177"><span class="annot"><span class="annottext">SubTree a
+</span><a href="#local-6989586621679192177"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="local-6989586621679192176"><span class="annot"><span class="annottext">&lt;&gt; :: SubTree a -&gt; SubTree a -&gt; SubTree a
+</span><span class="hs-operator hs-var hs-var hs-var hs-var">&lt;&gt;</span></span></span><span> </span><span id="local-6989586621679192175"><span class="annot"><span class="annottext">SubTree a
+</span><a href="#local-6989586621679192175"><span class="hs-identifier hs-var">b</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Maybe a -&gt; Map Filter (SubTree a) -&gt; SubTree a
 forall a. Maybe a -&gt; Map Filter (SubTree a) -&gt; SubTree a
 </span><a href="MQTTD.SubTree.html#SubTree"><span class="hs-identifier hs-var">SubTree</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SubTree a -&gt; Maybe a
 forall a. SubTree a -&gt; Maybe a
 </span><a href="MQTTD.SubTree.html#subs"><span class="hs-identifier hs-var hs-var">subs</span></a></span><span> </span><span class="annot"><span class="annottext">SubTree a
-</span><a href="#local-6989586621679187900"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe a -&gt; Maybe a -&gt; Maybe a
+</span><a href="#local-6989586621679192177"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe a -&gt; Maybe a -&gt; Maybe a
 forall a. Semigroup a =&gt; a -&gt; a -&gt; a
 </span><span class="hs-operator hs-var">&lt;&gt;</span></span><span> </span><span class="annot"><span class="annottext">SubTree a -&gt; Maybe a
 forall a. SubTree a -&gt; Maybe a
 </span><a href="MQTTD.SubTree.html#subs"><span class="hs-identifier hs-var hs-var">subs</span></a></span><span> </span><span class="annot"><span class="annottext">SubTree a
-</span><a href="#local-6989586621679187898"><span class="hs-identifier hs-var">b</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(SubTree a -&gt; SubTree a -&gt; SubTree a)
+</span><a href="#local-6989586621679192175"><span class="hs-identifier hs-var">b</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(SubTree a -&gt; SubTree a -&gt; SubTree a)
 -&gt; Map Filter (SubTree a)
 -&gt; Map Filter (SubTree a)
 -&gt; Map Filter (SubTree a)
@@ -227,17 +225,17 @@ forall a. Semigroup a =&gt; a -&gt; a -&gt; a
 </span><span class="hs-operator hs-var">(&lt;&gt;)</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SubTree a -&gt; Map Filter (SubTree a)
 forall a. SubTree a -&gt; Map Filter (SubTree a)
 </span><a href="MQTTD.SubTree.html#children"><span class="hs-identifier hs-var hs-var">children</span></a></span><span> </span><span class="annot"><span class="annottext">SubTree a
-</span><a href="#local-6989586621679187900"><span class="hs-identifier hs-var">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SubTree a -&gt; Map Filter (SubTree a)
+</span><a href="#local-6989586621679192177"><span class="hs-identifier hs-var">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SubTree a -&gt; Map Filter (SubTree a)
 forall a. SubTree a -&gt; Map Filter (SubTree a)
 </span><a href="MQTTD.SubTree.html#children"><span class="hs-identifier hs-var hs-var">children</span></a></span><span> </span><span class="annot"><span class="annottext">SubTree a
-</span><a href="#local-6989586621679187898"><span class="hs-identifier hs-var">b</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span></span><span>
+</span><a href="#local-6989586621679192175"><span class="hs-identifier hs-var">b</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span></span><span>
 </span><span id="line-25"></span><span>
 </span><span id="line-26"></span><span class="hs-comment">-- | An empty SubTree.</span><span>
 </span><span id="line-27"></span><span class="hs-comment">--</span><span>
 </span><span id="line-28"></span><span class="hs-comment">-- This exists in addition to `mempty` so one can create a SubTree for</span><span>
 </span><span id="line-29"></span><span class="hs-comment">-- a values that are not monoidal.</span><span>
-</span><span id="line-30"></span><span id="local-6989586621679188031"><span class="annot"><a href="MQTTD.SubTree.html#empty"><span class="hs-identifier hs-type">empty</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="MQTTD.SubTree.html#SubTree"><span class="hs-identifier hs-type">SubTree</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679188031"><span class="hs-identifier hs-type">a</span></a></span></span><span>
-</span><span id="line-31"></span><span id="empty"><span class="annot"><span class="annottext">empty :: SubTree a
+</span><span id="line-30"></span><span id="local-6989586621679192434"><span class="annot"><a href="MQTTD.SubTree.html#empty"><span class="hs-identifier hs-type">empty</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="MQTTD.SubTree.html#SubTree"><span class="hs-identifier hs-type">SubTree</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679192434"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-31"></span><span id="empty"><span class="annot"><span class="annottext">empty :: forall a. SubTree a
 </span><a href="MQTTD.SubTree.html#empty"><span class="hs-identifier hs-var hs-var">empty</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Maybe a -&gt; Map Filter (SubTree a) -&gt; SubTree a
 forall a. Maybe a -&gt; Map Filter (SubTree a) -&gt; SubTree a
 </span><a href="MQTTD.SubTree.html#SubTree"><span class="hs-identifier hs-var">SubTree</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe a
@@ -246,8 +244,8 @@ forall a. Maybe a
 forall a. Monoid a =&gt; a
 </span><span class="hs-identifier hs-var">mempty</span></span><span>
 </span><span id="line-32"></span><span>
-</span><span id="line-33"></span><span id="local-6989586621679187896"><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621679187890"><span id="local-6989586621679187892"><span class="annot"><span class="hs-identifier hs-type">Monoid</span></span><span> </span><span class="annot"><a href="#local-6989586621679187896"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Monoid</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="MQTTD.SubTree.html#SubTree"><span class="hs-identifier hs-type">SubTree</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679187896"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span></span><span> </span><span class="hs-keyword">where</span><span>
-</span><span id="line-34"></span><span>  </span><span id="local-6989586621679187888"><span class="annot"><span class="annottext">mempty :: SubTree a
+</span><span id="line-33"></span><span id="local-6989586621679192428"><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621679192164"><span id="local-6989586621679192166"><span class="annot"><span class="hs-identifier hs-type">Monoid</span></span><span> </span><span class="annot"><a href="#local-6989586621679192428"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Monoid</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="MQTTD.SubTree.html#SubTree"><span class="hs-identifier hs-type">SubTree</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679192428"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-34"></span><span>  </span><span id="local-6989586621679192162"><span class="annot"><span class="annottext">mempty :: SubTree a
 </span><span class="hs-identifier hs-var hs-var hs-var hs-var">mempty</span></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SubTree a
 forall a. SubTree a
 </span><a href="MQTTD.SubTree.html#empty"><span class="hs-identifier hs-var">empty</span></a></span></span><span>
@@ -256,40 +254,40 @@ forall a. SubTree a
 </span><span id="line-37"></span><span class="hs-comment">--</span><span>
 </span><span id="line-38"></span><span class="hs-comment">-- This will create structure along the path and will not clean up any</span><span>
 </span><span id="line-39"></span><span class="hs-comment">-- unused structure.</span><span>
-</span><span id="line-40"></span><span id="local-6989586621679188017"><span class="annot"><a href="MQTTD.SubTree.html#modify"><span class="hs-identifier hs-type">modify</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Filter</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="#local-6989586621679188017"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="#local-6989586621679188017"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="MQTTD.SubTree.html#SubTree"><span class="hs-identifier hs-type">SubTree</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679188017"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="MQTTD.SubTree.html#SubTree"><span class="hs-identifier hs-type">SubTree</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679188017"><span class="hs-identifier hs-type">a</span></a></span></span><span>
-</span><span id="line-41"></span><span id="modify"><span class="annot"><span class="annottext">modify :: Filter -&gt; (Maybe a -&gt; Maybe a) -&gt; SubTree a -&gt; SubTree a
-</span><a href="MQTTD.SubTree.html#modify"><span class="hs-identifier hs-var hs-var">modify</span></a></span></span><span> </span><span id="local-6989586621679187887"><span class="annot"><span class="annottext">Filter
-</span><a href="#local-6989586621679187887"><span class="hs-identifier hs-var">top</span></a></span></span><span> </span><span id="local-6989586621679187886"><span class="annot"><span class="annottext">Maybe a -&gt; Maybe a
-</span><a href="#local-6989586621679187886"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Filter] -&gt; SubTree a -&gt; SubTree a
-</span><a href="#local-6989586621679187885"><span class="hs-identifier hs-var">go</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Filter -&gt; [Filter]
+</span><span id="line-40"></span><span id="local-6989586621679192427"><span class="annot"><a href="MQTTD.SubTree.html#modify"><span class="hs-identifier hs-type">modify</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Filter</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="#local-6989586621679192427"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="#local-6989586621679192427"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="MQTTD.SubTree.html#SubTree"><span class="hs-identifier hs-type">SubTree</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679192427"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="MQTTD.SubTree.html#SubTree"><span class="hs-identifier hs-type">SubTree</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679192427"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-41"></span><span id="modify"><span class="annot"><span class="annottext">modify :: forall a. Filter -&gt; (Maybe a -&gt; Maybe a) -&gt; SubTree a -&gt; SubTree a
+</span><a href="MQTTD.SubTree.html#modify"><span class="hs-identifier hs-var hs-var">modify</span></a></span></span><span> </span><span id="local-6989586621679192159"><span class="annot"><span class="annottext">Filter
+</span><a href="#local-6989586621679192159"><span class="hs-identifier hs-var">top</span></a></span></span><span> </span><span id="local-6989586621679192158"><span class="annot"><span class="annottext">Maybe a -&gt; Maybe a
+</span><a href="#local-6989586621679192158"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Filter] -&gt; SubTree a -&gt; SubTree a
+</span><a href="#local-6989586621679192157"><span class="hs-identifier hs-var">go</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Filter -&gt; [Filter]
 forall a. Splittable a =&gt; a -&gt; [a]
 </span><span class="hs-identifier hs-var">split</span></span><span> </span><span class="annot"><span class="annottext">Filter
-</span><a href="#local-6989586621679187887"><span class="hs-identifier hs-var">top</span></a></span><span class="hs-special">)</span><span>
+</span><a href="#local-6989586621679192159"><span class="hs-identifier hs-var">top</span></a></span><span class="hs-special">)</span><span>
 </span><span id="line-42"></span><span>  </span><span class="hs-keyword">where</span><span>
-</span><span id="line-43"></span><span>    </span><span id="local-6989586621679187885"><span class="annot"><span class="annottext">go :: [Filter] -&gt; SubTree a -&gt; SubTree a
-</span><a href="#local-6989586621679187885"><span class="hs-identifier hs-var hs-var">go</span></a></span></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span> </span><span id="local-6989586621679187884"><span class="annot"><span class="annottext">n :: SubTree a
-</span><a href="#local-6989586621679187884"><span class="hs-identifier hs-var">n</span></a></span></span><span class="hs-glyph">@</span><span class="annot"><a href="MQTTD.SubTree.html#SubTree"><span class="hs-identifier hs-type">SubTree</span></a></span><span class="hs-special">{</span><span id="local-6989586621679187882"><span id="local-6989586621679187883"><span class="annot"><span class="annottext">Maybe a
+</span><span id="line-43"></span><span>    </span><span id="local-6989586621679192157"><span class="annot"><span class="annottext">go :: [Filter] -&gt; SubTree a -&gt; SubTree a
+</span><a href="#local-6989586621679192157"><span class="hs-identifier hs-var hs-var">go</span></a></span></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span> </span><span id="local-6989586621679192154"><span class="annot"><span class="annottext">n :: SubTree a
+</span><a href="#local-6989586621679192154"><span class="hs-identifier hs-var">n</span></a></span></span><span class="hs-glyph">@</span><span class="annot"><a href="MQTTD.SubTree.html#SubTree"><span class="hs-identifier hs-type">SubTree</span></a></span><span class="hs-special">{</span><span id="local-6989586621679192152"><span id="local-6989586621679192153"><span class="annot"><span class="annottext">Maybe a
 Map Filter (SubTree a)
 children :: Map Filter (SubTree a)
 subs :: Maybe a
 children :: forall a. SubTree a -&gt; Map Filter (SubTree a)
 subs :: forall a. SubTree a -&gt; Maybe a
-</span><a href="#local-6989586621679187882"><span class="hs-glyph hs-var hs-var hs-var hs-var">..</span></a></span></span></span><span class="hs-special">}</span><span>     </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SubTree a
-</span><a href="#local-6989586621679187884"><span class="hs-identifier hs-var">n</span></a></span><span class="hs-special">{</span><span class="annot"><span class="annottext">subs :: Maybe a
+</span><a href="#local-6989586621679192152"><span class="hs-glyph hs-var hs-var hs-var hs-var">..</span></a></span></span></span><span class="hs-special">}</span><span>     </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SubTree a
+</span><a href="#local-6989586621679192154"><span class="hs-identifier hs-var">n</span></a></span><span class="hs-special">{</span><span class="annot"><span class="annottext">subs :: Maybe a
 </span><a href="MQTTD.SubTree.html#subs"><span class="hs-identifier hs-var">subs</span></a></span><span class="hs-glyph">=</span><span class="annot"><span class="annottext">Maybe a -&gt; Maybe a
-</span><a href="#local-6989586621679187886"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe a
-</span><a href="#local-6989586621679187883"><span class="hs-identifier hs-var">subs</span></a></span><span class="hs-special">}</span><span>
-</span><span id="line-44"></span><span>    </span><span class="annot"><a href="#local-6989586621679187885"><span class="hs-identifier hs-var">go</span></a></span><span> </span><span class="hs-special">(</span><span id="local-6989586621679187881"><span class="annot"><span class="annottext">Filter
-</span><a href="#local-6989586621679187881"><span class="hs-identifier hs-var">x</span></a></span></span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span id="local-6989586621679187880"><span class="annot"><span class="annottext">[Filter]
-</span><a href="#local-6989586621679187880"><span class="hs-identifier hs-var">xs</span></a></span></span><span class="hs-special">)</span><span> </span><span id="local-6989586621679187879"><span class="annot"><span class="annottext">n :: SubTree a
-</span><a href="#local-6989586621679187879"><span class="hs-identifier hs-var">n</span></a></span></span><span class="hs-glyph">@</span><span class="annot"><a href="MQTTD.SubTree.html#SubTree"><span class="hs-identifier hs-type">SubTree</span></a></span><span class="hs-special">{</span><span id="local-6989586621679187877"><span id="local-6989586621679187878"><span class="annot"><span class="annottext">Maybe a
+</span><a href="#local-6989586621679192158"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe a
+</span><a href="#local-6989586621679192153"><span class="hs-identifier hs-var">subs</span></a></span><span class="hs-special">}</span><span>
+</span><span id="line-44"></span><span>    </span><span class="annot"><a href="#local-6989586621679192157"><span class="hs-identifier hs-var">go</span></a></span><span> </span><span class="hs-special">(</span><span id="local-6989586621679192151"><span class="annot"><span class="annottext">Filter
+</span><a href="#local-6989586621679192151"><span class="hs-identifier hs-var">x</span></a></span></span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span id="local-6989586621679192150"><span class="annot"><span class="annottext">[Filter]
+</span><a href="#local-6989586621679192150"><span class="hs-identifier hs-var">xs</span></a></span></span><span class="hs-special">)</span><span> </span><span id="local-6989586621679192149"><span class="annot"><span class="annottext">n :: SubTree a
+</span><a href="#local-6989586621679192149"><span class="hs-identifier hs-var">n</span></a></span></span><span class="hs-glyph">@</span><span class="annot"><a href="MQTTD.SubTree.html#SubTree"><span class="hs-identifier hs-type">SubTree</span></a></span><span class="hs-special">{</span><span id="local-6989586621679192147"><span id="local-6989586621679192148"><span class="annot"><span class="annottext">Maybe a
 Map Filter (SubTree a)
 children :: Map Filter (SubTree a)
 subs :: Maybe a
 children :: forall a. SubTree a -&gt; Map Filter (SubTree a)
 subs :: forall a. SubTree a -&gt; Maybe a
-</span><a href="#local-6989586621679187877"><span class="hs-glyph hs-var hs-var hs-var hs-var">..</span></a></span></span></span><span class="hs-special">}</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SubTree a
-</span><a href="#local-6989586621679187879"><span class="hs-identifier hs-var">n</span></a></span><span class="hs-special">{</span><span class="annot"><span class="annottext">children :: Map Filter (SubTree a)
+</span><a href="#local-6989586621679192147"><span class="hs-glyph hs-var hs-var hs-var hs-var">..</span></a></span></span></span><span class="hs-special">}</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SubTree a
+</span><a href="#local-6989586621679192149"><span class="hs-identifier hs-var">n</span></a></span><span class="hs-special">{</span><span class="annot"><span class="annottext">children :: Map Filter (SubTree a)
 </span><a href="MQTTD.SubTree.html#children"><span class="hs-identifier hs-var">children</span></a></span><span class="hs-glyph">=</span><span class="annot"><span class="annottext">(Maybe (SubTree a) -&gt; Maybe (SubTree a))
 -&gt; Filter -&gt; Map Filter (SubTree a) -&gt; Map Filter (SubTree a)
 forall k a.
@@ -298,8 +296,8 @@ Ord k =&gt;
 </span><span class="hs-identifier hs-var">Map.alter</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(SubTree a -&gt; SubTree a) -&gt; Maybe (SubTree a) -&gt; Maybe (SubTree a)
 forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
 </span><span class="hs-identifier hs-var">fmap</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[Filter] -&gt; SubTree a -&gt; SubTree a
-</span><a href="#local-6989586621679187885"><span class="hs-identifier hs-var">go</span></a></span><span> </span><span class="annot"><span class="annottext">[Filter]
-</span><a href="#local-6989586621679187880"><span class="hs-identifier hs-var">xs</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(Maybe (SubTree a) -&gt; Maybe (SubTree a))
+</span><a href="#local-6989586621679192157"><span class="hs-identifier hs-var">go</span></a></span><span> </span><span class="annot"><span class="annottext">[Filter]
+</span><a href="#local-6989586621679192150"><span class="hs-identifier hs-var">xs</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(Maybe (SubTree a) -&gt; Maybe (SubTree a))
 -&gt; (Maybe (SubTree a) -&gt; Maybe (SubTree a))
 -&gt; Maybe (SubTree a)
 -&gt; Maybe (SubTree a)
@@ -316,36 +314,38 @@ forall a. SubTree a
 </span><a href="MQTTD.SubTree.html#empty"><span class="hs-identifier hs-var">empty</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">SubTree a -&gt; Maybe (SubTree a)
 forall a. a -&gt; Maybe a
 </span><span class="hs-identifier hs-var">Just</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Filter
-</span><a href="#local-6989586621679187881"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">Map Filter (SubTree a)
-</span><a href="#local-6989586621679187877"><span class="hs-identifier hs-var">children</span></a></span><span class="hs-special">}</span><span>
+</span><a href="#local-6989586621679192151"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">Map Filter (SubTree a)
+</span><a href="#local-6989586621679192147"><span class="hs-identifier hs-var">children</span></a></span><span class="hs-special">}</span><span>
 </span><span id="line-45"></span><span>
 </span><span id="line-46"></span><span class="hs-comment">-- | Add a value at the given filter path.</span><span>
-</span><span id="line-47"></span><span id="local-6989586621679187989"><span class="annot"><a href="MQTTD.SubTree.html#add"><span class="hs-identifier hs-type">add</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Monoid</span></span><span> </span><span class="annot"><a href="#local-6989586621679187989"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Filter</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679187989"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="MQTTD.SubTree.html#SubTree"><span class="hs-identifier hs-type">SubTree</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679187989"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="MQTTD.SubTree.html#SubTree"><span class="hs-identifier hs-type">SubTree</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679187989"><span class="hs-identifier hs-type">a</span></a></span></span><span>
-</span><span id="line-48"></span><span id="add"><span class="annot"><span class="annottext">add :: Filter -&gt; a -&gt; SubTree a -&gt; SubTree a
-</span><a href="MQTTD.SubTree.html#add"><span class="hs-identifier hs-var hs-var">add</span></a></span></span><span> </span><span id="local-6989586621679187873"><span class="annot"><span class="annottext">Filter
-</span><a href="#local-6989586621679187873"><span class="hs-identifier hs-var">top</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Filter -&gt; (a -&gt; a -&gt; a) -&gt; a -&gt; SubTree a -&gt; SubTree a
+</span><span id="line-47"></span><span id="local-6989586621679192416"><span class="annot"><a href="MQTTD.SubTree.html#add"><span class="hs-identifier hs-type">add</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Monoid</span></span><span> </span><span class="annot"><a href="#local-6989586621679192416"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Filter</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679192416"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="MQTTD.SubTree.html#SubTree"><span class="hs-identifier hs-type">SubTree</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679192416"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="MQTTD.SubTree.html#SubTree"><span class="hs-identifier hs-type">SubTree</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679192416"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-48"></span><span id="add"><span class="annot"><span class="annottext">add :: forall a. Monoid a =&gt; Filter -&gt; a -&gt; SubTree a -&gt; SubTree a
+</span><a href="MQTTD.SubTree.html#add"><span class="hs-identifier hs-var hs-var">add</span></a></span></span><span> </span><span id="local-6989586621679192139"><span class="annot"><span class="annottext">Filter
+</span><a href="#local-6989586621679192139"><span class="hs-identifier hs-var">top</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Filter -&gt; (a -&gt; a -&gt; a) -&gt; a -&gt; SubTree a -&gt; SubTree a
 forall a.
 Monoid a =&gt;
 Filter -&gt; (a -&gt; a -&gt; a) -&gt; a -&gt; SubTree a -&gt; SubTree a
 </span><a href="MQTTD.SubTree.html#addWith"><span class="hs-identifier hs-var">addWith</span></a></span><span> </span><span class="annot"><span class="annottext">Filter
-</span><a href="#local-6989586621679187873"><span class="hs-identifier hs-var">top</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; a -&gt; a
+</span><a href="#local-6989586621679192139"><span class="hs-identifier hs-var">top</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; a -&gt; a
 forall a. Semigroup a =&gt; a -&gt; a -&gt; a
 </span><span class="hs-operator hs-var">(&lt;&gt;)</span></span><span>
 </span><span id="line-49"></span><span>
 </span><span id="line-50"></span><span class="hs-comment">-- | Add a value at the given filter path with the given collision function.</span><span>
-</span><span id="line-51"></span><span id="local-6989586621679188019"><span class="annot"><a href="MQTTD.SubTree.html#addWith"><span class="hs-identifier hs-type">addWith</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Monoid</span></span><span> </span><span class="annot"><a href="#local-6989586621679188019"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Filter</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679188019"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679188019"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679188019"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679188019"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="MQTTD.SubTree.html#SubTree"><span class="hs-identifier hs-type">SubTree</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679188019"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="MQTTD.SubTree.html#SubTree"><span class="hs-identifier hs-type">SubTree</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679188019"><span class="hs-identifier hs-type">a</span></a></span></span><span>
-</span><span id="line-52"></span><span id="addWith"><span class="annot"><span class="annottext">addWith :: Filter -&gt; (a -&gt; a -&gt; a) -&gt; a -&gt; SubTree a -&gt; SubTree a
-</span><a href="MQTTD.SubTree.html#addWith"><span class="hs-identifier hs-var hs-var">addWith</span></a></span></span><span> </span><span id="local-6989586621679187872"><span class="annot"><span class="annottext">Filter
-</span><a href="#local-6989586621679187872"><span class="hs-identifier hs-var">top</span></a></span></span><span> </span><span id="local-6989586621679187871"><span class="annot"><span class="annottext">a -&gt; a -&gt; a
-</span><a href="#local-6989586621679187871"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span id="local-6989586621679187870"><span class="annot"><span class="annottext">a
-</span><a href="#local-6989586621679187870"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Filter -&gt; (Maybe a -&gt; Maybe a) -&gt; SubTree a -&gt; SubTree a
+</span><span id="line-51"></span><span id="local-6989586621679192414"><span class="annot"><a href="MQTTD.SubTree.html#addWith"><span class="hs-identifier hs-type">addWith</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Monoid</span></span><span> </span><span class="annot"><a href="#local-6989586621679192414"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Filter</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679192414"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679192414"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679192414"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679192414"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="MQTTD.SubTree.html#SubTree"><span class="hs-identifier hs-type">SubTree</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679192414"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="MQTTD.SubTree.html#SubTree"><span class="hs-identifier hs-type">SubTree</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679192414"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-52"></span><span id="addWith"><span class="annot"><span class="annottext">addWith :: forall a.
+Monoid a =&gt;
+Filter -&gt; (a -&gt; a -&gt; a) -&gt; a -&gt; SubTree a -&gt; SubTree a
+</span><a href="MQTTD.SubTree.html#addWith"><span class="hs-identifier hs-var hs-var">addWith</span></a></span></span><span> </span><span id="local-6989586621679192135"><span class="annot"><span class="annottext">Filter
+</span><a href="#local-6989586621679192135"><span class="hs-identifier hs-var">top</span></a></span></span><span> </span><span id="local-6989586621679192134"><span class="annot"><span class="annottext">a -&gt; a -&gt; a
+</span><a href="#local-6989586621679192134"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span id="local-6989586621679192133"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679192133"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Filter -&gt; (Maybe a -&gt; Maybe a) -&gt; SubTree a -&gt; SubTree a
 forall a. Filter -&gt; (Maybe a -&gt; Maybe a) -&gt; SubTree a -&gt; SubTree a
 </span><a href="MQTTD.SubTree.html#modify"><span class="hs-identifier hs-var">modify</span></a></span><span> </span><span class="annot"><span class="annottext">Filter
-</span><a href="#local-6989586621679187872"><span class="hs-identifier hs-var">top</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(a -&gt; a) -&gt; Maybe a -&gt; Maybe a
+</span><a href="#local-6989586621679192135"><span class="hs-identifier hs-var">top</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(a -&gt; a) -&gt; Maybe a -&gt; Maybe a
 forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
 </span><span class="hs-identifier hs-var">fmap</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">a -&gt; a -&gt; a
-</span><a href="#local-6989586621679187871"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">a
-</span><a href="#local-6989586621679187870"><span class="hs-identifier hs-var">i</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(Maybe a -&gt; Maybe a) -&gt; (Maybe a -&gt; Maybe a) -&gt; Maybe a -&gt; Maybe a
+</span><a href="#local-6989586621679192134"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679192133"><span class="hs-identifier hs-var">i</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(Maybe a -&gt; Maybe a) -&gt; (Maybe a -&gt; Maybe a) -&gt; Maybe a -&gt; Maybe a
 forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
 </span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Maybe a -&gt; (a -&gt; Maybe a) -&gt; Maybe a -&gt; Maybe a
 forall b a. b -&gt; (a -&gt; b) -&gt; Maybe a -&gt; b
@@ -358,53 +358,53 @@ forall a. a -&gt; Maybe a
 </span><span class="hs-identifier hs-var">Just</span></span><span class="hs-special">)</span><span>
 </span><span id="line-53"></span><span>
 </span><span id="line-54"></span><span class="hs-comment">-- | Find all matching subscribers</span><span>
-</span><span id="line-55"></span><span id="local-6989586621679188003"><span id="local-6989586621679188004"><span class="annot"><a href="MQTTD.SubTree.html#findMap"><span class="hs-identifier hs-type">findMap</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Monoid</span></span><span> </span><span class="annot"><a href="#local-6989586621679188004"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Topic</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679188003"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679188004"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="MQTTD.SubTree.html#SubTree"><span class="hs-identifier hs-type">SubTree</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679188003"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679188004"><span class="hs-identifier hs-type">m</span></a></span></span></span><span>
-</span><span id="line-56"></span><span id="findMap"><span class="annot"><span class="annottext">findMap :: Topic -&gt; (a -&gt; m) -&gt; SubTree a -&gt; m
-</span><a href="MQTTD.SubTree.html#findMap"><span class="hs-identifier hs-var hs-var">findMap</span></a></span></span><span> </span><span id="local-6989586621679187869"><span class="annot"><span class="annottext">Topic
-</span><a href="#local-6989586621679187869"><span class="hs-identifier hs-var">top</span></a></span></span><span> </span><span id="local-6989586621679187868"><span class="annot"><span class="annottext">a -&gt; m
-</span><a href="#local-6989586621679187868"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Maybe (SubTree a) -&gt; Maybe (SubTree a))
+</span><span id="line-55"></span><span id="local-6989586621679192410"><span id="local-6989586621679192412"><span class="annot"><a href="MQTTD.SubTree.html#findMap"><span class="hs-identifier hs-type">findMap</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Monoid</span></span><span> </span><span class="annot"><a href="#local-6989586621679192412"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Topic</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679192410"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679192412"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="MQTTD.SubTree.html#SubTree"><span class="hs-identifier hs-type">SubTree</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679192410"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679192412"><span class="hs-identifier hs-type">m</span></a></span></span></span><span>
+</span><span id="line-56"></span><span id="findMap"><span class="annot"><span class="annottext">findMap :: forall m a. Monoid m =&gt; Topic -&gt; (a -&gt; m) -&gt; SubTree a -&gt; m
+</span><a href="MQTTD.SubTree.html#findMap"><span class="hs-identifier hs-var hs-var">findMap</span></a></span></span><span> </span><span id="local-6989586621679192129"><span class="annot"><span class="annottext">Topic
+</span><a href="#local-6989586621679192129"><span class="hs-identifier hs-var">top</span></a></span></span><span> </span><span id="local-6989586621679192128"><span class="annot"><span class="annottext">a -&gt; m
+</span><a href="#local-6989586621679192128"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Maybe (SubTree a) -&gt; Maybe (SubTree a))
 -&gt; [Filter] -&gt; SubTree a -&gt; m
-</span><a href="#local-6989586621679187867"><span class="hs-identifier hs-var">go</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe (SubTree a) -&gt; Maybe (SubTree a)
-forall a. Maybe a -&gt; Maybe a
-</span><a href="#local-6989586621679187866"><span class="hs-identifier hs-var">mwc</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Filter -&gt; [Filter]
+</span><a href="#local-6989586621679192127"><span class="hs-identifier hs-var">go</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe (SubTree a) -&gt; Maybe (SubTree a)
+forall {a}. Maybe a -&gt; Maybe a
+</span><a href="#local-6989586621679192126"><span class="hs-identifier hs-var">mwc</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Filter -&gt; [Filter]
 forall a. Splittable a =&gt; a -&gt; [a]
 </span><span class="hs-identifier hs-var">split</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Topic -&gt; Filter
 </span><span class="hs-identifier hs-var">toFilter</span></span><span> </span><span class="annot"><span class="annottext">Topic
-</span><a href="#local-6989586621679187869"><span class="hs-identifier hs-var">top</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><a href="#local-6989586621679192129"><span class="hs-identifier hs-var">top</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
 </span><span id="line-57"></span><span>  </span><span class="hs-keyword">where</span><span>
-</span><span id="line-58"></span><span>    </span><span id="local-6989586621679187867"><span class="annot"><span class="annottext">go :: (Maybe (SubTree a) -&gt; Maybe (SubTree a))
+</span><span id="line-58"></span><span>    </span><span id="local-6989586621679192127"><span class="annot"><span class="annottext">go :: (Maybe (SubTree a) -&gt; Maybe (SubTree a))
 -&gt; [Filter] -&gt; SubTree a -&gt; m
-</span><a href="#local-6989586621679187867"><span class="hs-identifier hs-var hs-var">go</span></a></span></span><span> </span><span class="annot"><span class="annottext">Maybe (SubTree a) -&gt; Maybe (SubTree a)
-</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span> </span><span class="annot"><a href="MQTTD.SubTree.html#SubTree"><span class="hs-identifier hs-type">SubTree</span></a></span><span class="hs-special">{</span><span id="local-6989586621679187865"><span class="annot"><span class="annottext">Maybe a
+</span><a href="#local-6989586621679192127"><span class="hs-identifier hs-var hs-var">go</span></a></span></span><span> </span><span class="annot"><span class="annottext">Maybe (SubTree a) -&gt; Maybe (SubTree a)
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span> </span><span class="annot"><a href="MQTTD.SubTree.html#SubTree"><span class="hs-identifier hs-type">SubTree</span></a></span><span class="hs-special">{</span><span id="local-6989586621679192112"><span class="annot"><span class="annottext">Maybe a
 subs :: Maybe a
 subs :: forall a. SubTree a -&gt; Maybe a
-</span><a href="#local-6989586621679187865"><span class="hs-identifier hs-var hs-var">subs</span></a></span></span><span class="hs-special">}</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">m -&gt; (a -&gt; m) -&gt; Maybe a -&gt; m
+</span><a href="#local-6989586621679192112"><span class="hs-identifier hs-var hs-var">subs</span></a></span></span><span class="hs-special">}</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">m -&gt; (a -&gt; m) -&gt; Maybe a -&gt; m
 forall b a. b -&gt; (a -&gt; b) -&gt; Maybe a -&gt; b
 </span><span class="hs-identifier hs-var">maybe</span></span><span> </span><span class="annot"><span class="annottext">m
 forall a. Monoid a =&gt; a
 </span><span class="hs-identifier hs-var">mempty</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; m
-</span><a href="#local-6989586621679187868"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe a
-</span><a href="#local-6989586621679187865"><span class="hs-identifier hs-var">subs</span></a></span><span>
-</span><span id="line-59"></span><span>    </span><span class="annot"><a href="#local-6989586621679187867"><span class="hs-identifier hs-var">go</span></a></span><span> </span><span id="local-6989586621679187864"><span class="annot"><span class="annottext">Maybe (SubTree a) -&gt; Maybe (SubTree a)
-</span><a href="#local-6989586621679187864"><span class="hs-identifier hs-var">d</span></a></span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621679187863"><span class="annot"><span class="annottext">Filter
-</span><a href="#local-6989586621679187863"><span class="hs-identifier hs-var">x</span></a></span></span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span id="local-6989586621679187862"><span class="annot"><span class="annottext">[Filter]
-</span><a href="#local-6989586621679187862"><span class="hs-identifier hs-var">xs</span></a></span></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="MQTTD.SubTree.html#SubTree"><span class="hs-identifier hs-type">SubTree</span></a></span><span class="hs-special">{</span><span id="local-6989586621679187861"><span class="annot"><span class="annottext">Map Filter (SubTree a)
+</span><a href="#local-6989586621679192128"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe a
+</span><a href="#local-6989586621679192112"><span class="hs-identifier hs-var">subs</span></a></span><span>
+</span><span id="line-59"></span><span>    </span><span class="annot"><a href="#local-6989586621679192127"><span class="hs-identifier hs-var">go</span></a></span><span> </span><span id="local-6989586621679192111"><span class="annot"><span class="annottext">Maybe (SubTree a) -&gt; Maybe (SubTree a)
+</span><a href="#local-6989586621679192111"><span class="hs-identifier hs-var">d</span></a></span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621679192110"><span class="annot"><span class="annottext">Filter
+</span><a href="#local-6989586621679192110"><span class="hs-identifier hs-var">x</span></a></span></span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span id="local-6989586621679192109"><span class="annot"><span class="annottext">[Filter]
+</span><a href="#local-6989586621679192109"><span class="hs-identifier hs-var">xs</span></a></span></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="MQTTD.SubTree.html#SubTree"><span class="hs-identifier hs-type">SubTree</span></a></span><span class="hs-special">{</span><span id="local-6989586621679192108"><span class="annot"><span class="annottext">Map Filter (SubTree a)
 children :: Map Filter (SubTree a)
 children :: forall a. SubTree a -&gt; Map Filter (SubTree a)
-</span><a href="#local-6989586621679187861"><span class="hs-identifier hs-var hs-var">children</span></a></span></span><span class="hs-special">}</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">m -&gt; (SubTree a -&gt; m) -&gt; Maybe (SubTree a) -&gt; m
+</span><a href="#local-6989586621679192108"><span class="hs-identifier hs-var hs-var">children</span></a></span></span><span class="hs-special">}</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">m -&gt; (SubTree a -&gt; m) -&gt; Maybe (SubTree a) -&gt; m
 forall b a. b -&gt; (a -&gt; b) -&gt; Maybe a -&gt; b
 </span><span class="hs-identifier hs-var">maybe</span></span><span> </span><span class="annot"><span class="annottext">m
 forall a. Monoid a =&gt; a
 </span><span class="hs-identifier hs-var">mempty</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(Maybe (SubTree a) -&gt; Maybe (SubTree a))
 -&gt; [Filter] -&gt; SubTree a -&gt; m
-</span><a href="#local-6989586621679187867"><span class="hs-identifier hs-var">go</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe (SubTree a) -&gt; Maybe (SubTree a)
+</span><a href="#local-6989586621679192127"><span class="hs-identifier hs-var">go</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe (SubTree a) -&gt; Maybe (SubTree a)
 forall a. a -&gt; a
 </span><span class="hs-identifier hs-var">id</span></span><span> </span><span class="annot"><span class="annottext">[Filter]
-</span><a href="#local-6989586621679187862"><span class="hs-identifier hs-var">xs</span></a></span><span class="hs-special">)</span><span>                 </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Filter -&gt; Map Filter (SubTree a) -&gt; Maybe (SubTree a)
+</span><a href="#local-6989586621679192109"><span class="hs-identifier hs-var">xs</span></a></span><span class="hs-special">)</span><span>                 </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Filter -&gt; Map Filter (SubTree a) -&gt; Maybe (SubTree a)
 forall k a. Ord k =&gt; k -&gt; Map k a -&gt; Maybe a
 </span><span class="hs-identifier hs-var">Map.lookup</span></span><span> </span><span class="annot"><span class="annottext">Filter
-</span><a href="#local-6989586621679187863"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">Map Filter (SubTree a)
-</span><a href="#local-6989586621679187861"><span class="hs-identifier hs-var">children</span></a></span><span class="hs-special">)</span><span>
+</span><a href="#local-6989586621679192110"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">Map Filter (SubTree a)
+</span><a href="#local-6989586621679192108"><span class="hs-identifier hs-var">children</span></a></span><span class="hs-special">)</span><span>
 </span><span id="line-60"></span><span>                                    </span><span class="annot"><span class="annottext">m -&gt; m -&gt; m
 forall a. Semigroup a =&gt; a -&gt; a -&gt; a
 </span><span class="hs-operator hs-var">&lt;&gt;</span></span><span> </span><span class="annot"><span class="annottext">m -&gt; (SubTree a -&gt; m) -&gt; Maybe (SubTree a) -&gt; m
@@ -413,18 +413,18 @@ forall b a. b -&gt; (a -&gt; b) -&gt; Maybe a -&gt; b
 forall a. Monoid a =&gt; a
 </span><span class="hs-identifier hs-var">mempty</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(Maybe (SubTree a) -&gt; Maybe (SubTree a))
 -&gt; [Filter] -&gt; SubTree a -&gt; m
-</span><a href="#local-6989586621679187867"><span class="hs-identifier hs-var">go</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe (SubTree a) -&gt; Maybe (SubTree a)
+</span><a href="#local-6989586621679192127"><span class="hs-identifier hs-var">go</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe (SubTree a) -&gt; Maybe (SubTree a)
 forall a. a -&gt; a
 </span><span class="hs-identifier hs-var">id</span></span><span> </span><span class="annot"><span class="annottext">[Filter]
-</span><a href="#local-6989586621679187862"><span class="hs-identifier hs-var">xs</span></a></span><span class="hs-special">)</span><span>              </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Maybe (SubTree a) -&gt; Maybe (SubTree a)
-</span><a href="#local-6989586621679187864"><span class="hs-identifier hs-var">d</span></a></span><span> </span><span class="annot"><span class="annottext">(Maybe (SubTree a) -&gt; Maybe (SubTree a))
+</span><a href="#local-6989586621679192109"><span class="hs-identifier hs-var">xs</span></a></span><span class="hs-special">)</span><span>              </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Maybe (SubTree a) -&gt; Maybe (SubTree a)
+</span><a href="#local-6989586621679192111"><span class="hs-identifier hs-var">d</span></a></span><span> </span><span class="annot"><span class="annottext">(Maybe (SubTree a) -&gt; Maybe (SubTree a))
 -&gt; Maybe (SubTree a) -&gt; Maybe (SubTree a)
 forall a b. (a -&gt; b) -&gt; a -&gt; b
 </span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Filter -&gt; Map Filter (SubTree a) -&gt; Maybe (SubTree a)
 forall k a. Ord k =&gt; k -&gt; Map k a -&gt; Maybe a
 </span><span class="hs-identifier hs-var">Map.lookup</span></span><span> </span><span class="annot"><span class="annottext">Filter
 </span><span class="hs-string">&quot;+&quot;</span></span><span> </span><span class="annot"><span class="annottext">Map Filter (SubTree a)
-</span><a href="#local-6989586621679187861"><span class="hs-identifier hs-var">children</span></a></span><span class="hs-special">)</span><span>
+</span><a href="#local-6989586621679192108"><span class="hs-identifier hs-var">children</span></a></span><span class="hs-special">)</span><span>
 </span><span id="line-61"></span><span>                                    </span><span class="annot"><span class="annottext">m -&gt; m -&gt; m
 forall a. Semigroup a =&gt; a -&gt; a -&gt; a
 </span><span class="hs-operator hs-var">&lt;&gt;</span></span><span> </span><span class="annot"><span class="annottext">m -&gt; (SubTree a -&gt; m) -&gt; Maybe (SubTree a) -&gt; m
@@ -436,59 +436,59 @@ forall b a. b -&gt; (a -&gt; b) -&gt; Maybe a -&gt; b
 </span><span class="hs-identifier hs-var">maybe</span></span><span> </span><span class="annot"><span class="annottext">m
 forall a. Monoid a =&gt; a
 </span><span class="hs-identifier hs-var">mempty</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; m
-</span><a href="#local-6989586621679187868"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">(Maybe a -&gt; m) -&gt; (SubTree a -&gt; Maybe a) -&gt; SubTree a -&gt; m
+</span><a href="#local-6989586621679192128"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">(Maybe a -&gt; m) -&gt; (SubTree a -&gt; Maybe a) -&gt; SubTree a -&gt; m
 forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
 </span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">SubTree a -&gt; Maybe a
 forall a. SubTree a -&gt; Maybe a
 </span><a href="MQTTD.SubTree.html#subs"><span class="hs-identifier hs-var hs-var">subs</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Maybe (SubTree a) -&gt; Maybe (SubTree a)
-</span><a href="#local-6989586621679187864"><span class="hs-identifier hs-var">d</span></a></span><span> </span><span class="annot"><span class="annottext">(Maybe (SubTree a) -&gt; Maybe (SubTree a))
+</span><a href="#local-6989586621679192111"><span class="hs-identifier hs-var">d</span></a></span><span> </span><span class="annot"><span class="annottext">(Maybe (SubTree a) -&gt; Maybe (SubTree a))
 -&gt; Maybe (SubTree a) -&gt; Maybe (SubTree a)
 forall a b. (a -&gt; b) -&gt; a -&gt; b
 </span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Filter -&gt; Map Filter (SubTree a) -&gt; Maybe (SubTree a)
 forall k a. Ord k =&gt; k -&gt; Map k a -&gt; Maybe a
 </span><span class="hs-identifier hs-var">Map.lookup</span></span><span> </span><span class="annot"><span class="annottext">Filter
 </span><span class="hs-string">&quot;#&quot;</span></span><span> </span><span class="annot"><span class="annottext">Map Filter (SubTree a)
-</span><a href="#local-6989586621679187861"><span class="hs-identifier hs-var">children</span></a></span><span class="hs-special">)</span><span>
-</span><span id="line-62"></span><span>    </span><span id="local-6989586621679187866"><span class="annot"><span class="annottext">mwc :: Maybe a -&gt; Maybe a
-</span><a href="#local-6989586621679187866"><span class="hs-identifier hs-var hs-var">mwc</span></a></span></span><span> </span><span id="local-6989586621679187858"><span class="annot"><span class="annottext">Maybe a
-</span><a href="#local-6989586621679187858"><span class="hs-identifier hs-var">deeper</span></a></span></span><span>
+</span><a href="#local-6989586621679192108"><span class="hs-identifier hs-var">children</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-62"></span><span>    </span><span id="local-6989586621679192126"><span class="annot"><span class="annottext">mwc :: Maybe a -&gt; Maybe a
+</span><a href="#local-6989586621679192126"><span class="hs-identifier hs-var hs-var">mwc</span></a></span></span><span> </span><span id="local-6989586621679192103"><span class="annot"><span class="annottext">Maybe a
+</span><a href="#local-6989586621679192103"><span class="hs-identifier hs-var">deeper</span></a></span></span><span>
 </span><span id="line-63"></span><span>      </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Text
 </span><span class="hs-string">&quot;$&quot;</span></span><span> </span><span class="annot"><span class="annottext">Text -&gt; Text -&gt; Bool
 </span><span class="hs-operator hs-var">`isPrefixOf`</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Topic -&gt; Text
 </span><span class="hs-identifier hs-var hs-var">unTopic</span></span><span> </span><span class="annot"><span class="annottext">Topic
-</span><a href="#local-6989586621679187869"><span class="hs-identifier hs-var">top</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Maybe a
+</span><a href="#local-6989586621679192129"><span class="hs-identifier hs-var">top</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Maybe a
 forall a. Maybe a
 </span><span class="hs-identifier hs-var">Nothing</span></span><span>
 </span><span id="line-64"></span><span>      </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
 </span><span class="hs-identifier hs-var">otherwise</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Maybe a
-</span><a href="#local-6989586621679187858"><span class="hs-identifier hs-var">deeper</span></a></span><span>
+</span><a href="#local-6989586621679192103"><span class="hs-identifier hs-var">deeper</span></a></span><span>
 </span><span id="line-65"></span><span>
 </span><span id="line-66"></span><span class="hs-comment">-- | Find subscribers of a given topic.</span><span>
-</span><span id="line-67"></span><span id="local-6989586621679187857"><span class="annot"><a href="MQTTD.SubTree.html#find"><span class="hs-identifier hs-type">find</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Monoid</span></span><span> </span><span class="annot"><a href="#local-6989586621679187857"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Topic</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="MQTTD.SubTree.html#SubTree"><span class="hs-identifier hs-type">SubTree</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679187857"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679187857"><span class="hs-identifier hs-type">a</span></a></span></span><span>
-</span><span id="line-68"></span><span id="find"><span class="annot"><span class="annottext">find :: Topic -&gt; SubTree a -&gt; a
-</span><a href="MQTTD.SubTree.html#find"><span class="hs-identifier hs-var hs-var">find</span></a></span></span><span> </span><span id="local-6989586621679187856"><span class="annot"><span class="annottext">Topic
-</span><a href="#local-6989586621679187856"><span class="hs-identifier hs-var">top</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Topic -&gt; (a -&gt; a) -&gt; SubTree a -&gt; a
+</span><span id="line-67"></span><span id="local-6989586621679192399"><span class="annot"><a href="MQTTD.SubTree.html#find"><span class="hs-identifier hs-type">find</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Monoid</span></span><span> </span><span class="annot"><a href="#local-6989586621679192399"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Topic</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="MQTTD.SubTree.html#SubTree"><span class="hs-identifier hs-type">SubTree</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679192399"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679192399"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-68"></span><span id="find"><span class="annot"><span class="annottext">find :: forall a. Monoid a =&gt; Topic -&gt; SubTree a -&gt; a
+</span><a href="MQTTD.SubTree.html#find"><span class="hs-identifier hs-var hs-var">find</span></a></span></span><span> </span><span id="local-6989586621679192100"><span class="annot"><span class="annottext">Topic
+</span><a href="#local-6989586621679192100"><span class="hs-identifier hs-var">top</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Topic -&gt; (a -&gt; a) -&gt; SubTree a -&gt; a
 forall m a. Monoid m =&gt; Topic -&gt; (a -&gt; m) -&gt; SubTree a -&gt; m
 </span><a href="MQTTD.SubTree.html#findMap"><span class="hs-identifier hs-var">findMap</span></a></span><span> </span><span class="annot"><span class="annottext">Topic
-</span><a href="#local-6989586621679187856"><span class="hs-identifier hs-var">top</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; a
+</span><a href="#local-6989586621679192100"><span class="hs-identifier hs-var">top</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; a
 forall a. a -&gt; a
 </span><span class="hs-identifier hs-var">id</span></span><span>
 </span><span id="line-69"></span><span>
 </span><span id="line-70"></span><span class="hs-comment">-- | flatten a SubTree to a list of (topic,a) pairs.</span><span>
-</span><span id="line-71"></span><span id="local-6989586621679187855"><span class="annot"><a href="MQTTD.SubTree.html#flatten"><span class="hs-identifier hs-type">flatten</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="MQTTD.SubTree.html#SubTree"><span class="hs-identifier hs-type">SubTree</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679187855"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Filter</span></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="#local-6989586621679187855"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span class="hs-special">]</span></span><span>
-</span><span id="line-72"></span><span id="flatten"><span class="annot"><span class="annottext">flatten :: SubTree a -&gt; [(Filter, a)]
+</span><span id="line-71"></span><span id="local-6989586621679192397"><span class="annot"><a href="MQTTD.SubTree.html#flatten"><span class="hs-identifier hs-type">flatten</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="MQTTD.SubTree.html#SubTree"><span class="hs-identifier hs-type">SubTree</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679192397"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Filter</span></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="#local-6989586621679192397"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span class="hs-special">]</span></span><span>
+</span><span id="line-72"></span><span id="flatten"><span class="annot"><span class="annottext">flatten :: forall a. SubTree a -&gt; [(Filter, a)]
 </span><a href="MQTTD.SubTree.html#flatten"><span class="hs-identifier hs-var hs-var">flatten</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Filter -&gt; SubTree a -&gt; [(Filter, a)])
 -&gt; Map Filter (SubTree a) -&gt; [(Filter, a)]
 forall m k a. Monoid m =&gt; (k -&gt; a -&gt; m) -&gt; Map k a -&gt; m
-</span><span class="hs-identifier hs-var">Map.foldMapWithKey</span></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span id="local-6989586621679187853"><span class="annot"><span class="annottext">Filter
-</span><a href="#local-6989586621679187853"><span class="hs-identifier hs-var">k</span></a></span></span><span> </span><span id="local-6989586621679187852"><span class="annot"><span class="annottext">SubTree a
-</span><a href="#local-6989586621679187852"><span class="hs-identifier hs-var">sn</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">NonEmpty Filter -&gt; SubTree a -&gt; [(Filter, a)]
-forall b. NonEmpty Filter -&gt; SubTree b -&gt; [(Filter, b)]
-</span><a href="#local-6989586621679187851"><span class="hs-identifier hs-var">go</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Filter
-</span><a href="#local-6989586621679187853"><span class="hs-identifier hs-var">k</span></a></span><span class="annot"><span class="annottext">Filter -&gt; [Filter] -&gt; NonEmpty Filter
+</span><span class="hs-identifier hs-var">Map.foldMapWithKey</span></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span id="local-6989586621679192096"><span class="annot"><span class="annottext">Filter
+</span><a href="#local-6989586621679192096"><span class="hs-identifier hs-var">k</span></a></span></span><span> </span><span id="local-6989586621679192095"><span class="annot"><span class="annottext">SubTree a
+</span><a href="#local-6989586621679192095"><span class="hs-identifier hs-var">sn</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">NonEmpty Filter -&gt; SubTree a -&gt; [(Filter, a)]
+forall {b}. NonEmpty Filter -&gt; SubTree b -&gt; [(Filter, b)]
+</span><a href="#local-6989586621679192094"><span class="hs-identifier hs-var">go</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Filter
+</span><a href="#local-6989586621679192096"><span class="hs-identifier hs-var">k</span></a></span><span class="annot"><span class="annottext">Filter -&gt; [Filter] -&gt; NonEmpty Filter
 forall a. a -&gt; [a] -&gt; NonEmpty a
 </span><span class="hs-operator hs-var">:|</span></span><span class="hs-special">[</span><span class="hs-special">]</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">SubTree a
-</span><a href="#local-6989586621679187852"><span class="hs-identifier hs-var">sn</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(Map Filter (SubTree a) -&gt; [(Filter, a)])
+</span><a href="#local-6989586621679192095"><span class="hs-identifier hs-var">sn</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(Map Filter (SubTree a) -&gt; [(Filter, a)])
 -&gt; (SubTree a -&gt; Map Filter (SubTree a))
 -&gt; SubTree a
 -&gt; [(Filter, a)]
@@ -497,39 +497,39 @@ forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
 forall a. SubTree a -&gt; Map Filter (SubTree a)
 </span><a href="MQTTD.SubTree.html#children"><span class="hs-identifier hs-var hs-var">children</span></a></span><span>
 </span><span id="line-73"></span><span>  </span><span class="hs-keyword">where</span><span>
-</span><span id="line-74"></span><span>    </span><span id="local-6989586621679187851"><span class="annot"><span class="annottext">go :: NonEmpty Filter -&gt; SubTree b -&gt; [(Filter, b)]
-</span><a href="#local-6989586621679187851"><span class="hs-identifier hs-var hs-var">go</span></a></span></span><span> </span><span id="local-6989586621679187849"><span class="annot"><span class="annottext">NonEmpty Filter
-</span><a href="#local-6989586621679187849"><span class="hs-identifier hs-var">ks</span></a></span></span><span> </span><span class="annot"><a href="MQTTD.SubTree.html#SubTree"><span class="hs-identifier hs-type">SubTree</span></a></span><span class="hs-special">{</span><span id="local-6989586621679187847"><span id="local-6989586621679187848"><span class="annot"><span class="annottext">Maybe b
+</span><span id="line-74"></span><span>    </span><span id="local-6989586621679192094"><span class="annot"><span class="annottext">go :: NonEmpty Filter -&gt; SubTree b -&gt; [(Filter, b)]
+</span><a href="#local-6989586621679192094"><span class="hs-identifier hs-var hs-var">go</span></a></span></span><span> </span><span id="local-6989586621679192089"><span class="annot"><span class="annottext">NonEmpty Filter
+</span><a href="#local-6989586621679192089"><span class="hs-identifier hs-var">ks</span></a></span></span><span> </span><span class="annot"><a href="MQTTD.SubTree.html#SubTree"><span class="hs-identifier hs-type">SubTree</span></a></span><span class="hs-special">{</span><span id="local-6989586621679192087"><span id="local-6989586621679192088"><span class="annot"><span class="annottext">Maybe b
 Map Filter (SubTree b)
 children :: Map Filter (SubTree b)
 subs :: Maybe b
 children :: forall a. SubTree a -&gt; Map Filter (SubTree a)
 subs :: forall a. SubTree a -&gt; Maybe a
-</span><a href="#local-6989586621679187847"><span class="hs-glyph hs-var hs-var hs-var hs-var">..</span></a></span></span></span><span class="hs-special">}</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span class="hs-special">(</span><span class="annot"><span class="annottext">NonEmpty Filter -&gt; Filter
-</span><a href="#local-6989586621679187846"><span class="hs-identifier hs-var">cat</span></a></span><span> </span><span class="annot"><span class="annottext">NonEmpty Filter
-</span><a href="#local-6989586621679187849"><span class="hs-identifier hs-var">ks</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">b
-</span><a href="#local-6989586621679187845"><span class="hs-identifier hs-var">s</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">|</span><span> </span><span id="local-6989586621679187845"><span class="annot"><span class="annottext">b
-</span><a href="#local-6989586621679187845"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Maybe b -&gt; [b]
+</span><a href="#local-6989586621679192087"><span class="hs-glyph hs-var hs-var hs-var hs-var">..</span></a></span></span></span><span class="hs-special">}</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span class="hs-special">(</span><span class="annot"><span class="annottext">NonEmpty Filter -&gt; Filter
+</span><a href="#local-6989586621679192086"><span class="hs-identifier hs-var">cat</span></a></span><span> </span><span class="annot"><span class="annottext">NonEmpty Filter
+</span><a href="#local-6989586621679192089"><span class="hs-identifier hs-var">ks</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">b
+</span><a href="#local-6989586621679192085"><span class="hs-identifier hs-var">s</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">|</span><span> </span><span id="local-6989586621679192085"><span class="annot"><span class="annottext">b
+</span><a href="#local-6989586621679192085"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Maybe b -&gt; [b]
 forall a. Maybe a -&gt; [a]
 </span><span class="hs-identifier hs-var">maybeToList</span></span><span> </span><span class="annot"><span class="annottext">Maybe b
-</span><a href="#local-6989586621679187848"><span class="hs-identifier hs-var">subs</span></a></span><span class="hs-special">]</span><span>
+</span><a href="#local-6989586621679192088"><span class="hs-identifier hs-var">subs</span></a></span><span class="hs-special">]</span><span>
 </span><span id="line-75"></span><span>                        </span><span class="annot"><span class="annottext">[(Filter, b)] -&gt; [(Filter, b)] -&gt; [(Filter, b)]
 forall a. Semigroup a =&gt; a -&gt; a -&gt; a
 </span><span class="hs-operator hs-var">&lt;&gt;</span></span><span> </span><span class="annot"><span class="annottext">(Filter -&gt; SubTree b -&gt; [(Filter, b)])
 -&gt; Map Filter (SubTree b) -&gt; [(Filter, b)]
 forall m k a. Monoid m =&gt; (k -&gt; a -&gt; m) -&gt; Map k a -&gt; m
-</span><span class="hs-identifier hs-var">Map.foldMapWithKey</span></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span id="local-6989586621679187844"><span class="annot"><span class="annottext">Filter
-</span><a href="#local-6989586621679187844"><span class="hs-identifier hs-var">k</span></a></span></span><span> </span><span id="local-6989586621679187843"><span class="annot"><span class="annottext">SubTree b
-</span><a href="#local-6989586621679187843"><span class="hs-identifier hs-var">sn</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">NonEmpty Filter -&gt; SubTree b -&gt; [(Filter, b)]
-</span><a href="#local-6989586621679187851"><span class="hs-identifier hs-var">go</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Filter
-</span><a href="#local-6989586621679187844"><span class="hs-identifier hs-var">k</span></a></span><span> </span><span class="annot"><span class="annottext">Filter -&gt; NonEmpty Filter -&gt; NonEmpty Filter
+</span><span class="hs-identifier hs-var">Map.foldMapWithKey</span></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span id="local-6989586621679192084"><span class="annot"><span class="annottext">Filter
+</span><a href="#local-6989586621679192084"><span class="hs-identifier hs-var">k</span></a></span></span><span> </span><span id="local-6989586621679192083"><span class="annot"><span class="annottext">SubTree b
+</span><a href="#local-6989586621679192083"><span class="hs-identifier hs-var">sn</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">NonEmpty Filter -&gt; SubTree b -&gt; [(Filter, b)]
+</span><a href="#local-6989586621679192094"><span class="hs-identifier hs-var">go</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Filter
+</span><a href="#local-6989586621679192084"><span class="hs-identifier hs-var">k</span></a></span><span> </span><span class="annot"><span class="annottext">Filter -&gt; NonEmpty Filter -&gt; NonEmpty Filter
 forall a. a -&gt; NonEmpty a -&gt; NonEmpty a
 </span><span class="hs-operator hs-var">&lt;|</span></span><span> </span><span class="annot"><span class="annottext">NonEmpty Filter
-</span><a href="#local-6989586621679187849"><span class="hs-identifier hs-var">ks</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">SubTree b
-</span><a href="#local-6989586621679187843"><span class="hs-identifier hs-var">sn</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Map Filter (SubTree b)
-</span><a href="#local-6989586621679187847"><span class="hs-identifier hs-var">children</span></a></span><span>
-</span><span id="line-76"></span><span>    </span><span id="local-6989586621679187846"><span class="annot"><span class="annottext">cat :: NonEmpty Filter -&gt; Filter
-</span><a href="#local-6989586621679187846"><span class="hs-identifier hs-var hs-var">cat</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">NonEmpty Filter -&gt; Filter
+</span><a href="#local-6989586621679192089"><span class="hs-identifier hs-var">ks</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">SubTree b
+</span><a href="#local-6989586621679192083"><span class="hs-identifier hs-var">sn</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Map Filter (SubTree b)
+</span><a href="#local-6989586621679192087"><span class="hs-identifier hs-var">children</span></a></span><span>
+</span><span id="line-76"></span><span>    </span><span id="local-6989586621679192086"><span class="annot"><span class="annottext">cat :: NonEmpty Filter -&gt; Filter
+</span><a href="#local-6989586621679192086"><span class="hs-identifier hs-var hs-var">cat</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">NonEmpty Filter -&gt; Filter
 forall a. Semigroup a =&gt; NonEmpty a -&gt; a
 </span><span class="hs-identifier hs-var">sconcat</span></span><span> </span><span class="annot"><span class="annottext">(NonEmpty Filter -&gt; Filter)
 -&gt; (NonEmpty Filter -&gt; NonEmpty Filter)
@@ -541,8 +541,8 @@ forall a. NonEmpty a -&gt; NonEmpty a
 </span><span class="hs-identifier hs-var">NE.reverse</span></span><span>
 </span><span id="line-77"></span><span>
 </span><span id="line-78"></span><span class="hs-comment">-- | Construct a SubTree from a list of filters and subscribers (assuming monoidal values).</span><span>
-</span><span id="line-79"></span><span id="local-6989586621679187841"><span class="annot"><a href="MQTTD.SubTree.html#fromList"><span class="hs-identifier hs-type">fromList</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Monoid</span></span><span> </span><span class="annot"><a href="#local-6989586621679187841"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="hs-special">[</span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Filter</span></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="#local-6989586621679187841"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="MQTTD.SubTree.html#SubTree"><span class="hs-identifier hs-type">SubTree</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679187841"><span class="hs-identifier hs-type">a</span></a></span></span><span>
-</span><span id="line-80"></span><span id="fromList"><span class="annot"><span class="annottext">fromList :: [(Filter, a)] -&gt; SubTree a
+</span><span id="line-79"></span><span id="local-6989586621679192385"><span class="annot"><a href="MQTTD.SubTree.html#fromList"><span class="hs-identifier hs-type">fromList</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Monoid</span></span><span> </span><span class="annot"><a href="#local-6989586621679192385"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="hs-special">[</span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Filter</span></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="#local-6989586621679192385"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="MQTTD.SubTree.html#SubTree"><span class="hs-identifier hs-type">SubTree</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679192385"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-80"></span><span id="fromList"><span class="annot"><span class="annottext">fromList :: forall a. Monoid a =&gt; [(Filter, a)] -&gt; SubTree a
 </span><a href="MQTTD.SubTree.html#fromList"><span class="hs-identifier hs-var hs-var">fromList</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">((Filter, a) -&gt; SubTree a -&gt; SubTree a)
 -&gt; SubTree a -&gt; [(Filter, a)] -&gt; SubTree a
 forall (t :: * -&gt; *) a b.

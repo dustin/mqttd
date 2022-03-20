@@ -22,237 +22,244 @@
 </span><span id="line-22"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><a href="Scheduler.html"><span class="hs-identifier">Scheduler</span></a></span><span>
 </span><span id="line-23"></span><span>
 </span><span id="line-24"></span><span class="hs-keyword">data</span><span> </span><span id="Retainer"><span class="annot"><a href="MQTTD.Retention.html#Retainer"><span class="hs-identifier hs-var">Retainer</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="Retainer"><span class="annot"><a href="MQTTD.Retention.html#Retainer"><span class="hs-identifier hs-var">Retainer</span></a></span></span><span> </span><span class="hs-special">{</span><span>
-</span><span id="line-25"></span><span>  </span><span id="_store"><span class="annot"><span class="annottext">Retainer -&gt; TVar (Map BLTopic Retained)
+</span><span id="line-25"></span><span>  </span><span id="_store"><span class="annot"><span class="annottext">Retainer -&gt; TVar (Map ByteString Retained)
 </span><a href="MQTTD.Retention.html#_store"><span class="hs-identifier hs-var hs-var">_store</span></a></span></span><span>   </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">TVar</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Map</span></span><span> </span><span class="annot"><a href="MQTTD.Types.html#BLTopic"><span class="hs-identifier hs-type">BLTopic</span></a></span><span> </span><span class="annot"><a href="MQTTD.Types.html#Retained"><span class="hs-identifier hs-type">Retained</span></a></span><span class="hs-special">)</span><span class="hs-special">,</span><span>
-</span><span id="line-26"></span><span>  </span><span id="_qrunner"><span class="annot"><span class="annottext">Retainer -&gt; QueueRunner BLTopic
+</span><span id="line-26"></span><span>  </span><span id="_qrunner"><span class="annot"><span class="annottext">Retainer -&gt; QueueRunner ByteString
 </span><a href="MQTTD.Retention.html#_qrunner"><span class="hs-identifier hs-var hs-var">_qrunner</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Scheduler.html#QueueRunner"><span class="hs-identifier hs-type">Scheduler.QueueRunner</span></a></span><span> </span><span class="annot"><a href="MQTTD.Types.html#BLTopic"><span class="hs-identifier hs-type">BLTopic</span></a></span><span>
 </span><span id="line-27"></span><span>  </span><span class="hs-special">}</span><span>
 </span><span id="line-28"></span><span>
-</span><span id="line-29"></span><span id="local-6989586621679189278"><span class="annot"><a href="MQTTD.Retention.html#newRetainer"><span class="hs-identifier hs-type">newRetainer</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MonadIO</span></span><span> </span><span class="annot"><a href="#local-6989586621679189278"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679189278"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="MQTTD.Retention.html#Retainer"><span class="hs-identifier hs-type">Retainer</span></a></span></span><span>
-</span><span id="line-30"></span><span id="newRetainer"><span class="annot"><span class="annottext">newRetainer :: m Retainer
-</span><a href="MQTTD.Retention.html#newRetainer"><span class="hs-identifier hs-var hs-var">newRetainer</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">TVar (Map BLTopic Retained) -&gt; QueueRunner BLTopic -&gt; Retainer
-</span><a href="MQTTD.Retention.html#Retainer"><span class="hs-identifier hs-var">Retainer</span></a></span><span> </span><span class="annot"><span class="annottext">(TVar (Map BLTopic Retained) -&gt; QueueRunner BLTopic -&gt; Retainer)
--&gt; m (TVar (Map BLTopic Retained))
--&gt; m (QueueRunner BLTopic -&gt; Retainer)
+</span><span id="line-29"></span><span id="local-6989586621679194923"><span class="annot"><a href="MQTTD.Retention.html#newRetainer"><span class="hs-identifier hs-type">newRetainer</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MonadIO</span></span><span> </span><span class="annot"><a href="#local-6989586621679194923"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679194923"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="MQTTD.Retention.html#Retainer"><span class="hs-identifier hs-type">Retainer</span></a></span></span><span>
+</span><span id="line-30"></span><span id="newRetainer"><span class="annot"><span class="annottext">newRetainer :: forall (m :: * -&gt; *). MonadIO m =&gt; m Retainer
+</span><a href="MQTTD.Retention.html#newRetainer"><span class="hs-identifier hs-var hs-var">newRetainer</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">TVar (Map ByteString Retained)
+-&gt; QueueRunner ByteString -&gt; Retainer
+</span><a href="MQTTD.Retention.html#Retainer"><span class="hs-identifier hs-var">Retainer</span></a></span><span> </span><span class="annot"><span class="annottext">(TVar (Map ByteString Retained)
+ -&gt; QueueRunner ByteString -&gt; Retainer)
+-&gt; m (TVar (Map ByteString Retained))
+-&gt; m (QueueRunner ByteString -&gt; Retainer)
 forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
-</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">IO (TVar (Map BLTopic Retained)) -&gt; m (TVar (Map BLTopic Retained))
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">IO (TVar (Map ByteString Retained))
+-&gt; m (TVar (Map ByteString Retained))
 forall (m :: * -&gt; *) a. MonadIO m =&gt; IO a -&gt; m a
-</span><span class="hs-identifier hs-var">liftIO</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Map BLTopic Retained -&gt; IO (TVar (Map BLTopic Retained))
+</span><span class="hs-identifier hs-var">liftIO</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Map ByteString Retained -&gt; IO (TVar (Map ByteString Retained))
 forall a. a -&gt; IO (TVar a)
-</span><span class="hs-identifier hs-var">newTVarIO</span></span><span> </span><span class="annot"><span class="annottext">Map BLTopic Retained
+</span><span class="hs-identifier hs-var">newTVarIO</span></span><span> </span><span class="annot"><span class="annottext">Map ByteString Retained
 forall a. Monoid a =&gt; a
-</span><span class="hs-identifier hs-var">mempty</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">m (QueueRunner BLTopic -&gt; Retainer)
--&gt; m (QueueRunner BLTopic) -&gt; m Retainer
+</span><span class="hs-identifier hs-var">mempty</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">m (QueueRunner ByteString -&gt; Retainer)
+-&gt; m (QueueRunner ByteString) -&gt; m Retainer
 forall (f :: * -&gt; *) a b. Applicative f =&gt; f (a -&gt; b) -&gt; f a -&gt; f b
-</span><span class="hs-operator hs-var">&lt;*&gt;</span></span><span> </span><span class="annot"><span class="annottext">m (QueueRunner BLTopic)
+</span><span class="hs-operator hs-var">&lt;*&gt;</span></span><span> </span><span class="annot"><span class="annottext">m (QueueRunner ByteString)
 forall (m :: * -&gt; *) a. MonadIO m =&gt; m (QueueRunner a)
 </span><a href="Scheduler.html#newRunner"><span class="hs-identifier hs-var">Scheduler.newRunner</span></a></span><span>
 </span><span id="line-31"></span><span>
-</span><span id="line-32"></span><span id="local-6989586621679189273"><span class="annot"><a href="MQTTD.Retention.html#cleanRetainer"><span class="hs-identifier hs-type">cleanRetainer</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="MQTTD.Stats.html#HasStats"><span class="hs-identifier hs-type">HasStats</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679189273"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MonadLogger</span></span><span> </span><span class="annot"><a href="#local-6989586621679189273"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="MQTTD.DB.html#HasDBConnection"><span class="hs-identifier hs-type">HasDBConnection</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679189273"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MonadUnliftIO</span></span><span> </span><span class="annot"><a href="#local-6989586621679189273"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="MQTTD.Retention.html#Retainer"><span class="hs-identifier hs-type">Retainer</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679189273"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span></span><span>
-</span><span id="line-33"></span><span id="cleanRetainer"><span class="annot"><span class="annottext">cleanRetainer :: Retainer -&gt; m ()
-</span><a href="MQTTD.Retention.html#cleanRetainer"><span class="hs-identifier hs-var hs-var">cleanRetainer</span></a></span></span><span> </span><span class="annot"><a href="MQTTD.Retention.html#Retainer"><span class="hs-identifier hs-type">Retainer</span></a></span><span class="hs-special">{</span><span id="local-6989586621679189270"><span id="local-6989586621679189271"><span class="annot"><span class="annottext">TVar (Map BLTopic Retained)
-QueueRunner BLTopic
-_qrunner :: QueueRunner BLTopic
-_store :: TVar (Map BLTopic Retained)
-_qrunner :: Retainer -&gt; QueueRunner BLTopic
-_store :: Retainer -&gt; TVar (Map BLTopic Retained)
-</span><a href="#local-6989586621679189270"><span class="hs-glyph hs-var hs-var hs-var hs-var">..</span></a></span></span></span><span class="hs-special">}</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(BLTopic -&gt; m ()) -&gt; QueueRunner BLTopic -&gt; m ()
+</span><span id="line-32"></span><span id="local-6989586621679194905"><span class="annot"><a href="MQTTD.Retention.html#cleanRetainer"><span class="hs-identifier hs-type">cleanRetainer</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="MQTTD.Stats.html#HasStats"><span class="hs-identifier hs-type">HasStats</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679194905"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MonadLogger</span></span><span> </span><span class="annot"><a href="#local-6989586621679194905"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="MQTTD.DB.html#HasDBConnection"><span class="hs-identifier hs-type">HasDBConnection</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679194905"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MonadUnliftIO</span></span><span> </span><span class="annot"><a href="#local-6989586621679194905"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="MQTTD.Retention.html#Retainer"><span class="hs-identifier hs-type">Retainer</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679194905"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span></span><span>
+</span><span id="line-33"></span><span id="cleanRetainer"><span class="annot"><span class="annottext">cleanRetainer :: forall (m :: * -&gt; *).
+(HasStats m, MonadLogger m, HasDBConnection m, MonadUnliftIO m) =&gt;
+Retainer -&gt; m ()
+</span><a href="MQTTD.Retention.html#cleanRetainer"><span class="hs-identifier hs-var hs-var">cleanRetainer</span></a></span></span><span> </span><span class="annot"><a href="MQTTD.Retention.html#Retainer"><span class="hs-identifier hs-type">Retainer</span></a></span><span class="hs-special">{</span><span id="local-6989586621679194725"><span id="local-6989586621679194726"><span class="annot"><span class="annottext">TVar (Map ByteString Retained)
+QueueRunner ByteString
+_qrunner :: QueueRunner ByteString
+_store :: TVar (Map ByteString Retained)
+_qrunner :: Retainer -&gt; QueueRunner ByteString
+_store :: Retainer -&gt; TVar (Map ByteString Retained)
+</span><a href="#local-6989586621679194725"><span class="hs-glyph hs-var hs-var hs-var hs-var">..</span></a></span></span></span><span class="hs-special">}</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(ByteString -&gt; m ()) -&gt; QueueRunner ByteString -&gt; m ()
 forall (m :: * -&gt; *) a.
 (HasStats m, MonadLogger m, MonadIO m) =&gt;
 (a -&gt; m ()) -&gt; QueueRunner a -&gt; m ()
-</span><a href="Scheduler.html#run"><span class="hs-identifier hs-var">Scheduler.run</span></a></span><span> </span><span class="annot"><span class="annottext">BLTopic -&gt; m ()
-forall (m :: * -&gt; *).
+</span><a href="Scheduler.html#run"><span class="hs-identifier hs-var">Scheduler.run</span></a></span><span> </span><span class="annot"><span class="annottext">ByteString -&gt; m ()
+forall {m :: * -&gt; *}.
 (MonadIO m, MonadLogger m, HasDBConnection m) =&gt;
-BLTopic -&gt; m ()
-</span><a href="#local-6989586621679189268"><span class="hs-identifier hs-var">cleanup</span></a></span><span> </span><span class="annot"><span class="annottext">QueueRunner BLTopic
-</span><a href="#local-6989586621679189270"><span class="hs-identifier hs-var">_qrunner</span></a></span><span>
+ByteString -&gt; m ()
+</span><a href="#local-6989586621679194723"><span class="hs-identifier hs-var">cleanup</span></a></span><span> </span><span class="annot"><span class="annottext">QueueRunner ByteString
+</span><a href="#local-6989586621679194725"><span class="hs-identifier hs-var">_qrunner</span></a></span><span>
 </span><span id="line-34"></span><span>    </span><span class="hs-keyword">where</span><span>
-</span><span id="line-35"></span><span>      </span><span id="local-6989586621679189268"><span class="annot"><span class="annottext">cleanup :: BLTopic -&gt; m ()
-</span><a href="#local-6989586621679189268"><span class="hs-identifier hs-var hs-var">cleanup</span></a></span></span><span> </span><span id="local-6989586621679189267"><span class="annot"><span class="annottext">BLTopic
-</span><a href="#local-6989586621679189267"><span class="hs-identifier hs-var">k</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
-</span><span id="line-36"></span><span>        </span><span id="local-6989586621679189266"><span class="annot"><span class="annottext">UTCTime
-</span><a href="#local-6989586621679189266"><span class="hs-identifier hs-var">now</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">IO UTCTime -&gt; m UTCTime
+</span><span id="line-35"></span><span>      </span><span id="local-6989586621679194723"><span class="annot"><span class="annottext">cleanup :: ByteString -&gt; m ()
+</span><a href="#local-6989586621679194723"><span class="hs-identifier hs-var hs-var">cleanup</span></a></span></span><span> </span><span id="local-6989586621679194683"><span class="annot"><span class="annottext">ByteString
+</span><a href="#local-6989586621679194683"><span class="hs-identifier hs-var">k</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-36"></span><span>        </span><span id="local-6989586621679194682"><span class="annot"><span class="annottext">UTCTime
+</span><a href="#local-6989586621679194682"><span class="hs-identifier hs-var">now</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">IO UTCTime -&gt; m UTCTime
 forall (m :: * -&gt; *) a. MonadIO m =&gt; IO a -&gt; m a
 </span><span class="hs-identifier hs-var">liftIO</span></span><span> </span><span class="annot"><span class="annottext">IO UTCTime
 </span><span class="hs-identifier hs-var">getCurrentTime</span></span><span>
 </span><span id="line-37"></span><span>        </span><span class="annot"><span class="annottext">Bool -&gt; m () -&gt; m ()
 forall (f :: * -&gt; *). Applicative f =&gt; Bool -&gt; f () -&gt; f ()
-</span><span class="hs-identifier hs-var">unless</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">BLTopic -&gt; Bool
-</span><a href="MQTTD.Retention.html#isSys"><span class="hs-identifier hs-var">isSys</span></a></span><span> </span><span class="annot"><span class="annottext">BLTopic
-</span><a href="#local-6989586621679189267"><span class="hs-identifier hs-var">k</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(m () -&gt; m ()) -&gt; m () -&gt; m ()
+</span><span class="hs-identifier hs-var">unless</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">ByteString -&gt; Bool
+</span><a href="MQTTD.Retention.html#isSys"><span class="hs-identifier hs-var">isSys</span></a></span><span> </span><span class="annot"><span class="annottext">ByteString
+</span><a href="#local-6989586621679194683"><span class="hs-identifier hs-var">k</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(m () -&gt; m ()) -&gt; m () -&gt; m ()
 forall a b. (a -&gt; b) -&gt; a -&gt; b
 </span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">[Text] -&gt; m ()
 forall (f :: * -&gt; *) (m :: * -&gt; *).
 (Foldable f, MonadLogger m) =&gt;
 f Text -&gt; m ()
 </span><a href="MQTTD.Logging.html#logDbgL"><span class="hs-identifier hs-var">logDbgL</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Text
-</span><span class="hs-string">&quot;Probably removing persisted item: &quot;</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">BLTopic -&gt; Text
+</span><span class="hs-string">&quot;Probably removing persisted item: &quot;</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">ByteString -&gt; Text
 forall a. Show a =&gt; a -&gt; Text
-</span><a href="MQTTD.Util.html#tshow"><span class="hs-identifier hs-var">tshow</span></a></span><span> </span><span class="annot"><span class="annottext">BLTopic
-</span><a href="#local-6989586621679189267"><span class="hs-identifier hs-var">k</span></a></span><span class="hs-special">]</span><span>
-</span><span id="line-38"></span><span>        </span><span id="local-6989586621679189262"><span class="annot"><span class="annottext">Maybe BLTopic
-</span><a href="#local-6989586621679189262"><span class="hs-identifier hs-var">jk</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">STM (Maybe BLTopic) -&gt; m (Maybe BLTopic)
+</span><a href="MQTTD.Util.html#tshow"><span class="hs-identifier hs-var">tshow</span></a></span><span> </span><span class="annot"><span class="annottext">ByteString
+</span><a href="#local-6989586621679194683"><span class="hs-identifier hs-var">k</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-38"></span><span>        </span><span id="local-6989586621679194678"><span class="annot"><span class="annottext">Maybe ByteString
+</span><a href="#local-6989586621679194678"><span class="hs-identifier hs-var">jk</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">STM (Maybe ByteString) -&gt; m (Maybe ByteString)
 forall (m :: * -&gt; *) a. MonadIO m =&gt; STM a -&gt; m a
-</span><span class="hs-identifier hs-var">atomically</span></span><span> </span><span class="annot"><span class="annottext">(STM (Maybe BLTopic) -&gt; m (Maybe BLTopic))
--&gt; STM (Maybe BLTopic) -&gt; m (Maybe BLTopic)
+</span><span class="hs-identifier hs-var">atomically</span></span><span> </span><span class="annot"><span class="annottext">(STM (Maybe ByteString) -&gt; m (Maybe ByteString))
+-&gt; STM (Maybe ByteString) -&gt; m (Maybe ByteString)
 forall a b. (a -&gt; b) -&gt; a -&gt; b
 </span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-keyword">do</span><span>
-</span><span id="line-39"></span><span>          </span><span id="local-6989586621679189261"><span class="annot"><span class="annottext">Maybe UTCTime
-</span><a href="#local-6989586621679189261"><span class="hs-identifier hs-var">r</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Retained -&gt; Maybe UTCTime
+</span><span id="line-39"></span><span>          </span><span id="local-6989586621679194677"><span class="annot"><span class="annottext">Maybe UTCTime
+</span><a href="#local-6989586621679194677"><span class="hs-identifier hs-var">r</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Retained -&gt; Maybe UTCTime
 </span><a href="MQTTD.Types.html#_retainExp"><span class="hs-identifier hs-var hs-var">_retainExp</span></a></span><span> </span><span class="annot"><span class="annottext">(Retained -&gt; Maybe UTCTime)
--&gt; (Map BLTopic Retained -&gt; Maybe Retained)
--&gt; Map BLTopic Retained
+-&gt; (Map ByteString Retained -&gt; Maybe Retained)
+-&gt; Map ByteString Retained
 -&gt; Maybe UTCTime
 forall (m :: * -&gt; *) b c a.
 Monad m =&gt;
 (b -&gt; m c) -&gt; (a -&gt; m b) -&gt; a -&gt; m c
-</span><span class="hs-operator hs-var">&lt;=&lt;</span></span><span> </span><span class="annot"><span class="annottext">BLTopic -&gt; Map BLTopic Retained -&gt; Maybe Retained
+</span><span class="hs-operator hs-var">&lt;=&lt;</span></span><span> </span><span class="annot"><span class="annottext">ByteString -&gt; Map ByteString Retained -&gt; Maybe Retained
 forall k a. Ord k =&gt; k -&gt; Map k a -&gt; Maybe a
-</span><span class="hs-identifier hs-var">Map.lookup</span></span><span> </span><span class="annot"><span class="annottext">BLTopic
-</span><a href="#local-6989586621679189267"><span class="hs-identifier hs-var">k</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(Map BLTopic Retained -&gt; Maybe UTCTime)
--&gt; STM (Map BLTopic Retained) -&gt; STM (Maybe UTCTime)
+</span><span class="hs-identifier hs-var">Map.lookup</span></span><span> </span><span class="annot"><span class="annottext">ByteString
+</span><a href="#local-6989586621679194683"><span class="hs-identifier hs-var">k</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(Map ByteString Retained -&gt; Maybe UTCTime)
+-&gt; STM (Map ByteString Retained) -&gt; STM (Maybe UTCTime)
 forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
-</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">TVar (Map BLTopic Retained) -&gt; STM (Map BLTopic Retained)
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">TVar (Map ByteString Retained) -&gt; STM (Map ByteString Retained)
 forall a. TVar a -&gt; STM a
-</span><span class="hs-identifier hs-var">readTVar</span></span><span> </span><span class="annot"><span class="annottext">TVar (Map BLTopic Retained)
-</span><a href="#local-6989586621679189271"><span class="hs-identifier hs-var">_store</span></a></span><span>
+</span><span class="hs-identifier hs-var">readTVar</span></span><span> </span><span class="annot"><span class="annottext">TVar (Map ByteString Retained)
+</span><a href="#local-6989586621679194726"><span class="hs-identifier hs-var">_store</span></a></span><span>
 </span><span id="line-40"></span><span>          </span><span class="annot"><span class="annottext">Bool -&gt; STM () -&gt; STM ()
 forall (f :: * -&gt; *). Applicative f =&gt; Bool -&gt; f () -&gt; f ()
 </span><span class="hs-identifier hs-var">when</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Maybe UTCTime
-</span><a href="#local-6989586621679189261"><span class="hs-identifier hs-var">r</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe UTCTime -&gt; Maybe UTCTime -&gt; Bool
+</span><a href="#local-6989586621679194677"><span class="hs-identifier hs-var">r</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe UTCTime -&gt; Maybe UTCTime -&gt; Bool
 forall a. Ord a =&gt; a -&gt; a -&gt; Bool
 </span><span class="hs-operator hs-var">&lt;</span></span><span> </span><span class="annot"><span class="annottext">UTCTime -&gt; Maybe UTCTime
 forall a. a -&gt; Maybe a
 </span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">UTCTime
-</span><a href="#local-6989586621679189266"><span class="hs-identifier hs-var">now</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(STM () -&gt; STM ()) -&gt; STM () -&gt; STM ()
+</span><a href="#local-6989586621679194682"><span class="hs-identifier hs-var">now</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(STM () -&gt; STM ()) -&gt; STM () -&gt; STM ()
 forall a b. (a -&gt; b) -&gt; a -&gt; b
-</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">TVar (Map BLTopic Retained)
--&gt; (Map BLTopic Retained -&gt; Map BLTopic Retained) -&gt; STM ()
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">TVar (Map ByteString Retained)
+-&gt; (Map ByteString Retained -&gt; Map ByteString Retained) -&gt; STM ()
 forall a. TVar a -&gt; (a -&gt; a) -&gt; STM ()
-</span><span class="hs-identifier hs-var">modifyTVar'</span></span><span> </span><span class="annot"><span class="annottext">TVar (Map BLTopic Retained)
-</span><a href="#local-6989586621679189271"><span class="hs-identifier hs-var">_store</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">BLTopic -&gt; Map BLTopic Retained -&gt; Map BLTopic Retained
+</span><span class="hs-identifier hs-var">modifyTVar'</span></span><span> </span><span class="annot"><span class="annottext">TVar (Map ByteString Retained)
+</span><a href="#local-6989586621679194726"><span class="hs-identifier hs-var">_store</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">ByteString -&gt; Map ByteString Retained -&gt; Map ByteString Retained
 forall k a. Ord k =&gt; k -&gt; Map k a -&gt; Map k a
-</span><span class="hs-identifier hs-var">Map.delete</span></span><span> </span><span class="annot"><span class="annottext">BLTopic
-</span><a href="#local-6989586621679189267"><span class="hs-identifier hs-var">k</span></a></span><span class="hs-special">)</span><span>
+</span><span class="hs-identifier hs-var">Map.delete</span></span><span> </span><span class="annot"><span class="annottext">ByteString
+</span><a href="#local-6989586621679194683"><span class="hs-identifier hs-var">k</span></a></span><span class="hs-special">)</span><span>
 </span><span id="line-41"></span><span>          </span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="annottext">Maybe UTCTime
-</span><a href="#local-6989586621679189261"><span class="hs-identifier hs-var">r</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe UTCTime -&gt; Maybe UTCTime -&gt; Bool
+</span><a href="#local-6989586621679194677"><span class="hs-identifier hs-var">r</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe UTCTime -&gt; Maybe UTCTime -&gt; Bool
 forall a. Ord a =&gt; a -&gt; a -&gt; Bool
 </span><span class="hs-operator hs-var">&lt;</span></span><span> </span><span class="annot"><span class="annottext">UTCTime -&gt; Maybe UTCTime
 forall a. a -&gt; Maybe a
 </span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">UTCTime
-</span><a href="#local-6989586621679189266"><span class="hs-identifier hs-var">now</span></a></span><span> </span><span class="hs-keyword">then</span><span> </span><span class="annot"><span class="annottext">Maybe BLTopic -&gt; STM (Maybe BLTopic)
+</span><a href="#local-6989586621679194682"><span class="hs-identifier hs-var">now</span></a></span><span> </span><span class="hs-keyword">then</span><span> </span><span class="annot"><span class="annottext">Maybe ByteString -&gt; STM (Maybe ByteString)
 forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
-</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">BLTopic -&gt; Maybe BLTopic
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">ByteString -&gt; Maybe ByteString
 forall a. a -&gt; Maybe a
-</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">BLTopic
-</span><a href="#local-6989586621679189267"><span class="hs-identifier hs-var">k</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">else</span><span> </span><span class="annot"><span class="annottext">Maybe BLTopic -&gt; STM (Maybe BLTopic)
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">ByteString
+</span><a href="#local-6989586621679194683"><span class="hs-identifier hs-var">k</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">else</span><span> </span><span class="annot"><span class="annottext">Maybe ByteString -&gt; STM (Maybe ByteString)
 forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
-</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">Maybe BLTopic
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">Maybe ByteString
 forall a. Maybe a
 </span><span class="hs-identifier hs-var">Nothing</span></span><span>
-</span><span id="line-42"></span><span>        </span><span class="annot"><span class="annottext">(BLTopic -&gt; m ()) -&gt; Maybe BLTopic -&gt; m ()
+</span><span id="line-42"></span><span>        </span><span class="annot"><span class="annottext">(ByteString -&gt; m ()) -&gt; Maybe ByteString -&gt; m ()
 forall (m :: * -&gt; *) a. Monad m =&gt; (a -&gt; m ()) -&gt; Maybe a -&gt; m ()
-</span><a href="MQTTD.Util.html#justM"><span class="hs-identifier hs-var">justM</span></a></span><span> </span><span class="annot"><span class="annottext">BLTopic -&gt; m ()
+</span><a href="MQTTD.Util.html#justM"><span class="hs-identifier hs-var">justM</span></a></span><span> </span><span class="annot"><span class="annottext">ByteString -&gt; m ()
 forall (m :: * -&gt; *).
 (HasDBConnection m, MonadIO m) =&gt;
-BLTopic -&gt; m ()
-</span><a href="MQTTD.DB.html#deleteRetained"><span class="hs-identifier hs-var">deleteRetained</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe BLTopic
-</span><a href="#local-6989586621679189262"><span class="hs-identifier hs-var">jk</span></a></span><span>
+ByteString -&gt; m ()
+</span><a href="MQTTD.DB.html#deleteRetained"><span class="hs-identifier hs-var">deleteRetained</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe ByteString
+</span><a href="#local-6989586621679194678"><span class="hs-identifier hs-var">jk</span></a></span><span>
 </span><span id="line-43"></span><span>
 </span><span id="line-44"></span><span class="annot"><a href="MQTTD.Retention.html#isSys"><span class="hs-identifier hs-type">isSys</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="MQTTD.Types.html#BLTopic"><span class="hs-identifier hs-type">BLTopic</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
-</span><span id="line-45"></span><span id="isSys"><span class="annot"><span class="annottext">isSys :: BLTopic -&gt; Bool
-</span><a href="MQTTD.Retention.html#isSys"><span class="hs-identifier hs-var hs-var">isSys</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">BLTopic
-</span><span class="hs-string">&quot;$SYS/&quot;</span></span><span> </span><span class="annot"><span class="annottext">BLTopic -&gt; BLTopic -&gt; Bool
+</span><span id="line-45"></span><span id="isSys"><span class="annot"><span class="annottext">isSys :: ByteString -&gt; Bool
+</span><a href="MQTTD.Retention.html#isSys"><span class="hs-identifier hs-var hs-var">isSys</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">ByteString
+</span><span class="hs-string">&quot;$SYS/&quot;</span></span><span> </span><span class="annot"><span class="annottext">ByteString -&gt; ByteString -&gt; Bool
 </span><span class="hs-operator hs-var">`BL.isPrefixOf`</span></span><span class="hs-special">)</span><span>
 </span><span id="line-46"></span><span>
-</span><span id="line-47"></span><span id="local-6989586621679189253"><span class="annot"><a href="MQTTD.Retention.html#retain"><span class="hs-identifier hs-type">retain</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="MQTTD.Stats.html#HasStats"><span class="hs-identifier hs-type">HasStats</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679189253"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MonadLogger</span></span><span> </span><span class="annot"><a href="#local-6989586621679189253"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="MQTTD.DB.html#HasDBConnection"><span class="hs-identifier hs-type">HasDBConnection</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679189253"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MonadIO</span></span><span> </span><span class="annot"><a href="#local-6989586621679189253"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">T.PublishRequest</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="MQTTD.Retention.html#Retainer"><span class="hs-identifier hs-type">Retainer</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679189253"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span></span><span>
-</span><span id="line-48"></span><span id="retain"><span class="annot"><span class="annottext">retain :: PublishRequest -&gt; Retainer -&gt; m ()
+</span><span id="line-47"></span><span id="local-6989586621679194866"><span class="annot"><a href="MQTTD.Retention.html#retain"><span class="hs-identifier hs-type">retain</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="MQTTD.Stats.html#HasStats"><span class="hs-identifier hs-type">HasStats</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679194866"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MonadLogger</span></span><span> </span><span class="annot"><a href="#local-6989586621679194866"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="MQTTD.DB.html#HasDBConnection"><span class="hs-identifier hs-type">HasDBConnection</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679194866"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MonadIO</span></span><span> </span><span class="annot"><a href="#local-6989586621679194866"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">T.PublishRequest</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="MQTTD.Retention.html#Retainer"><span class="hs-identifier hs-type">Retainer</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679194866"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span></span><span>
+</span><span id="line-48"></span><span id="retain"><span class="annot"><span class="annottext">retain :: forall (m :: * -&gt; *).
+(HasStats m, MonadLogger m, HasDBConnection m, MonadIO m) =&gt;
+PublishRequest -&gt; Retainer -&gt; m ()
 </span><a href="MQTTD.Retention.html#retain"><span class="hs-identifier hs-var hs-var">retain</span></a></span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">T.PublishRequest</span></span><span class="hs-special">{</span><span class="annot"><span class="annottext">_pubRetain :: PublishRequest -&gt; Bool
 </span><span class="hs-identifier hs-var">_pubRetain</span></span><span class="hs-glyph">=</span><span class="annot"><span class="annottext">Bool
 </span><span class="hs-identifier hs-var">False</span></span><span class="hs-special">}</span><span> </span><span class="annot"><span class="annottext">Retainer
 </span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">() -&gt; m ()
 forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
 </span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
-</span><span id="line-49"></span><span class="annot"><a href="MQTTD.Retention.html#retain"><span class="hs-identifier hs-var">retain</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">T.PublishRequest</span></span><span class="hs-special">{</span><span id="local-6989586621679189249"><span class="annot"><span class="annottext">BLTopic
-_pubTopic :: PublishRequest -&gt; BLTopic
-_pubTopic :: BLTopic
-</span><span class="hs-identifier hs-var hs-var">_pubTopic</span></span></span><span class="hs-special">,</span><span class="annot"><span class="annottext">_pubBody :: PublishRequest -&gt; BLTopic
-</span><span class="hs-identifier hs-var">_pubBody</span></span><span class="hs-glyph">=</span><span class="annot"><span class="annottext">BLTopic
-</span><span class="hs-string">&quot;&quot;</span></span><span class="hs-special">}</span><span> </span><span class="annot"><a href="MQTTD.Retention.html#Retainer"><span class="hs-identifier hs-type">Retainer</span></a></span><span class="hs-special">{</span><span id="local-6989586621679189245"><span id="local-6989586621679189246"><span class="annot"><span class="annottext">TVar (Map BLTopic Retained)
-QueueRunner BLTopic
-_qrunner :: QueueRunner BLTopic
-_store :: TVar (Map BLTopic Retained)
-_qrunner :: Retainer -&gt; QueueRunner BLTopic
-_store :: Retainer -&gt; TVar (Map BLTopic Retained)
-</span><a href="#local-6989586621679189245"><span class="hs-glyph hs-var hs-var hs-var hs-var">..</span></a></span></span></span><span class="hs-special">}</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
-</span><span id="line-50"></span><span>  </span><span class="annot"><span class="annottext">BLTopic -&gt; m ()
+</span><span id="line-49"></span><span class="annot"><a href="MQTTD.Retention.html#retain"><span class="hs-identifier hs-var">retain</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">T.PublishRequest</span></span><span class="hs-special">{</span><span id="local-6989586621679194631"><span class="annot"><span class="annottext">ByteString
+_pubTopic :: PublishRequest -&gt; ByteString
+_pubTopic :: ByteString
+</span><span class="hs-identifier hs-var hs-var">_pubTopic</span></span></span><span class="hs-special">,</span><span class="annot"><span class="annottext">_pubBody :: PublishRequest -&gt; ByteString
+</span><span class="hs-identifier hs-var">_pubBody</span></span><span class="hs-glyph">=</span><span class="annot"><span class="annottext">ByteString
+</span><span class="hs-string">&quot;&quot;</span></span><span class="hs-special">}</span><span> </span><span class="annot"><a href="MQTTD.Retention.html#Retainer"><span class="hs-identifier hs-type">Retainer</span></a></span><span class="hs-special">{</span><span id="local-6989586621679194627"><span id="local-6989586621679194628"><span class="annot"><span class="annottext">TVar (Map ByteString Retained)
+QueueRunner ByteString
+_qrunner :: QueueRunner ByteString
+_store :: TVar (Map ByteString Retained)
+_qrunner :: Retainer -&gt; QueueRunner ByteString
+_store :: Retainer -&gt; TVar (Map ByteString Retained)
+</span><a href="#local-6989586621679194627"><span class="hs-glyph hs-var hs-var hs-var hs-var">..</span></a></span></span></span><span class="hs-special">}</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-50"></span><span>  </span><span class="annot"><span class="annottext">ByteString -&gt; m ()
 forall (m :: * -&gt; *).
 (HasDBConnection m, MonadIO m) =&gt;
-BLTopic -&gt; m ()
-</span><a href="MQTTD.DB.html#deleteRetained"><span class="hs-identifier hs-var">deleteRetained</span></a></span><span> </span><span class="annot"><span class="annottext">BLTopic
-</span><a href="#local-6989586621679189249"><span class="hs-identifier hs-var">_pubTopic</span></a></span><span>
+ByteString -&gt; m ()
+</span><a href="MQTTD.DB.html#deleteRetained"><span class="hs-identifier hs-var">deleteRetained</span></a></span><span> </span><span class="annot"><span class="annottext">ByteString
+</span><a href="#local-6989586621679194631"><span class="hs-identifier hs-var">_pubTopic</span></a></span><span>
 </span><span id="line-51"></span><span>  </span><span class="annot"><span class="annottext">STM () -&gt; m ()
 forall (m :: * -&gt; *) a. MonadIO m =&gt; STM a -&gt; m a
 </span><span class="hs-identifier hs-var">atomically</span></span><span> </span><span class="annot"><span class="annottext">(STM () -&gt; m ()) -&gt; STM () -&gt; m ()
 forall a b. (a -&gt; b) -&gt; a -&gt; b
-</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">TVar (Map BLTopic Retained)
--&gt; (Map BLTopic Retained -&gt; Map BLTopic Retained) -&gt; STM ()
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">TVar (Map ByteString Retained)
+-&gt; (Map ByteString Retained -&gt; Map ByteString Retained) -&gt; STM ()
 forall a. TVar a -&gt; (a -&gt; a) -&gt; STM ()
-</span><span class="hs-identifier hs-var">modifyTVar'</span></span><span> </span><span class="annot"><span class="annottext">TVar (Map BLTopic Retained)
-</span><a href="#local-6989586621679189246"><span class="hs-identifier hs-var">_store</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">BLTopic -&gt; Map BLTopic Retained -&gt; Map BLTopic Retained
+</span><span class="hs-identifier hs-var">modifyTVar'</span></span><span> </span><span class="annot"><span class="annottext">TVar (Map ByteString Retained)
+</span><a href="#local-6989586621679194628"><span class="hs-identifier hs-var">_store</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">ByteString -&gt; Map ByteString Retained -&gt; Map ByteString Retained
 forall k a. Ord k =&gt; k -&gt; Map k a -&gt; Map k a
-</span><span class="hs-identifier hs-var">Map.delete</span></span><span> </span><span class="annot"><span class="annottext">BLTopic
-</span><a href="#local-6989586621679189249"><span class="hs-identifier hs-var">_pubTopic</span></a></span><span class="hs-special">)</span><span>
-</span><span id="line-52"></span><span class="annot"><a href="MQTTD.Retention.html#retain"><span class="hs-identifier hs-var">retain</span></a></span><span> </span><span id="local-6989586621679189244"><span class="annot"><span class="annottext">pr :: PublishRequest
-</span><a href="#local-6989586621679189244"><span class="hs-identifier hs-var">pr</span></a></span></span><span class="hs-glyph">@</span><span class="annot"><span class="hs-identifier hs-type">T.PublishRequest</span></span><span class="hs-special">{</span><span id="local-6989586621679189237"><span id="local-6989586621679189238"><span id="local-6989586621679189239"><span id="local-6989586621679189240"><span id="local-6989586621679189241"><span id="local-6989586621679189242"><span id="local-6989586621679189243"><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">Map.delete</span></span><span> </span><span class="annot"><span class="annottext">ByteString
+</span><a href="#local-6989586621679194631"><span class="hs-identifier hs-var">_pubTopic</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-52"></span><span class="annot"><a href="MQTTD.Retention.html#retain"><span class="hs-identifier hs-var">retain</span></a></span><span> </span><span id="local-6989586621679194626"><span class="annot"><span class="annottext">pr :: PublishRequest
+</span><a href="#local-6989586621679194626"><span class="hs-identifier hs-var">pr</span></a></span></span><span class="hs-glyph">@</span><span class="annot"><span class="hs-identifier hs-type">T.PublishRequest</span></span><span class="hs-special">{</span><span id="local-6989586621679194619"><span id="local-6989586621679194620"><span id="local-6989586621679194621"><span id="local-6989586621679194622"><span id="local-6989586621679194623"><span id="local-6989586621679194624"><span id="local-6989586621679194625"><span class="annot"><span class="annottext">Bool
 [Property]
 PktID
-BLTopic
+ByteString
 QoS
 _pubQoS :: PublishRequest -&gt; QoS
 _pubProps :: PublishRequest -&gt; [Property]
 _pubPktID :: PublishRequest -&gt; PktID
 _pubDup :: PublishRequest -&gt; Bool
 _pubProps :: [Property]
-_pubBody :: BLTopic
+_pubBody :: ByteString
 _pubPktID :: PktID
-_pubTopic :: BLTopic
+_pubTopic :: ByteString
 _pubRetain :: Bool
 _pubQoS :: QoS
 _pubDup :: Bool
-_pubBody :: PublishRequest -&gt; BLTopic
-_pubTopic :: PublishRequest -&gt; BLTopic
+_pubBody :: PublishRequest -&gt; ByteString
+_pubTopic :: PublishRequest -&gt; ByteString
 _pubRetain :: PublishRequest -&gt; Bool
-</span><span class="hs-glyph hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">..</span></span></span></span></span></span></span></span></span><span class="hs-special">}</span><span> </span><span class="annot"><a href="MQTTD.Retention.html#Retainer"><span class="hs-identifier hs-type">Retainer</span></a></span><span class="hs-special">{</span><span id="local-6989586621679189231"><span id="local-6989586621679189232"><span class="annot"><span class="annottext">TVar (Map BLTopic Retained)
-QueueRunner BLTopic
-_qrunner :: QueueRunner BLTopic
-_store :: TVar (Map BLTopic Retained)
-_qrunner :: Retainer -&gt; QueueRunner BLTopic
-_store :: Retainer -&gt; TVar (Map BLTopic Retained)
-</span><a href="#local-6989586621679189231"><span class="hs-glyph hs-var hs-var hs-var hs-var">..</span></a></span></span></span><span class="hs-special">}</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
-</span><span id="line-53"></span><span>  </span><span id="local-6989586621679189230"><span class="annot"><span class="annottext">UTCTime
-</span><a href="#local-6989586621679189230"><span class="hs-identifier hs-var">now</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">IO UTCTime -&gt; m UTCTime
+</span><span class="hs-glyph hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">..</span></span></span></span></span></span></span></span></span><span class="hs-special">}</span><span> </span><span class="annot"><a href="MQTTD.Retention.html#Retainer"><span class="hs-identifier hs-type">Retainer</span></a></span><span class="hs-special">{</span><span id="local-6989586621679194613"><span id="local-6989586621679194614"><span class="annot"><span class="annottext">TVar (Map ByteString Retained)
+QueueRunner ByteString
+_qrunner :: QueueRunner ByteString
+_store :: TVar (Map ByteString Retained)
+_qrunner :: Retainer -&gt; QueueRunner ByteString
+_store :: Retainer -&gt; TVar (Map ByteString Retained)
+</span><a href="#local-6989586621679194613"><span class="hs-glyph hs-var hs-var hs-var hs-var">..</span></a></span></span></span><span class="hs-special">}</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-53"></span><span>  </span><span id="local-6989586621679194612"><span class="annot"><span class="annottext">UTCTime
+</span><a href="#local-6989586621679194612"><span class="hs-identifier hs-var">now</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">IO UTCTime -&gt; m UTCTime
 forall (m :: * -&gt; *) a. MonadIO m =&gt; IO a -&gt; m a
 </span><span class="hs-identifier hs-var">liftIO</span></span><span> </span><span class="annot"><span class="annottext">IO UTCTime
 </span><span class="hs-identifier hs-var">getCurrentTime</span></span><span>
 </span><span id="line-54"></span><span>  </span><span class="annot"><span class="annottext">Bool -&gt; m () -&gt; m ()
 forall (f :: * -&gt; *). Applicative f =&gt; Bool -&gt; f () -&gt; f ()
-</span><span class="hs-identifier hs-var">unless</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">BLTopic -&gt; Bool
-</span><a href="MQTTD.Retention.html#isSys"><span class="hs-identifier hs-var">isSys</span></a></span><span> </span><span class="annot"><span class="annottext">BLTopic
-</span><a href="#local-6989586621679189240"><span class="hs-identifier hs-var">_pubTopic</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(m () -&gt; m ()) -&gt; m () -&gt; m ()
+</span><span class="hs-identifier hs-var">unless</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">ByteString -&gt; Bool
+</span><a href="MQTTD.Retention.html#isSys"><span class="hs-identifier hs-var">isSys</span></a></span><span> </span><span class="annot"><span class="annottext">ByteString
+</span><a href="#local-6989586621679194622"><span class="hs-identifier hs-var">_pubTopic</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(m () -&gt; m ()) -&gt; m () -&gt; m ()
 forall a b. (a -&gt; b) -&gt; a -&gt; b
 </span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">[Text] -&gt; m ()
 forall (f :: * -&gt; *) (m :: * -&gt; *).
 (Foldable f, MonadLogger m) =&gt;
 f Text -&gt; m ()
 </span><a href="MQTTD.Logging.html#logDbgL"><span class="hs-identifier hs-var">logDbgL</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Text
-</span><span class="hs-string">&quot;Persisting &quot;</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">BLTopic -&gt; Text
+</span><span class="hs-string">&quot;Persisting &quot;</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">ByteString -&gt; Text
 forall a. Show a =&gt; a -&gt; Text
-</span><a href="MQTTD.Util.html#tshow"><span class="hs-identifier hs-var">tshow</span></a></span><span> </span><span class="annot"><span class="annottext">BLTopic
-</span><a href="#local-6989586621679189240"><span class="hs-identifier hs-var">_pubTopic</span></a></span><span class="hs-special">]</span><span>
-</span><span id="line-55"></span><span>  </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679189229"><span class="annot"><span class="annottext">e :: Maybe UTCTime
-</span><a href="#local-6989586621679189229"><span class="hs-identifier hs-var hs-var">e</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">PublishRequest
-</span><a href="#local-6989586621679189244"><span class="hs-identifier hs-var">pr</span></a></span><span> </span><span class="annot"><span class="annottext">PublishRequest
+</span><a href="MQTTD.Util.html#tshow"><span class="hs-identifier hs-var">tshow</span></a></span><span> </span><span class="annot"><span class="annottext">ByteString
+</span><a href="#local-6989586621679194622"><span class="hs-identifier hs-var">_pubTopic</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-55"></span><span>  </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679194590"><span class="annot"><span class="annottext">e :: Maybe UTCTime
+</span><a href="#local-6989586621679194590"><span class="hs-identifier hs-var hs-var">e</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">PublishRequest
+</span><a href="#local-6989586621679194626"><span class="hs-identifier hs-var">pr</span></a></span><span> </span><span class="annot"><span class="annottext">PublishRequest
 -&gt; Getting (First UTCTime) PublishRequest UTCTime -&gt; Maybe UTCTime
 forall s a. s -&gt; Getting (First a) s a -&gt; Maybe a
 </span><span class="hs-operator hs-var">^?</span></span><span> </span><span class="annot"><span class="annottext">([Property] -&gt; Const (First UTCTime) [Property])
@@ -296,31 +303,32 @@ forall (p :: * -&gt; * -&gt; *) (f :: * -&gt; *) s a.
 </span><span class="hs-identifier hs-var">to</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">UTCTime -&gt; Word32 -&gt; UTCTime
 forall a. Integral a =&gt; UTCTime -&gt; a -&gt; UTCTime
 </span><a href="MQTTD.Retention.html#absExp"><span class="hs-identifier hs-var">absExp</span></a></span><span> </span><span class="annot"><span class="annottext">UTCTime
-</span><a href="#local-6989586621679189230"><span class="hs-identifier hs-var">now</span></a></span><span class="hs-special">)</span><span>
-</span><span id="line-56"></span><span>      </span><span id="local-6989586621679189221"><span class="annot"><span class="annottext">ret :: Retained
-</span><a href="#local-6989586621679189221"><span class="hs-identifier hs-var hs-var">ret</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">UTCTime -&gt; Maybe UTCTime -&gt; PublishRequest -&gt; Retained
+</span><a href="#local-6989586621679194612"><span class="hs-identifier hs-var">now</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-56"></span><span>      </span><span id="local-6989586621679194582"><span class="annot"><span class="annottext">ret :: Retained
+</span><a href="#local-6989586621679194582"><span class="hs-identifier hs-var hs-var">ret</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">UTCTime -&gt; Maybe UTCTime -&gt; PublishRequest -&gt; Retained
 </span><a href="MQTTD.Types.html#Retained"><span class="hs-identifier hs-var">Retained</span></a></span><span> </span><span class="annot"><span class="annottext">UTCTime
-</span><a href="#local-6989586621679189230"><span class="hs-identifier hs-var">now</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe UTCTime
-</span><a href="#local-6989586621679189229"><span class="hs-identifier hs-var">e</span></a></span><span> </span><span class="annot"><span class="annottext">PublishRequest
-</span><a href="#local-6989586621679189244"><span class="hs-identifier hs-var">pr</span></a></span><span>
+</span><a href="#local-6989586621679194612"><span class="hs-identifier hs-var">now</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe UTCTime
+</span><a href="#local-6989586621679194590"><span class="hs-identifier hs-var">e</span></a></span><span> </span><span class="annot"><span class="annottext">PublishRequest
+</span><a href="#local-6989586621679194626"><span class="hs-identifier hs-var">pr</span></a></span><span>
 </span><span id="line-57"></span><span>  </span><span class="annot"><span class="annottext">STM () -&gt; m ()
 forall (m :: * -&gt; *) a. MonadIO m =&gt; STM a -&gt; m a
 </span><span class="hs-identifier hs-var">atomically</span></span><span> </span><span class="annot"><span class="annottext">(STM () -&gt; m ()) -&gt; STM () -&gt; m ()
 forall a b. (a -&gt; b) -&gt; a -&gt; b
-</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">TVar (Map BLTopic Retained)
--&gt; (Map BLTopic Retained -&gt; Map BLTopic Retained) -&gt; STM ()
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">TVar (Map ByteString Retained)
+-&gt; (Map ByteString Retained -&gt; Map ByteString Retained) -&gt; STM ()
 forall a. TVar a -&gt; (a -&gt; a) -&gt; STM ()
-</span><span class="hs-identifier hs-var">modifyTVar'</span></span><span> </span><span class="annot"><span class="annottext">TVar (Map BLTopic Retained)
-</span><a href="#local-6989586621679189232"><span class="hs-identifier hs-var">_store</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">BLTopic -&gt; Retained -&gt; Map BLTopic Retained -&gt; Map BLTopic Retained
+</span><span class="hs-identifier hs-var">modifyTVar'</span></span><span> </span><span class="annot"><span class="annottext">TVar (Map ByteString Retained)
+</span><a href="#local-6989586621679194614"><span class="hs-identifier hs-var">_store</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">ByteString
+-&gt; Retained -&gt; Map ByteString Retained -&gt; Map ByteString Retained
 forall k a. Ord k =&gt; k -&gt; a -&gt; Map k a -&gt; Map k a
-</span><span class="hs-identifier hs-var">Map.insert</span></span><span> </span><span class="annot"><span class="annottext">BLTopic
-</span><a href="#local-6989586621679189240"><span class="hs-identifier hs-var">_pubTopic</span></a></span><span> </span><span class="annot"><span class="annottext">Retained
-</span><a href="#local-6989586621679189221"><span class="hs-identifier hs-var">ret</span></a></span><span class="hs-special">)</span><span>
+</span><span class="hs-identifier hs-var">Map.insert</span></span><span> </span><span class="annot"><span class="annottext">ByteString
+</span><a href="#local-6989586621679194622"><span class="hs-identifier hs-var">_pubTopic</span></a></span><span> </span><span class="annot"><span class="annottext">Retained
+</span><a href="#local-6989586621679194582"><span class="hs-identifier hs-var">ret</span></a></span><span class="hs-special">)</span><span>
 </span><span id="line-58"></span><span>  </span><span class="annot"><span class="annottext">Bool -&gt; m () -&gt; m ()
 forall (f :: * -&gt; *). Applicative f =&gt; Bool -&gt; f () -&gt; f ()
-</span><span class="hs-identifier hs-var">unless</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">BLTopic -&gt; Bool
-</span><a href="MQTTD.Retention.html#isSys"><span class="hs-identifier hs-var">isSys</span></a></span><span> </span><span class="annot"><span class="annottext">BLTopic
-</span><a href="#local-6989586621679189240"><span class="hs-identifier hs-var">_pubTopic</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(m () -&gt; m ()) -&gt; m () -&gt; m ()
+</span><span class="hs-identifier hs-var">unless</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">ByteString -&gt; Bool
+</span><a href="MQTTD.Retention.html#isSys"><span class="hs-identifier hs-var">isSys</span></a></span><span> </span><span class="annot"><span class="annottext">ByteString
+</span><a href="#local-6989586621679194622"><span class="hs-identifier hs-var">_pubTopic</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(m () -&gt; m ()) -&gt; m () -&gt; m ()
 forall a b. (a -&gt; b) -&gt; a -&gt; b
 </span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-keyword">do</span><span>
 </span><span id="line-59"></span><span>    </span><span class="annot"><span class="annottext">Retained -&gt; m ()
@@ -328,35 +336,37 @@ forall (m :: * -&gt; *).
 (HasDBConnection m, MonadIO m) =&gt;
 Retained -&gt; m ()
 </span><a href="MQTTD.DB.html#storeRetained"><span class="hs-identifier hs-var">storeRetained</span></a></span><span> </span><span class="annot"><span class="annottext">Retained
-</span><a href="#local-6989586621679189221"><span class="hs-identifier hs-var">ret</span></a></span><span>
+</span><a href="#local-6989586621679194582"><span class="hs-identifier hs-var">ret</span></a></span><span>
 </span><span id="line-60"></span><span>    </span><span class="annot"><span class="annottext">(UTCTime -&gt; m ()) -&gt; Maybe UTCTime -&gt; m ()
 forall (m :: * -&gt; *) a. Monad m =&gt; (a -&gt; m ()) -&gt; Maybe a -&gt; m ()
-</span><a href="MQTTD.Util.html#justM"><span class="hs-identifier hs-var">justM</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span id="local-6989586621679189217"><span class="annot"><span class="annottext">UTCTime
-</span><a href="#local-6989586621679189217"><span class="hs-identifier hs-var">t</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">UTCTime -&gt; BLTopic -&gt; QueueRunner BLTopic -&gt; m ()
+</span><a href="MQTTD.Util.html#justM"><span class="hs-identifier hs-var">justM</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span id="local-6989586621679194578"><span class="annot"><span class="annottext">UTCTime
+</span><a href="#local-6989586621679194578"><span class="hs-identifier hs-var">t</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">UTCTime -&gt; ByteString -&gt; QueueRunner ByteString -&gt; m ()
 forall (m :: * -&gt; *) a.
 (HasStats m, Ord a, MonadIO m) =&gt;
 UTCTime -&gt; a -&gt; QueueRunner a -&gt; m ()
 </span><a href="Scheduler.html#enqueue"><span class="hs-identifier hs-var">Scheduler.enqueue</span></a></span><span> </span><span class="annot"><span class="annottext">UTCTime
-</span><a href="#local-6989586621679189217"><span class="hs-identifier hs-var">t</span></a></span><span> </span><span class="annot"><span class="annottext">BLTopic
-</span><a href="#local-6989586621679189240"><span class="hs-identifier hs-var">_pubTopic</span></a></span><span> </span><span class="annot"><span class="annottext">QueueRunner BLTopic
-</span><a href="#local-6989586621679189231"><span class="hs-identifier hs-var">_qrunner</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Maybe UTCTime
-</span><a href="#local-6989586621679189229"><span class="hs-identifier hs-var">e</span></a></span><span>
+</span><a href="#local-6989586621679194578"><span class="hs-identifier hs-var">t</span></a></span><span> </span><span class="annot"><span class="annottext">ByteString
+</span><a href="#local-6989586621679194622"><span class="hs-identifier hs-var">_pubTopic</span></a></span><span> </span><span class="annot"><span class="annottext">QueueRunner ByteString
+</span><a href="#local-6989586621679194613"><span class="hs-identifier hs-var">_qrunner</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Maybe UTCTime
+</span><a href="#local-6989586621679194590"><span class="hs-identifier hs-var">e</span></a></span><span>
 </span><span id="line-61"></span><span>
-</span><span id="line-62"></span><span id="local-6989586621679189215"><span class="annot"><a href="MQTTD.Retention.html#restoreRetained"><span class="hs-identifier hs-type">restoreRetained</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="MQTTD.Stats.html#HasStats"><span class="hs-identifier hs-type">HasStats</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679189215"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MonadIO</span></span><span> </span><span class="annot"><a href="#local-6989586621679189215"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="MQTTD.DB.html#HasDBConnection"><span class="hs-identifier hs-type">HasDBConnection</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679189215"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="MQTTD.Retention.html#Retainer"><span class="hs-identifier hs-type">Retainer</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679189215"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span></span><span>
-</span><span id="line-63"></span><span id="restoreRetained"><span class="annot"><span class="annottext">restoreRetained :: Retainer -&gt; m ()
-</span><a href="MQTTD.Retention.html#restoreRetained"><span class="hs-identifier hs-var hs-var">restoreRetained</span></a></span></span><span> </span><span class="annot"><a href="MQTTD.Retention.html#Retainer"><span class="hs-identifier hs-type">Retainer</span></a></span><span class="hs-special">{</span><span id="local-6989586621679189212"><span id="local-6989586621679189213"><span class="annot"><span class="annottext">TVar (Map BLTopic Retained)
-QueueRunner BLTopic
-_qrunner :: QueueRunner BLTopic
-_store :: TVar (Map BLTopic Retained)
-_qrunner :: Retainer -&gt; QueueRunner BLTopic
-_store :: Retainer -&gt; TVar (Map BLTopic Retained)
-</span><a href="#local-6989586621679189212"><span class="hs-glyph hs-var hs-var hs-var hs-var">..</span></a></span></span></span><span class="hs-special">}</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Retained -&gt; m ()) -&gt; [Retained] -&gt; m ()
+</span><span id="line-62"></span><span id="local-6989586621679194824"><span class="annot"><a href="MQTTD.Retention.html#restoreRetained"><span class="hs-identifier hs-type">restoreRetained</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="MQTTD.Stats.html#HasStats"><span class="hs-identifier hs-type">HasStats</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679194824"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MonadIO</span></span><span> </span><span class="annot"><a href="#local-6989586621679194824"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="MQTTD.DB.html#HasDBConnection"><span class="hs-identifier hs-type">HasDBConnection</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679194824"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="MQTTD.Retention.html#Retainer"><span class="hs-identifier hs-type">Retainer</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679194824"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span></span><span>
+</span><span id="line-63"></span><span id="restoreRetained"><span class="annot"><span class="annottext">restoreRetained :: forall (m :: * -&gt; *).
+(HasStats m, MonadIO m, HasDBConnection m) =&gt;
+Retainer -&gt; m ()
+</span><a href="MQTTD.Retention.html#restoreRetained"><span class="hs-identifier hs-var hs-var">restoreRetained</span></a></span></span><span> </span><span class="annot"><a href="MQTTD.Retention.html#Retainer"><span class="hs-identifier hs-type">Retainer</span></a></span><span class="hs-special">{</span><span id="local-6989586621679194563"><span id="local-6989586621679194564"><span class="annot"><span class="annottext">TVar (Map ByteString Retained)
+QueueRunner ByteString
+_qrunner :: QueueRunner ByteString
+_store :: TVar (Map ByteString Retained)
+_qrunner :: Retainer -&gt; QueueRunner ByteString
+_store :: Retainer -&gt; TVar (Map ByteString Retained)
+</span><a href="#local-6989586621679194563"><span class="hs-glyph hs-var hs-var hs-var hs-var">..</span></a></span></span></span><span class="hs-special">}</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Retained -&gt; m ()) -&gt; [Retained] -&gt; m ()
 forall (t :: * -&gt; *) (m :: * -&gt; *) a b.
 (Foldable t, Monad m) =&gt;
 (a -&gt; m b) -&gt; t a -&gt; m ()
 </span><span class="hs-identifier hs-var">mapM_</span></span><span> </span><span class="annot"><span class="annottext">Retained -&gt; m ()
-forall (m :: * -&gt; *). (MonadIO m, HasStats m) =&gt; Retained -&gt; m ()
-</span><a href="#local-6989586621679189210"><span class="hs-identifier hs-var">keep</span></a></span><span> </span><span class="annot"><span class="annottext">([Retained] -&gt; m ()) -&gt; m [Retained] -&gt; m ()
+forall {m :: * -&gt; *}. (MonadIO m, HasStats m) =&gt; Retained -&gt; m ()
+</span><a href="#local-6989586621679194561"><span class="hs-identifier hs-var">keep</span></a></span><span> </span><span class="annot"><span class="annottext">([Retained] -&gt; m ()) -&gt; m [Retained] -&gt; m ()
 forall (m :: * -&gt; *) a b. Monad m =&gt; (a -&gt; m b) -&gt; m a -&gt; m b
 </span><span class="hs-operator hs-var">=&lt;&lt;</span></span><span> </span><span class="annot"><span class="annottext">m [Retained]
 forall (m :: * -&gt; *).
@@ -364,9 +374,9 @@ forall (m :: * -&gt; *).
 m [Retained]
 </span><a href="MQTTD.DB.html#loadRetained"><span class="hs-identifier hs-var">loadRetained</span></a></span><span>
 </span><span id="line-64"></span><span>  </span><span class="hs-keyword">where</span><span>
-</span><span id="line-65"></span><span>    </span><span id="local-6989586621679189210"><span class="annot"><span class="annottext">keep :: Retained -&gt; m ()
-</span><a href="#local-6989586621679189210"><span class="hs-identifier hs-var hs-var">keep</span></a></span></span><span> </span><span id="local-6989586621679189207"><span class="annot"><span class="annottext">r :: Retained
-</span><a href="#local-6989586621679189207"><span class="hs-identifier hs-var">r</span></a></span></span><span class="hs-glyph">@</span><span class="annot"><a href="MQTTD.Types.html#Retained"><span class="hs-identifier hs-type">Retained</span></a></span><span class="hs-special">{</span><span id="local-6989586621679189204"><span id="local-6989586621679189205"><span id="local-6989586621679189206"><span class="annot"><span class="annottext">Maybe UTCTime
+</span><span id="line-65"></span><span>    </span><span id="local-6989586621679194561"><span class="annot"><span class="annottext">keep :: Retained -&gt; m ()
+</span><a href="#local-6989586621679194561"><span class="hs-identifier hs-var hs-var">keep</span></a></span></span><span> </span><span id="local-6989586621679194548"><span class="annot"><span class="annottext">r :: Retained
+</span><a href="#local-6989586621679194548"><span class="hs-identifier hs-var">r</span></a></span></span><span class="hs-glyph">@</span><span class="annot"><a href="MQTTD.Types.html#Retained"><span class="hs-identifier hs-type">Retained</span></a></span><span class="hs-special">{</span><span id="local-6989586621679194545"><span id="local-6989586621679194546"><span id="local-6989586621679194547"><span class="annot"><span class="annottext">Maybe UTCTime
 UTCTime
 PublishRequest
 _retainMsg :: Retained -&gt; PublishRequest
@@ -376,133 +386,137 @@ _retainExp :: Maybe UTCTime
 _retainTS :: UTCTime
 _retainExp :: Retained -&gt; Maybe UTCTime
 </span><a href="MQTTD.Types.html#_retainMsg"><span class="hs-glyph hs-var hs-var hs-var hs-var hs-var hs-var">..</span></a></span></span></span></span><span class="hs-special">}</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
-</span><span id="line-66"></span><span>      </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679189201"><span class="annot"><span class="annottext">top :: BLTopic
-</span><a href="#local-6989586621679189201"><span class="hs-identifier hs-var hs-var">top</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Retained
-</span><a href="#local-6989586621679189207"><span class="hs-identifier hs-var">r</span></a></span><span> </span><span class="annot"><span class="annottext">Retained -&gt; Getting BLTopic Retained BLTopic -&gt; BLTopic
+</span><span id="line-66"></span><span>      </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679194540"><span class="annot"><span class="annottext">top :: ByteString
+</span><a href="#local-6989586621679194540"><span class="hs-identifier hs-var hs-var">top</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Retained
+</span><a href="#local-6989586621679194548"><span class="hs-identifier hs-var">r</span></a></span><span> </span><span class="annot"><span class="annottext">Retained -&gt; Getting ByteString Retained ByteString -&gt; ByteString
 forall s a. s -&gt; Getting a s a -&gt; a
-</span><span class="hs-operator hs-var">^.</span></span><span> </span><span class="annot"><span class="annottext">(PublishRequest -&gt; Const BLTopic PublishRequest)
--&gt; Retained -&gt; Const BLTopic Retained
+</span><span class="hs-operator hs-var">^.</span></span><span> </span><span class="annot"><span class="annottext">(PublishRequest -&gt; Const ByteString PublishRequest)
+-&gt; Retained -&gt; Const ByteString Retained
 Lens' Retained PublishRequest
-</span><a href="MQTTD.Types.html#retainMsg"><span class="hs-identifier hs-var">retainMsg</span></a></span><span> </span><span class="annot"><span class="annottext">((PublishRequest -&gt; Const BLTopic PublishRequest)
- -&gt; Retained -&gt; Const BLTopic Retained)
--&gt; ((BLTopic -&gt; Const BLTopic BLTopic)
-    -&gt; PublishRequest -&gt; Const BLTopic PublishRequest)
--&gt; Getting BLTopic Retained BLTopic
+</span><a href="MQTTD.Types.html#retainMsg"><span class="hs-identifier hs-var">retainMsg</span></a></span><span> </span><span class="annot"><span class="annottext">((PublishRequest -&gt; Const ByteString PublishRequest)
+ -&gt; Retained -&gt; Const ByteString Retained)
+-&gt; ((ByteString -&gt; Const ByteString ByteString)
+    -&gt; PublishRequest -&gt; Const ByteString PublishRequest)
+-&gt; Getting ByteString Retained ByteString
 forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
-</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">(BLTopic -&gt; Const BLTopic BLTopic)
--&gt; PublishRequest -&gt; Const BLTopic PublishRequest
-Lens' PublishRequest BLTopic
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">(ByteString -&gt; Const ByteString ByteString)
+-&gt; PublishRequest -&gt; Const ByteString PublishRequest
+Lens' PublishRequest ByteString
 </span><span class="hs-identifier hs-var">pubTopic</span></span><span>
 </span><span id="line-67"></span><span>      </span><span class="annot"><span class="annottext">STM () -&gt; m ()
 forall (m :: * -&gt; *) a. MonadIO m =&gt; STM a -&gt; m a
 </span><span class="hs-identifier hs-var">atomically</span></span><span> </span><span class="annot"><span class="annottext">(STM () -&gt; m ()) -&gt; STM () -&gt; m ()
 forall a b. (a -&gt; b) -&gt; a -&gt; b
-</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">TVar (Map BLTopic Retained)
--&gt; (Map BLTopic Retained -&gt; Map BLTopic Retained) -&gt; STM ()
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">TVar (Map ByteString Retained)
+-&gt; (Map ByteString Retained -&gt; Map ByteString Retained) -&gt; STM ()
 forall a. TVar a -&gt; (a -&gt; a) -&gt; STM ()
-</span><span class="hs-identifier hs-var">modifyTVar'</span></span><span> </span><span class="annot"><span class="annottext">TVar (Map BLTopic Retained)
-</span><a href="#local-6989586621679189213"><span class="hs-identifier hs-var">_store</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">BLTopic -&gt; Retained -&gt; Map BLTopic Retained -&gt; Map BLTopic Retained
+</span><span class="hs-identifier hs-var">modifyTVar'</span></span><span> </span><span class="annot"><span class="annottext">TVar (Map ByteString Retained)
+</span><a href="#local-6989586621679194564"><span class="hs-identifier hs-var">_store</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">ByteString
+-&gt; Retained -&gt; Map ByteString Retained -&gt; Map ByteString Retained
 forall k a. Ord k =&gt; k -&gt; a -&gt; Map k a -&gt; Map k a
-</span><span class="hs-identifier hs-var">Map.insert</span></span><span> </span><span class="annot"><span class="annottext">BLTopic
-</span><a href="#local-6989586621679189201"><span class="hs-identifier hs-var">top</span></a></span><span> </span><span class="annot"><span class="annottext">Retained
-</span><a href="#local-6989586621679189207"><span class="hs-identifier hs-var">r</span></a></span><span class="hs-special">)</span><span>
+</span><span class="hs-identifier hs-var">Map.insert</span></span><span> </span><span class="annot"><span class="annottext">ByteString
+</span><a href="#local-6989586621679194540"><span class="hs-identifier hs-var">top</span></a></span><span> </span><span class="annot"><span class="annottext">Retained
+</span><a href="#local-6989586621679194548"><span class="hs-identifier hs-var">r</span></a></span><span class="hs-special">)</span><span>
 </span><span id="line-68"></span><span>      </span><span class="annot"><span class="annottext">(UTCTime -&gt; m ()) -&gt; Maybe UTCTime -&gt; m ()
 forall (m :: * -&gt; *) a. Monad m =&gt; (a -&gt; m ()) -&gt; Maybe a -&gt; m ()
-</span><a href="MQTTD.Util.html#justM"><span class="hs-identifier hs-var">justM</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span id="local-6989586621679189197"><span class="annot"><span class="annottext">UTCTime
-</span><a href="#local-6989586621679189197"><span class="hs-identifier hs-var">t</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">UTCTime -&gt; BLTopic -&gt; QueueRunner BLTopic -&gt; m ()
+</span><a href="MQTTD.Util.html#justM"><span class="hs-identifier hs-var">justM</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span id="local-6989586621679194536"><span class="annot"><span class="annottext">UTCTime
+</span><a href="#local-6989586621679194536"><span class="hs-identifier hs-var">t</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">UTCTime -&gt; ByteString -&gt; QueueRunner ByteString -&gt; m ()
 forall (m :: * -&gt; *) a.
 (HasStats m, Ord a, MonadIO m) =&gt;
 UTCTime -&gt; a -&gt; QueueRunner a -&gt; m ()
 </span><a href="Scheduler.html#enqueue"><span class="hs-identifier hs-var">Scheduler.enqueue</span></a></span><span> </span><span class="annot"><span class="annottext">UTCTime
-</span><a href="#local-6989586621679189197"><span class="hs-identifier hs-var">t</span></a></span><span> </span><span class="annot"><span class="annottext">BLTopic
-</span><a href="#local-6989586621679189201"><span class="hs-identifier hs-var">top</span></a></span><span> </span><span class="annot"><span class="annottext">QueueRunner BLTopic
-</span><a href="#local-6989586621679189212"><span class="hs-identifier hs-var">_qrunner</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Maybe UTCTime
-</span><a href="#local-6989586621679189205"><span class="hs-identifier hs-var">_retainExp</span></a></span><span>
+</span><a href="#local-6989586621679194536"><span class="hs-identifier hs-var">t</span></a></span><span> </span><span class="annot"><span class="annottext">ByteString
+</span><a href="#local-6989586621679194540"><span class="hs-identifier hs-var">top</span></a></span><span> </span><span class="annot"><span class="annottext">QueueRunner ByteString
+</span><a href="#local-6989586621679194563"><span class="hs-identifier hs-var">_qrunner</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Maybe UTCTime
+</span><a href="#local-6989586621679194546"><span class="hs-identifier hs-var">_retainExp</span></a></span><span>
 </span><span id="line-69"></span><span>
-</span><span id="line-70"></span><span id="local-6989586621679189196"><span class="annot"><a href="MQTTD.Retention.html#matchRetained"><span class="hs-identifier hs-type">matchRetained</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MonadIO</span></span><span> </span><span class="annot"><a href="#local-6989586621679189196"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="MQTTD.Retention.html#Retainer"><span class="hs-identifier hs-type">Retainer</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">T.Filter</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679189196"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">T.PublishRequest</span></span><span class="hs-special">]</span></span><span>
-</span><span id="line-71"></span><span id="matchRetained"><span class="annot"><span class="annottext">matchRetained :: Retainer -&gt; Filter -&gt; m [PublishRequest]
-</span><a href="MQTTD.Retention.html#matchRetained"><span class="hs-identifier hs-var hs-var">matchRetained</span></a></span></span><span> </span><span class="annot"><a href="MQTTD.Retention.html#Retainer"><span class="hs-identifier hs-type">Retainer</span></a></span><span class="hs-special">{</span><span id="local-6989586621679189193"><span id="local-6989586621679189194"><span class="annot"><span class="annottext">TVar (Map BLTopic Retained)
-QueueRunner BLTopic
-_qrunner :: QueueRunner BLTopic
-_store :: TVar (Map BLTopic Retained)
-_qrunner :: Retainer -&gt; QueueRunner BLTopic
-_store :: Retainer -&gt; TVar (Map BLTopic Retained)
-</span><a href="#local-6989586621679189193"><span class="hs-glyph hs-var hs-var hs-var hs-var">..</span></a></span></span></span><span class="hs-special">}</span><span> </span><span id="local-6989586621679189192"><span class="annot"><span class="annottext">Filter
-</span><a href="#local-6989586621679189192"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
-</span><span id="line-72"></span><span>  </span><span id="local-6989586621679189191"><span class="annot"><span class="annottext">UTCTime
-</span><a href="#local-6989586621679189191"><span class="hs-identifier hs-var">now</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">IO UTCTime -&gt; m UTCTime
+</span><span id="line-70"></span><span id="local-6989586621679194811"><span class="annot"><a href="MQTTD.Retention.html#matchRetained"><span class="hs-identifier hs-type">matchRetained</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MonadIO</span></span><span> </span><span class="annot"><a href="#local-6989586621679194811"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="MQTTD.Retention.html#Retainer"><span class="hs-identifier hs-type">Retainer</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">T.Filter</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679194811"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">T.PublishRequest</span></span><span class="hs-special">]</span></span><span>
+</span><span id="line-71"></span><span id="matchRetained"><span class="annot"><span class="annottext">matchRetained :: forall (m :: * -&gt; *).
+MonadIO m =&gt;
+Retainer -&gt; Filter -&gt; m [PublishRequest]
+</span><a href="MQTTD.Retention.html#matchRetained"><span class="hs-identifier hs-var hs-var">matchRetained</span></a></span></span><span> </span><span class="annot"><a href="MQTTD.Retention.html#Retainer"><span class="hs-identifier hs-type">Retainer</span></a></span><span class="hs-special">{</span><span id="local-6989586621679194523"><span id="local-6989586621679194524"><span class="annot"><span class="annottext">TVar (Map ByteString Retained)
+QueueRunner ByteString
+_qrunner :: QueueRunner ByteString
+_store :: TVar (Map ByteString Retained)
+_qrunner :: Retainer -&gt; QueueRunner ByteString
+_store :: Retainer -&gt; TVar (Map ByteString Retained)
+</span><a href="#local-6989586621679194523"><span class="hs-glyph hs-var hs-var hs-var hs-var">..</span></a></span></span></span><span class="hs-special">}</span><span> </span><span id="local-6989586621679194522"><span class="annot"><span class="annottext">Filter
+</span><a href="#local-6989586621679194522"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-72"></span><span>  </span><span id="local-6989586621679194521"><span class="annot"><span class="annottext">UTCTime
+</span><a href="#local-6989586621679194521"><span class="hs-identifier hs-var">now</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">IO UTCTime -&gt; m UTCTime
 forall (m :: * -&gt; *) a. MonadIO m =&gt; IO a -&gt; m a
 </span><span class="hs-identifier hs-var">liftIO</span></span><span> </span><span class="annot"><span class="annottext">IO UTCTime
 </span><span class="hs-identifier hs-var">getCurrentTime</span></span><span>
 </span><span id="line-73"></span><span>  </span><span class="annot"><span class="annottext">(Retained -&gt; PublishRequest) -&gt; [Retained] -&gt; [PublishRequest]
 forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
 </span><span class="hs-identifier hs-var">fmap</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">UTCTime -&gt; Retained -&gt; PublishRequest
-</span><a href="#local-6989586621679189190"><span class="hs-identifier hs-var">adj</span></a></span><span> </span><span class="annot"><span class="annottext">UTCTime
-</span><a href="#local-6989586621679189191"><span class="hs-identifier hs-var">now</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">([Retained] -&gt; [PublishRequest])
--&gt; (Map BLTopic Retained -&gt; [Retained])
--&gt; Map BLTopic Retained
+</span><a href="#local-6989586621679194520"><span class="hs-identifier hs-var">adj</span></a></span><span> </span><span class="annot"><span class="annottext">UTCTime
+</span><a href="#local-6989586621679194521"><span class="hs-identifier hs-var">now</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">([Retained] -&gt; [PublishRequest])
+-&gt; (Map ByteString Retained -&gt; [Retained])
+-&gt; Map ByteString Retained
 -&gt; [PublishRequest]
 forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
 </span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">(Retained -&gt; Bool) -&gt; [Retained] -&gt; [Retained]
 forall a. (a -&gt; Bool) -&gt; [a] -&gt; [a]
 </span><span class="hs-identifier hs-var">filter</span></span><span> </span><span class="annot"><span class="annottext">Retained -&gt; Bool
-</span><a href="#local-6989586621679189189"><span class="hs-identifier hs-var">match</span></a></span><span> </span><span class="annot"><span class="annottext">([Retained] -&gt; [Retained])
--&gt; (Map BLTopic Retained -&gt; [Retained])
--&gt; Map BLTopic Retained
+</span><a href="#local-6989586621679194519"><span class="hs-identifier hs-var">match</span></a></span><span> </span><span class="annot"><span class="annottext">([Retained] -&gt; [Retained])
+-&gt; (Map ByteString Retained -&gt; [Retained])
+-&gt; Map ByteString Retained
 -&gt; [Retained]
 forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
-</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Map BLTopic Retained -&gt; [Retained]
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Map ByteString Retained -&gt; [Retained]
 forall k a. Map k a -&gt; [a]
-</span><span class="hs-identifier hs-var">Map.elems</span></span><span> </span><span class="annot"><span class="annottext">(Map BLTopic Retained -&gt; [PublishRequest])
--&gt; m (Map BLTopic Retained) -&gt; m [PublishRequest]
+</span><span class="hs-identifier hs-var">Map.elems</span></span><span> </span><span class="annot"><span class="annottext">(Map ByteString Retained -&gt; [PublishRequest])
+-&gt; m (Map ByteString Retained) -&gt; m [PublishRequest]
 forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
-</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">TVar (Map BLTopic Retained) -&gt; m (Map BLTopic Retained)
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">TVar (Map ByteString Retained) -&gt; m (Map ByteString Retained)
 forall (m :: * -&gt; *) a. MonadIO m =&gt; TVar a -&gt; m a
-</span><span class="hs-identifier hs-var">readTVarIO</span></span><span> </span><span class="annot"><span class="annottext">TVar (Map BLTopic Retained)
-</span><a href="#local-6989586621679189194"><span class="hs-identifier hs-var">_store</span></a></span><span>
+</span><span class="hs-identifier hs-var">readTVarIO</span></span><span> </span><span class="annot"><span class="annottext">TVar (Map ByteString Retained)
+</span><a href="#local-6989586621679194524"><span class="hs-identifier hs-var">_store</span></a></span><span>
 </span><span id="line-74"></span><span>
 </span><span id="line-75"></span><span>  </span><span class="hs-keyword">where</span><span>
-</span><span id="line-76"></span><span>    </span><span id="local-6989586621679189189"><span class="annot"><span class="annottext">match :: Retained -&gt; Bool
-</span><a href="#local-6989586621679189189"><span class="hs-identifier hs-var hs-var">match</span></a></span></span><span> </span><span id="local-6989586621679189187"><span class="annot"><span class="annottext">Retained
-</span><a href="#local-6989586621679189187"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool -&gt; (Topic -&gt; Bool) -&gt; Maybe Topic -&gt; Bool
+</span><span id="line-76"></span><span>    </span><span id="local-6989586621679194519"><span class="annot"><span class="annottext">match :: Retained -&gt; Bool
+</span><a href="#local-6989586621679194519"><span class="hs-identifier hs-var hs-var">match</span></a></span></span><span> </span><span id="local-6989586621679194517"><span class="annot"><span class="annottext">Retained
+</span><a href="#local-6989586621679194517"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool -&gt; (Topic -&gt; Bool) -&gt; Maybe Topic -&gt; Bool
 forall b a. b -&gt; (a -&gt; b) -&gt; Maybe a -&gt; b
 </span><span class="hs-identifier hs-var">maybe</span></span><span> </span><span class="annot"><span class="annottext">Bool
 </span><span class="hs-identifier hs-var">False</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Filter -&gt; Topic -&gt; Bool
 </span><span class="hs-identifier hs-var">T.match</span></span><span> </span><span class="annot"><span class="annottext">Filter
-</span><a href="#local-6989586621679189192"><span class="hs-identifier hs-var">f</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Text -&gt; Maybe Topic
+</span><a href="#local-6989586621679194522"><span class="hs-identifier hs-var">f</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Text -&gt; Maybe Topic
 </span><span class="hs-identifier hs-var">T.mkTopic</span></span><span> </span><span class="annot"><span class="annottext">(Text -&gt; Maybe Topic)
 -&gt; (Retained -&gt; Text) -&gt; Retained -&gt; Maybe Topic
 forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
-</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">BLTopic -&gt; Text
-</span><a href="MQTTD.Util.html#blToText"><span class="hs-identifier hs-var">blToText</span></a></span><span> </span><span class="annot"><span class="annottext">(BLTopic -&gt; Text) -&gt; (Retained -&gt; BLTopic) -&gt; Retained -&gt; Text
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">ByteString -&gt; Text
+</span><a href="MQTTD.Util.html#blToText"><span class="hs-identifier hs-var">blToText</span></a></span><span> </span><span class="annot"><span class="annottext">(ByteString -&gt; Text)
+-&gt; (Retained -&gt; ByteString) -&gt; Retained -&gt; Text
 forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
-</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">PublishRequest -&gt; BLTopic
-</span><span class="hs-identifier hs-var hs-var">T._pubTopic</span></span><span> </span><span class="annot"><span class="annottext">(PublishRequest -&gt; BLTopic)
--&gt; (Retained -&gt; PublishRequest) -&gt; Retained -&gt; BLTopic
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">PublishRequest -&gt; ByteString
+</span><span class="hs-identifier hs-var hs-var">T._pubTopic</span></span><span> </span><span class="annot"><span class="annottext">(PublishRequest -&gt; ByteString)
+-&gt; (Retained -&gt; PublishRequest) -&gt; Retained -&gt; ByteString
 forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
 </span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Retained -&gt; PublishRequest
 </span><a href="MQTTD.Types.html#_retainMsg"><span class="hs-identifier hs-var hs-var">_retainMsg</span></a></span><span> </span><span class="annot"><span class="annottext">(Retained -&gt; Maybe Topic) -&gt; Retained -&gt; Maybe Topic
 forall a b. (a -&gt; b) -&gt; a -&gt; b
 </span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Retained
-</span><a href="#local-6989586621679189187"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">)</span><span>
-</span><span id="line-77"></span><span>    </span><span id="local-6989586621679189190"><span class="annot"><span class="annottext">adj :: UTCTime -&gt; Retained -&gt; PublishRequest
-</span><a href="#local-6989586621679189190"><span class="hs-identifier hs-var hs-var">adj</span></a></span></span><span> </span><span class="annot"><span class="annottext">UTCTime
+</span><a href="#local-6989586621679194517"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-77"></span><span>    </span><span id="local-6989586621679194520"><span class="annot"><span class="annottext">adj :: UTCTime -&gt; Retained -&gt; PublishRequest
+</span><a href="#local-6989586621679194520"><span class="hs-identifier hs-var hs-var">adj</span></a></span></span><span> </span><span class="annot"><span class="annottext">UTCTime
 </span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><a href="MQTTD.Types.html#Retained"><span class="hs-identifier hs-type">Retained</span></a></span><span class="hs-special">{</span><span class="annot"><span class="annottext">_retainExp :: Retained -&gt; Maybe UTCTime
 </span><a href="MQTTD.Types.html#_retainExp"><span class="hs-identifier hs-var">_retainExp</span></a></span><span class="hs-glyph">=</span><span class="annot"><span class="annottext">Maybe UTCTime
-</span><span class="hs-identifier hs-var">Nothing</span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679189182"><span class="annot"><span class="annottext">PublishRequest
+</span><span class="hs-identifier hs-var">Nothing</span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679194501"><span class="annot"><span class="annottext">PublishRequest
 _retainMsg :: PublishRequest
 _retainMsg :: Retained -&gt; PublishRequest
-</span><a href="#local-6989586621679189182"><span class="hs-identifier hs-var hs-var">_retainMsg</span></a></span></span><span class="hs-special">}</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">PublishRequest
-</span><a href="#local-6989586621679189182"><span class="hs-identifier hs-var">_retainMsg</span></a></span><span>
-</span><span id="line-78"></span><span>    </span><span class="annot"><a href="#local-6989586621679189190"><span class="hs-identifier hs-var">adj</span></a></span><span> </span><span id="local-6989586621679189181"><span class="annot"><span class="annottext">UTCTime
-</span><a href="#local-6989586621679189181"><span class="hs-identifier hs-var">now</span></a></span></span><span> </span><span class="annot"><a href="MQTTD.Types.html#Retained"><span class="hs-identifier hs-type">Retained</span></a></span><span class="hs-special">{</span><span class="annot"><span class="annottext">_retainExp :: Retained -&gt; Maybe UTCTime
-</span><a href="MQTTD.Types.html#_retainExp"><span class="hs-identifier hs-var">_retainExp</span></a></span><span class="hs-glyph">=</span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span id="local-6989586621679189180"><span class="annot"><span class="annottext">UTCTime
-</span><a href="#local-6989586621679189180"><span class="hs-identifier hs-var">e</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679189179"><span class="annot"><span class="annottext">PublishRequest
+</span><a href="#local-6989586621679194501"><span class="hs-identifier hs-var hs-var">_retainMsg</span></a></span></span><span class="hs-special">}</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">PublishRequest
+</span><a href="#local-6989586621679194501"><span class="hs-identifier hs-var">_retainMsg</span></a></span><span>
+</span><span id="line-78"></span><span>    </span><span class="annot"><a href="#local-6989586621679194520"><span class="hs-identifier hs-var">adj</span></a></span><span> </span><span id="local-6989586621679194500"><span class="annot"><span class="annottext">UTCTime
+</span><a href="#local-6989586621679194500"><span class="hs-identifier hs-var">now</span></a></span></span><span> </span><span class="annot"><a href="MQTTD.Types.html#Retained"><span class="hs-identifier hs-type">Retained</span></a></span><span class="hs-special">{</span><span class="annot"><span class="annottext">_retainExp :: Retained -&gt; Maybe UTCTime
+</span><a href="MQTTD.Types.html#_retainExp"><span class="hs-identifier hs-var">_retainExp</span></a></span><span class="hs-glyph">=</span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span id="local-6989586621679194499"><span class="annot"><span class="annottext">UTCTime
+</span><a href="#local-6989586621679194499"><span class="hs-identifier hs-var">e</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679194498"><span class="annot"><span class="annottext">PublishRequest
 _retainMsg :: PublishRequest
 _retainMsg :: Retained -&gt; PublishRequest
-</span><a href="#local-6989586621679189179"><span class="hs-identifier hs-var hs-var">_retainMsg</span></a></span></span><span class="hs-special">}</span><span> </span><span class="hs-glyph">=</span><span>
+</span><a href="#local-6989586621679194498"><span class="hs-identifier hs-var hs-var">_retainMsg</span></a></span></span><span class="hs-special">}</span><span> </span><span class="hs-glyph">=</span><span>
 </span><span id="line-79"></span><span>      </span><span class="annot"><span class="annottext">PublishRequest
-</span><a href="#local-6989586621679189179"><span class="hs-identifier hs-var">_retainMsg</span></a></span><span> </span><span class="annot"><span class="annottext">PublishRequest
+</span><a href="#local-6989586621679194498"><span class="hs-identifier hs-var">_retainMsg</span></a></span><span> </span><span class="annot"><span class="annottext">PublishRequest
 -&gt; (PublishRequest -&gt; PublishRequest) -&gt; PublishRequest
 forall a b. a -&gt; (a -&gt; b) -&gt; b
 </span><span class="hs-operator hs-var">&amp;</span></span><span> </span><span class="annot"><span class="annottext">([Property] -&gt; Identity [Property])
@@ -537,25 +551,25 @@ forall s t a b. ASetter s t a b -&gt; b -&gt; s -&gt; t
 </span><span class="hs-operator hs-var">.~</span></span><span> </span><span class="annot"><span class="annottext">UTCTime -&gt; UTCTime -&gt; Word32
 forall p. Integral p =&gt; UTCTime -&gt; UTCTime -&gt; p
 </span><a href="MQTTD.Retention.html#relExp"><span class="hs-identifier hs-var">relExp</span></a></span><span> </span><span class="annot"><span class="annottext">UTCTime
-</span><a href="#local-6989586621679189181"><span class="hs-identifier hs-var">now</span></a></span><span> </span><span class="annot"><span class="annottext">UTCTime
-</span><a href="#local-6989586621679189180"><span class="hs-identifier hs-var">e</span></a></span><span>
+</span><a href="#local-6989586621679194500"><span class="hs-identifier hs-var">now</span></a></span><span> </span><span class="annot"><span class="annottext">UTCTime
+</span><a href="#local-6989586621679194499"><span class="hs-identifier hs-var">e</span></a></span><span>
 </span><span id="line-80"></span><span>
-</span><span id="line-81"></span><span id="local-6989586621679189346"><span class="annot"><a href="MQTTD.Retention.html#absExp"><span class="hs-identifier hs-type">absExp</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Integral</span></span><span> </span><span class="annot"><a href="#local-6989586621679189346"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">UTCTime</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679189346"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">UTCTime</span></span></span><span>
-</span><span id="line-82"></span><span id="absExp"><span class="annot"><span class="annottext">absExp :: UTCTime -&gt; a -&gt; UTCTime
-</span><a href="MQTTD.Retention.html#absExp"><span class="hs-identifier hs-var hs-var">absExp</span></a></span></span><span> </span><span id="local-6989586621679189174"><span class="annot"><span class="annottext">UTCTime
-</span><a href="#local-6989586621679189174"><span class="hs-identifier hs-var">now</span></a></span></span><span> </span><span id="local-6989586621679189173"><span class="annot"><span class="annottext">a
-</span><a href="#local-6989586621679189173"><span class="hs-identifier hs-var">secs</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">NominalDiffTime -&gt; UTCTime -&gt; UTCTime
+</span><span id="line-81"></span><span id="local-6989586621679194830"><span class="annot"><a href="MQTTD.Retention.html#absExp"><span class="hs-identifier hs-type">absExp</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Integral</span></span><span> </span><span class="annot"><a href="#local-6989586621679194830"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">UTCTime</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679194830"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">UTCTime</span></span></span><span>
+</span><span id="line-82"></span><span id="absExp"><span class="annot"><span class="annottext">absExp :: forall a. Integral a =&gt; UTCTime -&gt; a -&gt; UTCTime
+</span><a href="MQTTD.Retention.html#absExp"><span class="hs-identifier hs-var hs-var">absExp</span></a></span></span><span> </span><span id="local-6989586621679194489"><span class="annot"><span class="annottext">UTCTime
+</span><a href="#local-6989586621679194489"><span class="hs-identifier hs-var">now</span></a></span></span><span> </span><span id="local-6989586621679194488"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679194488"><span class="hs-identifier hs-var">secs</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">NominalDiffTime -&gt; UTCTime -&gt; UTCTime
 </span><span class="hs-identifier hs-var">addUTCTime</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">a -&gt; NominalDiffTime
 forall a b. (Integral a, Num b) =&gt; a -&gt; b
 </span><span class="hs-identifier hs-var">fromIntegral</span></span><span> </span><span class="annot"><span class="annottext">a
-</span><a href="#local-6989586621679189173"><span class="hs-identifier hs-var">secs</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">UTCTime
-</span><a href="#local-6989586621679189174"><span class="hs-identifier hs-var">now</span></a></span><span>
+</span><a href="#local-6989586621679194488"><span class="hs-identifier hs-var">secs</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">UTCTime
+</span><a href="#local-6989586621679194489"><span class="hs-identifier hs-var">now</span></a></span><span>
 </span><span id="line-83"></span><span>
-</span><span id="line-84"></span><span id="local-6989586621679189303"><span class="annot"><a href="MQTTD.Retention.html#relExp"><span class="hs-identifier hs-type">relExp</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Integral</span></span><span> </span><span class="annot"><a href="#local-6989586621679189303"><span class="hs-identifier hs-type">p</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">UTCTime</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">UTCTime</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679189303"><span class="hs-identifier hs-type">p</span></a></span></span><span>
-</span><span id="line-85"></span><span id="relExp"><span class="annot"><span class="annottext">relExp :: UTCTime -&gt; UTCTime -&gt; p
-</span><a href="MQTTD.Retention.html#relExp"><span class="hs-identifier hs-var hs-var">relExp</span></a></span></span><span> </span><span id="local-6989586621679189172"><span class="annot"><span class="annottext">UTCTime
-</span><a href="#local-6989586621679189172"><span class="hs-identifier hs-var">now</span></a></span></span><span> </span><span id="local-6989586621679189171"><span class="annot"><span class="annottext">UTCTime
-</span><a href="#local-6989586621679189171"><span class="hs-identifier hs-var">e</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(p, NominalDiffTime) -&gt; p
+</span><span id="line-84"></span><span id="local-6989586621679194785"><span class="annot"><a href="MQTTD.Retention.html#relExp"><span class="hs-identifier hs-type">relExp</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Integral</span></span><span> </span><span class="annot"><a href="#local-6989586621679194785"><span class="hs-identifier hs-type">p</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">UTCTime</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">UTCTime</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679194785"><span class="hs-identifier hs-type">p</span></a></span></span><span>
+</span><span id="line-85"></span><span id="relExp"><span class="annot"><span class="annottext">relExp :: forall p. Integral p =&gt; UTCTime -&gt; UTCTime -&gt; p
+</span><a href="MQTTD.Retention.html#relExp"><span class="hs-identifier hs-var hs-var">relExp</span></a></span></span><span> </span><span id="local-6989586621679194483"><span class="annot"><span class="annottext">UTCTime
+</span><a href="#local-6989586621679194483"><span class="hs-identifier hs-var">now</span></a></span></span><span> </span><span id="local-6989586621679194482"><span class="annot"><span class="annottext">UTCTime
+</span><a href="#local-6989586621679194482"><span class="hs-identifier hs-var">e</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(p, NominalDiffTime) -&gt; p
 forall a b. (a, b) -&gt; a
 </span><span class="hs-identifier hs-var">fst</span></span><span> </span><span class="annot"><span class="annottext">((p, NominalDiffTime) -&gt; p)
 -&gt; (NominalDiffTime -&gt; (p, NominalDiffTime))
@@ -568,6 +582,6 @@ forall a b. (RealFrac a, Integral b) =&gt; a -&gt; (b, a)
 forall a b. (a -&gt; b) -&gt; a -&gt; b
 </span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">UTCTime -&gt; UTCTime -&gt; NominalDiffTime
 </span><span class="hs-identifier hs-var">diffUTCTime</span></span><span> </span><span class="annot"><span class="annottext">UTCTime
-</span><a href="#local-6989586621679189171"><span class="hs-identifier hs-var">e</span></a></span><span> </span><span class="annot"><span class="annottext">UTCTime
-</span><a href="#local-6989586621679189172"><span class="hs-identifier hs-var">now</span></a></span><span>
+</span><a href="#local-6989586621679194482"><span class="hs-identifier hs-var">e</span></a></span><span> </span><span class="annot"><span class="annottext">UTCTime
+</span><a href="#local-6989586621679194483"><span class="hs-identifier hs-var">now</span></a></span><span>
 </span><span id="line-86"></span></pre></body></html>
