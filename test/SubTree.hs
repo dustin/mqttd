@@ -68,7 +68,7 @@ test_SubTree = [
   testProperty "finding" propSubTreeMapping,
   testProperties "functor" (unbatch $ functor (undefined :: SubTree ([Int], Int, Int))),
   testProperties "foldable" (unbatch $ foldable (undefined :: SubTree (Sum Int, Sum Int, Sum Int, Sum Int, Sum Int))),
-  testProperties "traversable" (unbatch $ traversable (undefined :: SubTree (Sum Int, Sum Int, Sum Int))),
+  testProperties "traversable" (unbatch $ traversable (undefined :: SubTree (Maybe (Sum Int), Maybe (Sum Int), Int, Sum Int))),
   testProperties "semigroup" (unbatch $ semigroup (undefined :: SubTree [Int], undefined :: Int)),
   testProperties "monoid" (unbatch $ monoid (undefined :: SubTree [Int]))
   ]

@@ -18,9 +18,23 @@ packages:
       sha256: 957e4dbb988f47164c821807297a6020c1108cd3265582ac2aa9292708cb62c9
   original:
     hackage: network-3.1.2.5@sha256:433a5e076aaa8eb3e4158abae78fb409c6bd754e9af99bc2e87583d2bcd8404a,4888
+- completed:
+    hackage: attoparsec-0.13.2.5@sha256:1b64fc08464d9dc73d80e13aea362410f3c8bca5abfa6831df8821281c3cdfeb,6199
+    pantry-tree:
+      size: 5305
+      sha256: 1b26b52ea2fab9aee40cf24e9bbb7d3459e9dcb9439ecf11eee29e95fa154cbd
+  original:
+    hackage: attoparsec-0.13.2.5@sha256:1b64fc08464d9dc73d80e13aea362410f3c8bca5abfa6831df8821281c3cdfeb,6199
+- completed:
+    hackage: net-mqtt-lens-0.1.1.0@sha256:986f1e6c1981974caea49df073f6353e47a80d0409648e0bfa28fa074808bd4b,1708
+    pantry-tree:
+      size: 372
+      sha256: b408900f874842a1227f116370088c023427e47933894060ae64e7714e9db182
+  original:
+    hackage: net-mqtt-lens-0.1.1.0@sha256:986f1e6c1981974caea49df073f6353e47a80d0409648e0bfa28fa074808bd4b,1708
 snapshots:
 - completed:
-    size: 586296
-    url: https://raw.githubusercontent.com/commercialhaskell/stackage-snapshots/master/lts/18/18.yaml
-    sha256: 63539429076b7ebbab6daa7656cfb079393bf644971156dc349d7c0453694ac2
-  original: lts-18.18
+    size: 616897
+    url: https://raw.githubusercontent.com/commercialhaskell/stackage-snapshots/master/lts/19/0.yaml
+    sha256: bbf2be02f17940bac1f87cb462d4fb0c3355de6dcfc53d84f4f9ad3ee2164f65
+  original: lts-19.0
