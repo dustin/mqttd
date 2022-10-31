@@ -1,4 +1,5 @@
 {-# LANGUAGE FlexibleContexts    #-}
+{-# LANGUAGE LambdaCase          #-}
 {-# LANGUAGE OverloadedStrings   #-}
 {-# LANGUAGE RankNTypes          #-}
 {-# LANGUAGE RecordWildCards     #-}
@@ -91,11 +92,15 @@ runMQTTDConduit (src, sink, addr) = runConduit $ do
       -- Register and accept the connection
       tid <- liftIO myThreadId
       (sess@Session{_sessionID, _sessionChan}, existing) <- registerClient req cid tid
+      let ka = \case
+            0 -> 1800
+            x -> fromIntegral x
       let cprops = [ T.PropTopicAliasMaximum 100 ] <> [ T.PropAssignedClientIdentifier i | Just i <- [nid] ]
+                   <> [ T.PropServerKeepAlive (fromIntegral (ka _keepAlive)) | _keepAlive == 0]
       deliverConnACK pl existing cprops
 
       wdch <- liftIO newTChanIO
-      w <- async $ watchdog (3 * seconds (fromIntegral _keepAlive)) wdch _sessionID tid
+      w <- async $ watchdog (3 * seconds (ka _keepAlive)) wdch _sessionID tid
       o <- async $ processOut pl _sessionChan
       i <- async $ E.finally (processIn wdch sess pl) (teardown cid req)
       retransmit sess
