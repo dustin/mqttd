@@ -17,18 +17,33 @@ import           MQTTD.Util
 
 -- This bit is just about managing a schedule of tasks.
 
-type TimedQueue a = Map UTCTime [a]
+data QueueID = QueueID { qidT_ :: !UTCTime, qidI_ :: !Int }
+  deriving (Eq, Ord)
+
+data TimedQueue a = TimedQueue {
+  q_      :: !(Map QueueID [a]),
+  nextId_ :: !Int
+  }
+
+instance Semigroup (TimedQueue a) where
+  qa <> qb = TimedQueue (q_ qa <> q_ qb) (max (nextId_ qa) (nextId_ qb))
+
+instance Monoid (TimedQueue a) where
+  mempty = TimedQueue mempty 0
 
 add :: Ord a => UTCTime -> a -> TimedQueue a -> TimedQueue a
-add k v = Map.insertWith (<>) k [v]
+add k v tq@TimedQueue{..} = tq{
+  q_ = Map.insertWith (<>) (QueueID k (nextId_)) [v] q_,
+  nextId_ = succ nextId_
+  }
 
 ready :: UTCTime -> TimedQueue a -> ([a], TimedQueue a)
-ready now tq =
-  let (rm, mm, q) = Map.splitLookup now tq in
-    (concat (Map.elems rm) <> fromMaybe [] mm, q)
+ready now tq@TimedQueue{..} =
+  let (rm, mm, q) = Map.splitLookup (QueueID now 0) q_ in
+    (concat (Map.elems rm) <> fromMaybe [] mm, tq{q_=q})
 
 next :: TimedQueue a -> Maybe UTCTime
-next = fmap fst . Map.lookupMin
+next = fmap (qidT_ . fst) . Map.lookupMin . q_
 
 -- The actual queue machination is below.
 
