@@ -13,7 +13,7 @@ packages:
     hackage: net-mqtt-lens-0.1.1.0@sha256:986f1e6c1981974caea49df073f6353e47a80d0409648e0bfa28fa074808bd4b,1708
 snapshots:
 - completed:
-    sha256: a684cdbdf9304b325a503e0fe1d9648e9c18155ce4c7cfebbe8a7f93674e6295
-    size: 649106
-    url: https://raw.githubusercontent.com/commercialhaskell/stackage-snapshots/master/lts/20/5.yaml
-  original: lts-20.5
+    sha256: 8bcce0b4f5671ea04691477f5af759b497b8892f998768d6eb01c64c58d41d7c
+    size: 649329
+    url: https://raw.githubusercontent.com/commercialhaskell/stackage-snapshots/master/lts/20/7.yaml
+  original: lts-20.7
