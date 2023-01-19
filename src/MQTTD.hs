@@ -585,7 +585,7 @@ dispatch sess@Session{..} (T.PublishPkt req) = do
                       >> authTopic t IntentPublish acl
 
 dispatch sess (T.DisconnectPkt (T.DisconnectRequest T.DiscoNormalDisconnection _props)) = do
-  let Just sid = sess ^? sessionClient . _Just . clientConnReq . connID
+  let sid = sess ^?! sessionClient . _Just . clientConnReq . connID
   modifySession sid (Just . set sessionWill Nothing)
 
 dispatch _ (T.DisconnectPkt (T.DisconnectRequest T.DiscoDisconnectWithWill _props)) = pure ()

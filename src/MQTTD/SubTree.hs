@@ -1,4 +1,5 @@
 {-# LANGUAGE DeriveTraversable #-}
+{-# LANGUAGE StrictData        #-}
 
 module MQTTD.SubTree (
   SubTree, empty, modify, add, addWith, find, findMap, flatten, fromList,
