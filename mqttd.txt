@@ -75,6 +75,7 @@ StatBytesRcvd :: StatKey
 StatStoreTransactions :: StatKey
 StatStoreOperations :: StatKey
 StatsActionQueued :: StatKey
+StatsActionCanceled :: StatKey
 StatsActionExecuted :: StatKey
 statKeyName :: StatKey -> ByteString
 type Increment = (StatKey, Int)
@@ -138,6 +139,48 @@ instance GHC.Show.Show a => GHC.Show.Show (MQTTD.SubTree.SubTree a)
 instance GHC.Base.Semigroup a => GHC.Base.Semigroup (MQTTD.SubTree.SubTree a)
 instance GHC.Base.Monoid a => GHC.Base.Monoid (MQTTD.SubTree.SubTree a)
 
+module MQTTD.Util
+textToBL :: Text -> ByteString
+blToText :: ByteString -> Text
+tshow :: Show a => a -> Text
+justM :: Monad m => (a -> m ()) -> Maybe a -> m ()
+modifyTVarRet :: TVar a -> (a -> a) -> STM a
+
+module Scheduler
+data QueueID
+QueueID :: !UTCTime -> !Int -> QueueID
+[_qidT] :: QueueID -> !UTCTime
+[_qidI] :: QueueID -> !Int
+data TimedQueue a
+TimedQueue :: !Map QueueID [a] -> !Int -> TimedQueue a
+[q_] :: TimedQueue a -> !Map QueueID [a]
+[nextId_] :: TimedQueue a -> !Int
+add :: Ord a => UTCTime -> a -> TimedQueue a -> (QueueID, TimedQueue a)
+ready :: UTCTime -> TimedQueue a -> ([a], TimedQueue a)
+next :: TimedQueue a -> Maybe UTCTime
+newtype QueueRunner a
+QueueRunner :: TVar (TimedQueue a) -> QueueRunner a
+[_tq] :: QueueRunner a -> TVar (TimedQueue a)
+newRunner :: MonadIO m => m (QueueRunner a)
+enqueue :: (HasStats m, Ord a, MonadIO m) => UTCTime -> a -> QueueRunner a -> m QueueID
+enqueueSTM :: Ord a => StatStore -> UTCTime -> a -> QueueRunner a -> STM QueueID
+cancelSTM :: Ord a => StatStore -> QueueID -> QueueRunner a -> STM ()
+
+-- | Run forever.
+run :: (HasStats m, MonadLogger m, MonadIO m) => (a -> m ()) -> QueueRunner a -> m ()
+
+-- | Block until an item might be ready and then run (and remove) all ready
+--   items. This will sometimes run 0 items. It shouldn't ever run any
+--   items that are scheduled for the future, and it shouldn't forget any
+--   items that are ready.
+runOnce :: (HasStats m, MonadLogger m, MonadIO m) => (a -> m ()) -> QueueRunner a -> m ()
+diffTimeToMicros :: NominalDiffTime -> Int
+instance GHC.Classes.Ord Scheduler.QueueID
+instance GHC.Classes.Eq Scheduler.QueueID
+instance GHC.Show.Show Scheduler.QueueID
+instance GHC.Base.Semigroup (Scheduler.TimedQueue a)
+instance GHC.Base.Monoid (Scheduler.TimedQueue a)
+
 module MQTTD.Types
 data MQTTException
 MQTTPingTimeout :: MQTTException
@@ -193,13 +236,13 @@ Authorizer :: Map ByteString User -> Bool -> Authorizer
 authUsers :: Lens' Authorizer (Map ByteString User)
 authAnon :: Lens' Authorizer Bool
 data Retained
-Retained :: UTCTime -> Maybe UTCTime -> PublishRequest -> Retained
+Retained :: UTCTime -> Maybe QueueID -> PublishRequest -> Retained
 [_retainTS] :: Retained -> UTCTime
-[_retainExp] :: Retained -> Maybe UTCTime
+[_retainExp] :: Retained -> Maybe QueueID
 [_retainMsg] :: Retained -> PublishRequest
 retainTS :: Lens' Retained UTCTime
 retainMsg :: Lens' Retained PublishRequest
-retainExp :: Lens' Retained (Maybe UTCTime)
+retainExp :: Lens' Retained (Maybe QueueID)
 type PublishConstraint m = (MonadLogger m, MonadFail m, MonadMask m, MonadUnliftIO m, MonadIO m)
 data TopicType
 Normal :: Filter -> TopicType
@@ -214,12 +257,6 @@ instance GHC.Show.Show MQTTD.Types.Authorizer
 instance GHC.Show.Show MQTTD.Types.ConnectedClient
 instance GHC.Show.Show MQTTD.Types.MQTTException
 instance GHC.Exception.Type.Exception MQTTD.Types.MQTTException
-
-module MQTTD.Util
-textToBL :: Text -> ByteString
-blToText :: ByteString -> Text
-tshow :: Show a => a -> Text
-justM :: Monad m => (a -> m ()) -> Maybe a -> m ()
 
 module MQTTD.GCStats
 hasGCStats :: MonadIO m => m Bool
@@ -270,27 +307,6 @@ instance Database.SQLite.Simple.ToField.ToField Network.MQTT.Topic.Filter
 instance Database.SQLite.Simple.FromField.FromField Network.MQTT.Topic.Filter
 instance Database.SQLite.Simple.ToRow.ToRow MQTTD.Types.Retained
 instance Database.SQLite.Simple.FromRow.FromRow MQTTD.Types.Retained
-
-module Scheduler
-type TimedQueue a = Map UTCTime [a]
-add :: Ord a => UTCTime -> a -> TimedQueue a -> TimedQueue a
-ready :: UTCTime -> TimedQueue a -> ([a], TimedQueue a)
-next :: TimedQueue a -> Maybe UTCTime
-newtype QueueRunner a
-QueueRunner :: TVar (TimedQueue a) -> QueueRunner a
-[_tq] :: QueueRunner a -> TVar (TimedQueue a)
-newRunner :: MonadIO m => m (QueueRunner a)
-enqueue :: (HasStats m, Ord a, MonadIO m) => UTCTime -> a -> QueueRunner a -> m ()
-
--- | Run forever.
-run :: (HasStats m, MonadLogger m, MonadIO m) => (a -> m ()) -> QueueRunner a -> m ()
-
--- | Block until an item might be ready and then run (and remove) all ready
---   items. This will sometimes run 0 items. It shouldn't ever run any
---   items that are scheduled for the future, and it shouldn't forget any
---   items that are ready.
-runOnce :: (HasStats m, MonadLogger m, MonadIO m) => (a -> m ()) -> QueueRunner a -> m ()
-diffTimeToMicros :: NominalDiffTime -> Int
 
 module MQTTD.Retention
 data Retainer
@@ -351,7 +367,6 @@ sendPacket :: PktQueue -> MQTTPkt -> STM Bool
 sendPacket_ :: PktQueue -> MQTTPkt -> STM ()
 sendPacketIO :: MonadIO m => PktQueue -> MQTTPkt -> m Bool
 sendPacketIO_ :: MonadIO m => PktQueue -> MQTTPkt -> m ()
-modifyTVarRet :: TVar a -> (a -> a) -> STM a
 nextPktID :: (Enum a, Bounded a, Eq a, Num a) => TVar a -> STM a
 broadcast :: PublishConstraint m => Maybe SessionID -> PublishRequest -> MQTTD m ()
 publish :: PublishConstraint m => Session -> PublishRequest -> MQTTD m ()
