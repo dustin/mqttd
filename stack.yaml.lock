@@ -11,9 +11,16 @@ packages:
       size: 372
   original:
     hackage: net-mqtt-lens-0.1.1.0@sha256:986f1e6c1981974caea49df073f6353e47a80d0409648e0bfa28fa074808bd4b,1708
+- completed:
+    hackage: net-mqtt-0.8.2.5@sha256:de363c4dc55ca75710fa05b9830cdabecd183188db538e18b56afcaca771c6bf,4107
+    pantry-tree:
+      sha256: a26f911205f1524b948cc75d25d3623642539309ca2280e6504880230910460a
+      size: 814
+  original:
+    hackage: net-mqtt-0.8.2.5@sha256:de363c4dc55ca75710fa05b9830cdabecd183188db538e18b56afcaca771c6bf,4107
 snapshots:
 - completed:
-    sha256: 8bcce0b4f5671ea04691477f5af759b497b8892f998768d6eb01c64c58d41d7c
-    size: 649329
-    url: https://raw.githubusercontent.com/commercialhaskell/stackage-snapshots/master/lts/20/7.yaml
-  original: lts-20.7
+    sha256: 6d1532d40621957a25bad5195bfca7938e8a06d923c91bc52aa0f3c41181f2d4
+    size: 619204
+    url: https://raw.githubusercontent.com/commercialhaskell/stackage-snapshots/master/lts/19/33.yaml
+  original: lts-19.33
