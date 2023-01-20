@@ -1,6 +1,6 @@
 module Scheduler where
 
-import           Control.Concurrent.STM (TVar, check, modifyTVar', newTVarIO, orElse, readTVar, registerDelay,
+import           Control.Concurrent.STM (STM, TVar, check, modifyTVar', newTVarIO, orElse, readTVar, registerDelay,
                                          writeTVar)
 import           Control.Monad          (forever)
 import           Control.Monad.IO.Class (MonadIO (..))
@@ -17,8 +17,8 @@ import           MQTTD.Util
 
 -- This bit is just about managing a schedule of tasks.
 
-data QueueID = QueueID { qidT_ :: !UTCTime, qidI_ :: !Int }
-  deriving (Eq, Ord)
+data QueueID = QueueID { _qidT :: !UTCTime, _qidI :: !Int }
+  deriving (Show, Eq, Ord)
 
 data TimedQueue a = TimedQueue {
   q_      :: !(Map QueueID [a]),
@@ -31,11 +31,12 @@ instance Semigroup (TimedQueue a) where
 instance Monoid (TimedQueue a) where
   mempty = TimedQueue mempty 0
 
-add :: Ord a => UTCTime -> a -> TimedQueue a -> TimedQueue a
-add k v tq@TimedQueue{..} = tq{
-  q_ = Map.insertWith (<>) (QueueID k (nextId_)) [v] q_,
+add :: Ord a => UTCTime -> a -> TimedQueue a -> (QueueID, TimedQueue a)
+add k v tq@TimedQueue{..} = (qid, tq{
+  q_ = Map.insertWith (<>) qid [v] q_,
   nextId_ = succ nextId_
-  }
+  })
+  where qid = QueueID k (nextId_)
 
 ready :: UTCTime -> TimedQueue a -> ([a], TimedQueue a)
 ready now tq@TimedQueue{..} =
@@ -43,7 +44,7 @@ ready now tq@TimedQueue{..} =
     (concat (Map.elems rm) <> fromMaybe [] mm, tq{q_=q})
 
 next :: TimedQueue a -> Maybe UTCTime
-next = fmap (qidT_ . fst) . Map.lookupMin . q_
+next = fmap (_qidT . fst) . Map.lookupMin . q_
 
 -- The actual queue machination is below.
 
@@ -54,10 +55,21 @@ newtype QueueRunner a = QueueRunner {
 newRunner :: MonadIO m => m (QueueRunner a)
 newRunner = QueueRunner <$> liftIO (newTVarIO mempty)
 
-enqueue :: (HasStats m, Ord a, MonadIO m) => UTCTime -> a -> QueueRunner a -> m ()
-enqueue t a QueueRunner{_tq} = statStore >>= \ss -> atomically $ do
+enqueue :: (HasStats m, Ord a, MonadIO m) => UTCTime -> a -> QueueRunner a -> m QueueID
+enqueue t a qr = statStore >>= \ss -> atomically $ enqueueSTM ss t a qr
+
+enqueueSTM :: Ord a => StatStore -> UTCTime -> a -> QueueRunner a -> STM QueueID
+enqueueSTM ss t a QueueRunner{_tq} = do
   incrementStatSTM StatsActionQueued 1 ss
-  modifyTVar' _tq (add t a)
+  q <- readTVar _tq
+  let (r, q') = add t a q
+  writeTVar _tq q'
+  pure r
+
+cancelSTM :: Ord a => StatStore -> QueueID -> QueueRunner a -> STM ()
+cancelSTM ss qid QueueRunner{..} = do
+  incrementStatSTM StatsActionCanceled 1 ss
+  modifyTVar' _tq (\tq@TimedQueue{q_} -> tq{q_=Map.delete qid q_ })
 
 -- | Run forever.
 run :: (HasStats m, MonadLogger m, MonadIO m) => (a -> m ()) -> QueueRunner a -> m ()

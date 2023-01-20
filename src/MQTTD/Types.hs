@@ -30,6 +30,7 @@ import qualified Network.MQTT.Types     as T
 import           UnliftIO               (MonadUnliftIO (..))
 
 import           MQTTD.Config           (ACL (..), User (..))
+import           Scheduler              (QueueID (..))
 
 data MQTTException = MQTTPingTimeout | MQTTDuplicate SessionID
   deriving Show
@@ -87,7 +88,7 @@ makeLenses ''Authorizer
 
 data Retained = Retained {
   _retainTS  :: UTCTime,
-  _retainExp :: Maybe UTCTime,
+  _retainExp :: Maybe QueueID,
   _retainMsg :: T.PublishRequest
   } deriving Show
 

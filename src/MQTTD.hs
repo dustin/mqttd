@@ -351,7 +351,7 @@ expireSession k = do
       now <- liftIO getCurrentTime
       subs <- readTVarIO subsv
       if hasHighQoS subs && ex > now
-        then Scheduler.enqueue ex k =<< asks queueRunner
+        then void . Scheduler.enqueue ex k =<< asks queueRunner
         else expireNow
 
     hasHighQoS = isJust . preview (folded . subQoS . filtered (> T.QoS0))
@@ -431,9 +431,6 @@ sendPacketIO ch = atomically . sendPacket ch
 
 sendPacketIO_ :: MonadIO m => PktQueue -> T.MQTTPkt -> m ()
 sendPacketIO_ ch = void . atomically . sendPacket ch
-
-modifyTVarRet :: TVar a -> (a -> a) -> STM a
-modifyTVarRet v f = modifyTVar' v f >> readTVar v
 
 nextPktID :: (Enum a, Bounded a, Eq a, Num a) => TVar a -> STM a
 nextPktID x = modifyTVarRet x $ \pid -> if pid == maxBound then 1 else succ pid

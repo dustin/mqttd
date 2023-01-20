@@ -35,6 +35,7 @@ import           MQTTD.Logging
 import           MQTTD.Stats
 import           MQTTD.Types
 import           MQTTD.Util
+import           Scheduler                        (QueueID (..))
 
 class Monad m => HasDBConnection m where
   dbConn :: m Connection
@@ -252,7 +253,7 @@ instance ToRow Retained where
     toField (T._pubBody _retainMsg),
     toField props,
     toField _retainTS,
-    toField _retainExp
+    toField (_qidT <$> _retainExp)
     ]
     where
       props = T.bsProps T.Protocol50 (_retainMsg ^. T.properties)
@@ -267,7 +268,7 @@ instance FromRow Retained where
     _pubBody <- field
     allProps <- props <$> field
     _retainTS <- field
-    _retainExp <- field
+    _retainExp <- fmap (\x -> QueueID x 0) <$> field
     let _pubProps = allProps
         _retainMsg = T.PublishRequest{..}
     pure Retained{..}

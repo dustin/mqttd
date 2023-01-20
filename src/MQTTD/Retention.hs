@@ -20,6 +20,7 @@ import           MQTTD.Stats
 import           MQTTD.Types
 import           MQTTD.Util
 import qualified Scheduler
+import           Scheduler              (QueueID (..))
 
 data Retainer = Retainer {
   _store   :: TVar (Map BLTopic Retained),
@@ -37,8 +38,8 @@ cleanRetainer Retainer{..} = Scheduler.run cleanup _qrunner
         unless (isSys k) $ logDbgL ["Probably removing persisted item: ", tshow k]
         jk <- atomically $ do
           r <- (_retainExp <=< Map.lookup k) <$> readTVar _store
-          when (r < Just now) $ modifyTVar' _store (Map.delete k)
-          if r < Just now then pure (Just k) else pure Nothing
+          when ((_qidT <$> r) < Just now) $ modifyTVar' _store (Map.delete k)
+          if (_qidT <$> r) < Just now then pure (Just k) else pure Nothing
         justM deleteRetained jk
 
 isSys :: BLTopic -> Bool
@@ -51,21 +52,29 @@ retain T.PublishRequest{_pubTopic,_pubBody=""} Retainer{..} = do
   atomically $ modifyTVar' _store (Map.delete _pubTopic)
 retain pr@T.PublishRequest{..} Retainer{..} = do
   now <- liftIO getCurrentTime
+  ss <- statStore
   unless (isSys _pubTopic) $ logDbgL ["Persisting ", tshow _pubTopic]
   let e = pr ^? properties . folded . _PropMessageExpiryInterval . to (absExp now)
-      ret = Retained now e pr
-  atomically $ modifyTVar' _store (Map.insert _pubTopic ret)
-  unless (isSys _pubTopic) $ do
-    storeRetained ret
-    justM (\t -> Scheduler.enqueue t _pubTopic _qrunner) e
+      ret = Retained now Nothing pr
+  ret' <- atomically $ do
+    qid <- traverse (\t -> Scheduler.enqueueSTM ss t _pubTopic _qrunner) e
+    let ret' = ret{_retainExp=qid}
+    existing <- Map.lookup _pubTopic <$> readTVar _store
+    justM (\i -> Scheduler.cancelSTM ss i _qrunner) (_retainExp =<< existing)
+    modifyTVar' _store (Map.insert _pubTopic ret')
+    pure ret'
+  unless (isSys _pubTopic) $ storeRetained ret'
 
 restoreRetained :: (HasStats m, MonadIO m, HasDBConnection m) => Retainer -> m ()
-restoreRetained Retainer{..} = mapM_ keep =<< loadRetained
+restoreRetained Retainer{..} = do
+  ss <- statStore
+  mapM_ (keep ss) =<< loadRetained
   where
-    keep r@Retained{..} = do
+    keep ss r@Retained{..} = do
       let top = r ^. retainMsg . pubTopic
-      atomically $ modifyTVar' _store (Map.insert top r)
-      justM (\t -> Scheduler.enqueue t top _qrunner) _retainExp
+      atomically $ do
+        qid <- traverse (\(QueueID t _) -> Scheduler.enqueueSTM ss t top _qrunner) _retainExp
+        modifyTVar' _store (Map.insert top r{_retainExp=qid})
 
 matchRetained :: MonadIO m => Retainer -> T.Filter -> m [T.PublishRequest]
 matchRetained Retainer{..} f = do
@@ -75,7 +84,7 @@ matchRetained Retainer{..} f = do
   where
     match x = maybe False (T.match f) (T.mkTopic . blToText . T._pubTopic . _retainMsg $ x)
     adj _ Retained{_retainExp=Nothing, _retainMsg} = _retainMsg
-    adj now Retained{_retainExp=Just e, _retainMsg} =
+    adj now Retained{_retainExp=Just (QueueID e _), _retainMsg} =
       _retainMsg & properties . traversed . _PropMessageExpiryInterval .~ relExp now e
 
 absExp :: Integral a => UTCTime -> a -> UTCTime

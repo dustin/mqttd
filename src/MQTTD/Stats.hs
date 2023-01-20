@@ -15,6 +15,7 @@ data StatKey = StatMsgSent
              | StatStoreTransactions
              | StatStoreOperations
              | StatsActionQueued
+             | StatsActionCanceled
              | StatsActionExecuted
   deriving (Eq, Show, Ord, Enum)
 
@@ -26,6 +27,7 @@ statKeyName StatBytesSent         = "$SYS/broker/bytes/sent"
 statKeyName StatStoreTransactions = "$SYS/broker/store/transactions"
 statKeyName StatStoreOperations   = "$SYS/broker/store/operations"
 statKeyName StatsActionQueued     = "$SYS/broker/actions/queued"
+statKeyName StatsActionCanceled   = "$SYS/broker/actions/canceled"
 statKeyName StatsActionExecuted   = "$SYS/broker/actions/executed"
 
 type Increment = (StatKey, Int)
