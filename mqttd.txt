@@ -5,7 +5,7 @@
 -- | Please see the README on GitHub at
 --   <a>https://github.com/dustin/mqttd#readme</a>
 @package mqttd
-@version 0.9.2.0
+@version 0.9.2.1
 
 module MQTTD.Config
 data Config
@@ -151,16 +151,14 @@ data QueueID
 QueueID :: !UTCTime -> !Int -> QueueID
 [_qidT] :: QueueID -> !UTCTime
 [_qidI] :: QueueID -> !Int
-data TimedQueue a
-TimedQueue :: !Map QueueID [a] -> !Int -> TimedQueue a
-[q_] :: TimedQueue a -> !Map QueueID [a]
-[nextId_] :: TimedQueue a -> !Int
-add :: Ord a => UTCTime -> a -> TimedQueue a -> (QueueID, TimedQueue a)
+type TimedQueue a = Map QueueID [a]
+add :: Ord a => QueueID -> a -> TimedQueue a -> TimedQueue a
 ready :: UTCTime -> TimedQueue a -> ([a], TimedQueue a)
 next :: TimedQueue a -> Maybe UTCTime
-newtype QueueRunner a
-QueueRunner :: TVar (TimedQueue a) -> QueueRunner a
-[_tq] :: QueueRunner a -> TVar (TimedQueue a)
+data QueueRunner a
+QueueRunner :: !TVar (TimedQueue a) -> !TVar Int -> QueueRunner a
+[_tq] :: QueueRunner a -> !TVar (TimedQueue a)
+[_ider] :: QueueRunner a -> !TVar Int
 newRunner :: MonadIO m => m (QueueRunner a)
 enqueue :: (HasStats m, Ord a, MonadIO m) => UTCTime -> a -> QueueRunner a -> m QueueID
 enqueueSTM :: Ord a => StatStore -> UTCTime -> a -> QueueRunner a -> STM QueueID
@@ -178,8 +176,6 @@ diffTimeToMicros :: NominalDiffTime -> Int
 instance GHC.Classes.Ord Scheduler.QueueID
 instance GHC.Classes.Eq Scheduler.QueueID
 instance GHC.Show.Show Scheduler.QueueID
-instance GHC.Base.Semigroup (Scheduler.TimedQueue a)
-instance GHC.Base.Monoid (Scheduler.TimedQueue a)
 
 module MQTTD.Types
 data MQTTException
