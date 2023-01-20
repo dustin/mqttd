@@ -4,10 +4,10 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: e7793b2c6318be40312018a047dc9b4baf15b64b1bb78eb9a34c853f44811895
+-- hash: 263ed4e378150c99d4b2df76766fa67a68533e3eee6898190f887d466bacc24f
 
 name:           mqttd
-version:        0.9.1.0
+version:        0.9.2.0
 description:    Please see the README on GitHub at <https://github.com/dustin/mqttd#readme>
 homepage:       https://github.com/dustin/mqttd#readme
 bug-reports:    https://github.com/dustin/mqttd/issues
