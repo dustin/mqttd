@@ -20,56 +20,44 @@ import           MQTTD.Util
 data QueueID = QueueID { _qidT :: !UTCTime, _qidI :: !Int }
   deriving (Show, Eq, Ord)
 
-data TimedQueue a = TimedQueue {
-  q_      :: !(Map QueueID [a]),
-  nextId_ :: !Int
-  }
+type TimedQueue a = Map QueueID [a]
 
-instance Semigroup (TimedQueue a) where
-  qa <> qb = TimedQueue (q_ qa <> q_ qb) (max (nextId_ qa) (nextId_ qb))
-
-instance Monoid (TimedQueue a) where
-  mempty = TimedQueue mempty 0
-
-add :: Ord a => UTCTime -> a -> TimedQueue a -> (QueueID, TimedQueue a)
-add k v tq@TimedQueue{..} = (qid, tq{
-  q_ = Map.insertWith (<>) qid [v] q_,
-  nextId_ = succ nextId_
-  })
-  where qid = QueueID k (nextId_)
+add :: Ord a => QueueID -> a -> TimedQueue a -> TimedQueue a
+add k v = Map.insertWith (<>) k [v]
 
 ready :: UTCTime -> TimedQueue a -> ([a], TimedQueue a)
-ready now tq@TimedQueue{..} =
-  let (rm, mm, q) = Map.splitLookup (QueueID now 0) q_ in
-    (concat (Map.elems rm) <> fromMaybe [] mm, tq{q_=q})
+ready now tq = (concat (Map.elems rm) <> fromMaybe [] mm, q)
+  where
+    (rm, mm, q) = Map.splitLookup (QueueID now 0) tq
 
 next :: TimedQueue a -> Maybe UTCTime
-next = fmap (_qidT . fst) . Map.lookupMin . q_
+next = fmap (_qidT . fst) . Map.lookupMin
 
 -- The actual queue machination is below.
 
-newtype QueueRunner a = QueueRunner {
-  _tq  :: TVar (TimedQueue a)
+data QueueRunner a = QueueRunner {
+  _tq  :: !(TVar (TimedQueue a)),
+  _ider :: !(TVar Int)
   }
 
 newRunner :: MonadIO m => m (QueueRunner a)
-newRunner = QueueRunner <$> liftIO (newTVarIO mempty)
+newRunner = QueueRunner <$> liftIO (newTVarIO mempty) <*> liftIO (newTVarIO 0)
 
 enqueue :: (HasStats m, Ord a, MonadIO m) => UTCTime -> a -> QueueRunner a -> m QueueID
 enqueue t a qr = statStore >>= \ss -> atomically $ enqueueSTM ss t a qr
 
 enqueueSTM :: Ord a => StatStore -> UTCTime -> a -> QueueRunner a -> STM QueueID
-enqueueSTM ss t a QueueRunner{_tq} = do
+enqueueSTM ss t a QueueRunner{..} = do
   incrementStatSTM StatsActionQueued 1 ss
-  q <- readTVar _tq
-  let (r, q') = add t a q
-  writeTVar _tq q'
-  pure r
+  nextId <- modifyTVarRet _ider succ
+  let k = QueueID t nextId
+  modifyTVar' _tq (add k a)
+  pure k
 
 cancelSTM :: Ord a => StatStore -> QueueID -> QueueRunner a -> STM ()
 cancelSTM ss qid QueueRunner{..} = do
   incrementStatSTM StatsActionCanceled 1 ss
-  modifyTVar' _tq (\tq@TimedQueue{q_} -> tq{q_=Map.delete qid q_ })
+  modifyTVar' _tq (Map.delete qid)
 
 -- | Run forever.
 run :: (HasStats m, MonadLogger m, MonadIO m) => (a -> m ()) -> QueueRunner a -> m ()
