@@ -1,3 +1,7 @@
 *~
 .stack-work/
 /mqttd.db
+.hie/
+.direnv/
+.DS_Store
+result

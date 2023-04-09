@@ -8,13 +8,12 @@ import           Control.Concurrent     (newChan, threadDelay)
 import           Control.Concurrent.STM (TChan, check, modifyTVar', newTChanIO, newTVarIO, orElse, readTChan, readTVar,
                                          readTVarIO, registerDelay, writeTChan)
 import           Control.Exception      (catch)
-import           Control.Monad          (replicateM, when)
+import           Control.Monad          (replicateM)
 import           Control.Monad.Logger   (runChanLoggingT)
 import qualified Data.ByteString.Lazy   as BL
-import           Data.Either            (isLeft)
 import           Data.List              (sort)
 import qualified Data.Map.Strict        as Map
-import           Data.Maybe             (fromJust)
+import           Data.Maybe             (fromJust, fromMaybe)
 import           Data.Password.Bcrypt   (PasswordHash (..))
 import           Network.MQTT.Client    as MC
 import qualified Network.MQTT.Types     as T
@@ -246,9 +245,7 @@ unit_shared step = withTestService $ \u -> do
     check ((sum . fmap length) m >= 12)
     pure (Right m)
 
-  when (isLeft mm) $ assertFailure ("timed out waiting for result: " <> show mm)
-
-  let Right m = mm
+  m <- either (\x -> assertFailure ("timed out waiting for result " <> show x)) pure mm
 
   step (show . Map.assocs $ m)
 
@@ -316,4 +313,4 @@ unit_AAA step = let conf = testConfig{
   pure ()
 
   where
-    withCreds url u p = let Just a = uriAuthority url in url{uriAuthority=Just a{uriUserInfo = u <> ":" <> p <> "@"}}
+    withCreds url u p = let a = fromMaybe nullURIAuth (uriAuthority url) in url{uriAuthority=Just a{uriUserInfo = u <> ":" <> p <> "@"}}
