@@ -35,7 +35,7 @@ data Creds = Plaintext BL.ByteString | HashedPass (PasswordHash Bcrypt) deriving
 
 data User = User BL.ByteString Creds [ACL] deriving (Show, Eq)
 
-data ListenerOptions = ListenerOptions {
+newtype ListenerOptions = ListenerOptions {
   _optAllowAnonymous :: Maybe Bool
   } deriving (Eq, Show)
 

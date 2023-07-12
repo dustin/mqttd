@@ -268,7 +268,7 @@ instance FromRow Retained where
     _pubBody <- field
     allProps <- props <$> field
     _retainTS <- field
-    _retainExp <- fmap (\x -> QueueID x 0) <$> field
+    _retainExp <- fmap (`QueueID` 0) <$> field
     let _pubProps = allProps
         _retainMsg = T.PublishRequest{..}
     pure Retained{..}

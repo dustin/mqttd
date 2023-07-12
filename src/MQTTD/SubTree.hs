@@ -61,7 +61,7 @@ findMap top f = go mwc (split (toFilter top))
                                     <> maybe mempty (go id xs)              (d $ Map.lookup "+" children)
                                     <> maybe mempty (maybe mempty f . subs) (d $ Map.lookup "#" children)
     mwc deeper
-      | "$" `isPrefixOf` (unTopic top) = Nothing
+      | "$" `isPrefixOf` unTopic top = Nothing
       | otherwise = deeper
 
 -- | Find subscribers of a given topic.

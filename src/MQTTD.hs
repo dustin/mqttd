@@ -361,7 +361,7 @@ expireSession k = do
       ss <- asks sessions
       kilt <- atomically $ do
         current <- Map.lookup k <$> readTVar ss
-        subs <- maybe (pure mempty) readTVar (_sessionSubs <$> current)
+        subs <- maybe (pure mempty) (readTVar . _sessionSubs) current
         case current ^? _Just . sessionExpires . _Just of
           Nothing -> pure Nothing
           Just x -> if not (hasHighQoS subs) || now >= x

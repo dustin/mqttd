@@ -36,7 +36,7 @@ next = fmap (_qidT . fst) . Map.lookupMin
 -- The actual queue machination is below.
 
 data QueueRunner a = QueueRunner {
-  _tq  :: !(TVar (TimedQueue a)),
+  _tq   :: !(TVar (TimedQueue a)),
   _ider :: !(TVar Int)
   }
 
@@ -76,7 +76,7 @@ runOnce action QueueRunner{..} = block >> go
       timedOut <- case diffTimeToMicros . (`diffUTCTime` now) <$> mnext of
                     Nothing -> newTVarIO False
                     Just d  -> registerDelay d
-      atomically $ (check =<< readTVar timedOut) `orElse` (check =<< ((/= mnext) . next <$> readTVar _tq))
+      atomically $ (check =<< readTVar timedOut) `orElse` (check . (/= mnext) . next =<< readTVar _tq)
 
     go = do
       now <- liftIO getCurrentTime

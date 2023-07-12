@@ -134,7 +134,7 @@ unit_orderedPubSub = withTestService $ \u -> do
                       (MC.connectURI MC.mqttConfig u)
                       (MC.connectURI MC.mqttConfig{_msgCB=MC.OrderedCallback (
                                                       \_ t v _ -> do
-                                                        threadDelay =<< (* 1000) <$> readTVarIO tdv
+                                                        threadDelay . (* 1000) =<< readTVarIO tdv
                                                         atomically $ do
                                                           modifyTVar' tdv pred
                                                           modifyTVar' mv ((t, v):)),
@@ -161,14 +161,14 @@ unit_orderedPubSub = withTestService $ \u -> do
     check (length m >= 6)
     pure m
 
-  assertEqual "Got the messages" ([
+  assertEqual "Got the messages" [
                                      ("test/tv2", "test message 2"),
                                      ("test/tv1", "test message 1"),
                                      ("test/tv0", "test message 0"),
                                      ("test/retained2", "future message2"),
                                      ("test/retained1", "future message1"),
                                      ("test/retained0", "future message0")
-                                  ])
+                                  ]
     m
 
 
@@ -269,7 +269,7 @@ unit_AAA step = let conf = testConfig{
                                                             "$2b$10$RDhbUlKDkvTZsgfhiBlu9./SDwgQDv9UXkD6ZgxMhZ/67D0R7aW5m")) [
                              Allow ACLPubSub "test/#", Allow ACLSub "ro/#", Deny "#"])
                          ],
-                     _confDefaults = (ListenerOptions (Just False))
+                     _confDefaults = ListenerOptions (Just False)
                      }
                     baseConfig = MC.mqttConfig{_protocol=MC.Protocol50} in
   withTestServiceConfig conf $ \u -> do

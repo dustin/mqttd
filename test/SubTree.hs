@@ -26,7 +26,7 @@ instance (Monoid a, Arbitrary a, Eq a) => Arbitrary (SubTree a) where
   arbitrary = do
     filters <- resize 20 $ listOf1 (toFilter <$> arbitraryTopic ['a'..'d'] (1,7) (1,3))
     subbers <- resize 20 $ listOf1 arbitrary
-    Sub.fromList <$> (resize 50 $ listOf1 (liftA2 (,) (elements filters) (elements subbers)))
+    Sub.fromList <$> resize 50 (listOf1 (liftA2 (,) (elements filters) (elements subbers)))
 
   shrink = fmap Sub.fromList . shrinkList (const []) . Sub.flatten
 
