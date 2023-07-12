@@ -33,7 +33,7 @@ data Listener
 MQTTListener :: HostPreference -> PortNumber -> ListenerOptions -> Listener
 MQTTSListener :: HostPreference -> PortNumber -> FilePath -> FilePath -> ListenerOptions -> Listener
 WSListener :: ListenAddress -> PortNumber -> ListenerOptions -> Listener
-data ListenerOptions
+newtype ListenerOptions
 ListenerOptions :: Maybe Bool -> ListenerOptions
 [_optAllowAnonymous] :: ListenerOptions -> Maybe Bool
 listenerOpts :: Lens' Listener ListenerOptions
