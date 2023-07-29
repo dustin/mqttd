@@ -1,10 +1,10 @@
 cabal-version: 1.12
 
--- This file has been generated from package.yaml by hpack version 0.35.0.
+-- This file has been generated from package.yaml by hpack version 0.35.2.
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: bc800cbd6ac09d73c87b4040e5a5a643863f8e3f1ed26522e5609cd43bd067cd
+-- hash: f53bec9efe6475d4e91e0d96a53b992adf2c08611f226af0a303cb5a6fc4eaa7
 
 name:           mqttd
 version:        0.9.2.1
@@ -63,7 +63,7 @@ library
     , megaparsec
     , monad-logger
     , mtl
-    , net-mqtt >=0.8.2.2 && <0.9
+    , net-mqtt >=0.8.5.0 && <0.9
     , net-mqtt-lens
     , network-conduit-tls
     , optparse-applicative
@@ -107,7 +107,7 @@ executable mqttd
     , monad-logger
     , mqttd
     , mtl
-    , net-mqtt >=0.8.2.2 && <0.9
+    , net-mqtt >=0.8.5.0 && <0.9
     , net-mqtt-lens
     , network-conduit-tls
     , optparse-applicative
@@ -150,7 +150,7 @@ executable mqttdpass
     , megaparsec
     , monad-logger
     , mtl
-    , net-mqtt >=0.8.2.2 && <0.9
+    , net-mqtt >=0.8.5.0 && <0.9
     , net-mqtt-lens
     , network-conduit-tls
     , optparse-applicative
@@ -200,7 +200,7 @@ test-suite mqttd-test
     , monad-logger
     , mqttd
     , mtl
-    , net-mqtt >=0.8.2.2 && <0.9
+    , net-mqtt >=0.8.5.0 && <0.9
     , net-mqtt-lens
     , network-conduit-tls
     , network-uri
