@@ -11,6 +11,7 @@ import           Data.Maybe             (fromMaybe)
 import           Data.Time.Clock        (NominalDiffTime, UTCTime (..), diffUTCTime, getCurrentTime)
 import           UnliftIO               (atomically)
 
+import           Data.Foldable          (Foldable (fold), traverse_)
 import           MQTTD.Logging
 import           MQTTD.Stats
 import           MQTTD.Util
@@ -26,7 +27,7 @@ add :: Ord a => QueueID -> a -> TimedQueue a -> TimedQueue a
 add k v = Map.insertWith (<>) k [v]
 
 ready :: UTCTime -> TimedQueue a -> ([a], TimedQueue a)
-ready now tq = (concat (Map.elems rm) <> fromMaybe [] mm, q)
+ready now tq = (fold rm <> fromMaybe [] mm, q)
   where
     (rm, mm, q) = Map.splitLookup (QueueID now 0) tq
 
@@ -68,7 +69,7 @@ run action = forever . runOnce action
 -- run any items that are scheduled for the future, and it shouldn't
 -- forget any items that are ready.
 runOnce :: (HasStats m, MonadLogger m, MonadIO m) => (a -> m ()) -> QueueRunner a -> m ()
-runOnce action QueueRunner{..} = block >> go
+runOnce action QueueRunner{..} = block *> go
   where
     block = liftIO $ do
       now <- getCurrentTime
@@ -86,7 +87,7 @@ runOnce action QueueRunner{..} = block >> go
         pure todo
       logDbgL ["Running ", (tshow . length) todo, " actions"]
       incrementStat StatsActionExecuted (length todo)
-      mapM_ action todo
+      traverse_ action todo
 
 -- A couple utilities
 
