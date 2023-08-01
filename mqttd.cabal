@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: f53bec9efe6475d4e91e0d96a53b992adf2c08611f226af0a303cb5a6fc4eaa7
+-- hash: ae0862a10b8f885af405dcfe9d316fbaf045948b85c65b2e76e155f4372533db
 
 name:           mqttd
 version:        0.9.2.1
@@ -173,6 +173,7 @@ test-suite mqttd-test
   main-is: Main.hs
   other-modules:
       Integration
+      SchedulerSpec
       Spec
       SubTree
       Paths_mqttd
@@ -195,6 +196,7 @@ test-suite mqttd-test
     , conduit-extra
     , containers
     , exceptions
+    , hedgehog
     , lens
     , megaparsec
     , monad-logger
@@ -213,6 +215,7 @@ test-suite mqttd-test
     , stm
     , tasty
     , tasty-discover
+    , tasty-hedgehog
     , tasty-hunit
     , tasty-quickcheck
     , text

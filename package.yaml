@@ -97,6 +97,8 @@ tests:
     - tasty-hunit
     - tasty-discover
     - tasty-quickcheck
+    - tasty-hedgehog
+    - hedgehog
     - QuickCheck
     - port-utils
     - network-uri

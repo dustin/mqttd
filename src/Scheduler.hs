@@ -1,4 +1,4 @@
-module Scheduler where
+module Scheduler (QueueID(..), Clock(..), TimedQueue, add, ready, next, QueueRunner, newRunner, enqueue, enqueueSTM, cancelSTM, run, runOnce) where
 
 import           Control.Concurrent.STM (STM, TVar, check, modifyTVar', newTVarIO, orElse, readTVar, registerDelay,
                                          writeTVar)
@@ -62,34 +62,47 @@ cancelSTM ss qid QueueRunner{..} = do
 
 -- | Run forever.
 run :: (HasStats m, MonadLogger m, MonadIO m) => (a -> m ()) -> QueueRunner a -> m ()
-run action = forever . runOnce action
+run action = forever . runOnce sysClock action
+
+data Clock = Clock {
+  getTime :: IO UTCTime,
+  delay   :: Int -> IO (TVar Bool)
+}
+
+sysClock :: Clock
+sysClock = Clock getCurrentTime registerDelay
+
+blockUntilReady :: MonadIO m => Clock -> QueueRunner a -> m ()
+blockUntilReady Clock{..} QueueRunner{..} = liftIO $ do
+  now <- getTime
+  mnext <- atomically (next <$> readTVar _tq)
+  timedOut <- case diffTimeToMicros . (`diffUTCTime` now) <$> mnext of
+                Nothing -> newTVarIO False
+                Just d  -> delay d
+  atomically $ (check =<< readTVar timedOut) `orElse` (check . (/= mnext) . next =<< readTVar _tq)
+
+runReady :: MonadIO m => Clock -> (a -> m ()) -> QueueRunner a -> m [a]
+runReady Clock{..} action QueueRunner{..} = do
+  now <- liftIO getTime
+  todo <- atomically $ do
+    (todo, nq) <- ready now <$> readTVar _tq
+    writeTVar _tq nq
+    pure todo
+  traverse_ action todo
+  pure todo
 
 -- | Block until an item might be ready and then run (and remove) all
 -- ready items.  This will sometimes run 0 items.  It shouldn't ever
 -- run any items that are scheduled for the future, and it shouldn't
 -- forget any items that are ready.
-runOnce :: (HasStats m, MonadLogger m, MonadIO m) => (a -> m ()) -> QueueRunner a -> m ()
-runOnce action QueueRunner{..} = block *> go
-  where
-    block = liftIO $ do
-      now <- getCurrentTime
-      mnext <- atomically (next <$> readTVar _tq)
-      timedOut <- case diffTimeToMicros . (`diffUTCTime` now) <$> mnext of
-                    Nothing -> newTVarIO False
-                    Just d  -> registerDelay d
-      atomically $ (check =<< readTVar timedOut) `orElse` (check . (/= mnext) . next =<< readTVar _tq)
+runOnce :: (HasStats m, MonadLogger m, MonadIO m) => Clock -> (a -> m ()) -> QueueRunner a -> m ()
+runOnce c action qr = do
+  blockUntilReady c qr
+  done <- runReady c action qr
+  incrementStat StatsActionExecuted (length done)
+  logDbgL ["Running ", (tshow . length) done, " actions"]
 
-    go = do
-      now <- liftIO getCurrentTime
-      todo <- atomically $ do
-        (todo, nq) <- ready now <$> readTVar _tq
-        writeTVar _tq nq
-        pure todo
-      logDbgL ["Running ", (tshow . length) todo, " actions"]
-      incrementStat StatsActionExecuted (length todo)
-      traverse_ action todo
-
--- A couple utilities
+-- utilities
 
 diffTimeToMicros :: NominalDiffTime -> Int
 diffTimeToMicros dt = let (s, f) = properFraction dt
