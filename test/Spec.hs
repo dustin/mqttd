@@ -140,8 +140,8 @@ unit_listenerOptions = do
   for_ tbl $ \(a, b, want) ->
     assertEqual (show (a, b)) (ListenerOptions want) (ListenerOptions a <> ListenerOptions b)
 
-tests :: [TestTree]
-tests = [
+test_Spec :: [TestTree]
+test_Spec = [
   localOption (QC.QuickCheckTests 500) $
     testProperty "packet IDs (8bit) are never 0" (propNextPacket :: NonZero Word8 -> Property),
   localOption (QC.QuickCheckTests 100000) $
