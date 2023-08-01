@@ -46,6 +46,8 @@ instance GHC.Classes.Eq MQTTD.Config.Creds
 instance GHC.Show.Show MQTTD.Config.Creds
 instance GHC.Classes.Eq MQTTD.Config.User
 instance GHC.Show.Show MQTTD.Config.User
+instance GHC.Base.Monoid MQTTD.Config.ListenerOptions
+instance GHC.Base.Semigroup MQTTD.Config.ListenerOptions
 instance GHC.Show.Show MQTTD.Config.ListenerOptions
 instance GHC.Classes.Eq MQTTD.Config.ListenerOptions
 instance GHC.Classes.Eq MQTTD.Config.Listener
@@ -55,8 +57,6 @@ instance GHC.Show.Show MQTTD.Config.PersistenceConfig
 instance GHC.Classes.Eq MQTTD.Config.Config
 instance GHC.Show.Show MQTTD.Config.Config
 instance GHC.Show.Show MQTTD.Config.Section
-instance GHC.Base.Semigroup MQTTD.Config.ListenerOptions
-instance GHC.Base.Monoid MQTTD.Config.ListenerOptions
 
 module MQTTD.Logging
 logError :: MonadLogger m => Text -> m ()
@@ -94,6 +94,7 @@ instance GHC.Enum.Enum MQTTD.Stats.StatKey
 instance GHC.Classes.Ord MQTTD.Stats.StatKey
 instance GHC.Show.Show MQTTD.Stats.StatKey
 instance GHC.Classes.Eq MQTTD.Stats.StatKey
+instance GHC.Base.Monad m => MQTTD.Stats.HasStats (Control.Monad.Trans.Reader.ReaderT MQTTD.Stats.StatStore m)
 
 module MQTTD.SubTree
 
@@ -151,14 +152,15 @@ data QueueID
 QueueID :: !UTCTime -> !Int -> QueueID
 [_qidT] :: QueueID -> !UTCTime
 [_qidI] :: QueueID -> !Int
+data Clock
+Clock :: IO UTCTime -> (Int -> IO (TVar Bool)) -> Clock
+[getTime] :: Clock -> IO UTCTime
+[delay] :: Clock -> Int -> IO (TVar Bool)
 type TimedQueue a = Map QueueID [a]
 add :: Ord a => QueueID -> a -> TimedQueue a -> TimedQueue a
 ready :: UTCTime -> TimedQueue a -> ([a], TimedQueue a)
 next :: TimedQueue a -> Maybe UTCTime
 data QueueRunner a
-QueueRunner :: !TVar (TimedQueue a) -> !TVar Int -> QueueRunner a
-[_tq] :: QueueRunner a -> !TVar (TimedQueue a)
-[_ider] :: QueueRunner a -> !TVar Int
 newRunner :: MonadIO m => m (QueueRunner a)
 enqueue :: (HasStats m, Ord a, MonadIO m) => UTCTime -> a -> QueueRunner a -> m QueueID
 enqueueSTM :: Ord a => StatStore -> UTCTime -> a -> QueueRunner a -> STM QueueID
@@ -171,8 +173,7 @@ run :: (HasStats m, MonadLogger m, MonadIO m) => (a -> m ()) -> QueueRunner a ->
 --   items. This will sometimes run 0 items. It shouldn't ever run any
 --   items that are scheduled for the future, and it shouldn't forget any
 --   items that are ready.
-runOnce :: (HasStats m, MonadLogger m, MonadIO m) => (a -> m ()) -> QueueRunner a -> m ()
-diffTimeToMicros :: NominalDiffTime -> Int
+runOnce :: (HasStats m, MonadLogger m, MonadIO m) => Clock -> (a -> m ()) -> QueueRunner a -> m ()
 instance GHC.Classes.Ord Scheduler.QueueID
 instance GHC.Classes.Eq Scheduler.QueueID
 instance GHC.Show.Show Scheduler.QueueID
