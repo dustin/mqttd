@@ -1,4 +1,5 @@
-{-# LANGUAGE StrictData #-}
+{-# LANGUAGE DerivingVia        #-}
+{-# LANGUAGE StrictData         #-}
 
 module MQTTD.Config (Config(..), Creds(..), User(..), ACLAction(..), ACL(..), PersistenceConfig(..),
                      Listener(..), ListenerOptions(..), listenerOpts,
@@ -11,6 +12,7 @@ import           Data.Conduit.Network       (HostPreference)
 import           Data.Foldable              (asum)
 import           Data.Map.Strict            (Map)
 import qualified Data.Map.Strict            as Map
+import           Data.Monoid                (First (..))
 import           Data.Password.Bcrypt       (Bcrypt, PasswordHash (..))
 import           Data.String                (IsString (..))
 import           Data.Text                  (Text)
@@ -38,12 +40,7 @@ data User = User BL.ByteString Creds [ACL] deriving (Show, Eq)
 newtype ListenerOptions = ListenerOptions {
   _optAllowAnonymous :: Maybe Bool
   } deriving (Eq, Show)
-
-instance Semigroup ListenerOptions where
-  (ListenerOptions a) <> (ListenerOptions b) = ListenerOptions (a <|> b)
-
-instance Monoid ListenerOptions where
-  mempty = ListenerOptions Nothing
+    deriving (Semigroup, Monoid) via (First Bool)
 
 data Listener = MQTTListener HostPreference PortNumber ListenerOptions
               | MQTTSListener HostPreference PortNumber FilePath FilePath ListenerOptions

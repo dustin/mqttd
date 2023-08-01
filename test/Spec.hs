@@ -12,6 +12,7 @@ import           Test.Tasty.QuickCheck    as QC
 import           Control.Applicative      (liftA2)
 import           Control.Concurrent.STM   (atomically, newTVarIO)
 import           Data.Either              (isLeft, isRight)
+import           Data.Foldable            (for_)
 import qualified Data.Map.Strict          as Map
 import           Data.Word                (Word16, Word8)
 
@@ -125,6 +126,19 @@ propNextPacket (NonZero n) =
     v <- newTVarIO n
     i <- atomically $ nextPktID v
     pure (i /= 0)
+
+unit_listenerOptions :: Assertion
+unit_listenerOptions = do
+  let tbl = [
+        (Nothing, Just True, Just True),
+        (Just True, Nothing, Just True),
+        (Just False, Just True, Just False),
+        (Just False, Just False, Just False),
+        (Just True, Just False, Just True),
+        (Nothing, Nothing, Nothing)
+        ]
+  for_ tbl $ \(a, b, want) ->
+    assertEqual (show (a, b)) (ListenerOptions want) (ListenerOptions a <> ListenerOptions b)
 
 tests :: [TestTree]
 tests = [
