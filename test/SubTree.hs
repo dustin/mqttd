@@ -38,13 +38,23 @@ unit_SubTree =
     ("b/b/c", ["+/+/+", "+/b/c", "#", "b/#"]),
     ("b/real", ["#", "b/#"]),
     ("a/b/x", ["#","+/+/+","a/#","a/+/+"]),
+    ("b", ["#"]),
+    ("z/y/w", ["#", "+/+/+"]),
     ("$special/case", ["$special/#"])]
 
   where
-    someSubs = foldr (\x -> Sub.add x [x]) mempty [
+    someSubs = Sub.modify "z/#" (const Nothing) . Sub.modify "z/y" (const Nothing) $ foldr (\x -> Sub.add x [x]) mempty [
       "a/b/c", "a/+/c", "a/+/+", "+/+/+", "+/b/c",
-      "#", "a/#", "b/#", "$special/#"]
+      "#", "a/#", "b/#", "z/y", "z/#", "$special/#"]
     aTest (f,w) = assertEqual (show f) (sort w) (sort $ Sub.find f someSubs)
+
+unit_removed :: Assertion
+unit_removed = assertEqual (show s) 0 (Sub.findMap "a/b/#" (Sum . length) s)
+  where s = Sub.modify "a/b/c" (const Nothing) $ Sub.add "a/b/c" [1::Int] mempty
+
+prop_removed :: SubTree [()] -> Property
+prop_removed s = Sub.findMap "a/#" (:[]) s' === []
+  where s' = foldr (\(x,_) -> Sub.modify x (const Nothing)) s (Sub.flatten s)
 
 newtype CollidingMatchingTopic = CollidingMatchingTopic (Topic, [Filter]) deriving (Show, Eq)
 
