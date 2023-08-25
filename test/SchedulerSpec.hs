@@ -22,6 +22,7 @@ import qualified Hedgehog.Range           as Range
 
 import           MQTTD.Stats
 import           Scheduler
+import qualified Data.Set as Set
 
 -- https://github.com/hedgehogqa/haskell-hedgehog/issues/215
 genUTCTime :: MonadGen m => m UTCTime
@@ -31,6 +32,12 @@ genUTCTime = do
     d <- Gen.int (Range.constant 1 28)
     secs <- toInteger <$> Gen.int (Range.constant 0 86401)
     pure $ UTCTime (fromGregorian y m d) (secondsToDiffTime secs)
+
+genCollidingQueueID :: MonadGen m => m QueueID
+genCollidingQueueID = do
+    t <- Gen.element [UTCTime (fromGregorian 2019 1 1) 0, UTCTime (fromGregorian 2019 1 1) 1, UTCTime (fromGregorian 2020 2 1) 2]
+    i <- Gen.int (Range.linear 0 5)
+    pure $ QueueID t i
 
 genDates :: MonadGen m => m [UTCTime]
 genDates = Gen.list (Range.linear 1 100) genUTCTime
@@ -59,6 +66,23 @@ hprop_queueAllReady = property $ do
         (todo, tq') = ready future tq
     annotateShow (todo, tq')
     length todo === length dates
+
+hprop_queueAllReadyColliding :: Property
+hprop_queueAllReadyColliding = property $ do
+    items <- zipWith (\n q -> q{_qidI = n}) [0..] <$> forAll (Gen.list (Range.linear 1 100) genCollidingQueueID)
+    let tq = foldr (uncurry add) (mempty :: TimedQueue Int) (zip items [0..])
+        (todo, tq') = ready future tq
+    annotateShow (todo, tq')
+    sort todo === sort [0.. length items - 1]
+
+hprop_doAllTimings :: Property
+hprop_doAllTimings = property $ do
+    items <- zipWith (\n q -> q{_qidI = n}) [0..] <$> forAll (Gen.list (Range.linear 1 100) genCollidingQueueID)
+    let tq = foldr (uncurry add) (mempty :: TimedQueue Int) (zip items [0..])
+        timestamps = Set.toList . Set.fromList $ [addUTCTime (-1), id, addUTCTime 1] <*> (_qidT <$> items)
+        done = foldMap fst $ scanl (\(_, tq') t -> ready t tq') (mempty, tq) timestamps
+    annotateShow (done, tq)
+    sort done === [0 .. length items - 1]
 
 hprop_queueNextIsLowest :: Property
 hprop_queueNextIsLowest = property $ do
