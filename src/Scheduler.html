@@ -21,24 +21,37 @@
 </span><span id="line-21"></span><span class="hs-keyword">data</span><span> </span><span id="QueueID"><span class="annot"><a href="Scheduler.html#QueueID"><span class="hs-identifier hs-var">QueueID</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="QueueID"><span class="annot"><a href="Scheduler.html#QueueID"><span class="hs-identifier hs-var">QueueID</span></a></span></span><span> </span><span class="hs-special">{</span><span> </span><span id="_qidT"><span class="annot"><span class="annottext">QueueID -&gt; UTCTime
 </span><a href="Scheduler.html#_qidT"><span class="hs-identifier hs-var hs-var">_qidT</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-glyph">!</span><span class="annot"><span class="hs-identifier hs-type">UTCTime</span></span><span class="hs-special">,</span><span> </span><span id="_qidI"><span class="annot"><span class="annottext">QueueID -&gt; Int
 </span><a href="Scheduler.html#_qidI"><span class="hs-identifier hs-var hs-var">_qidI</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-glyph">!</span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span> </span><span class="hs-special">}</span><span>
-</span><span id="line-22"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679203342"><span id="local-6989586621679203344"><span id="local-6989586621679203352"><span class="annot"><span class="annottext">Int -&gt; QueueID -&gt; ShowS
+</span><span id="line-22"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679207635"><span id="local-6989586621679207643"><span id="local-6989586621679207647"><span class="annot"><span class="annottext">Int -&gt; QueueID -&gt; ShowS
 [QueueID] -&gt; ShowS
 QueueID -&gt; String
+(Int -&gt; QueueID -&gt; ShowS)
+-&gt; (QueueID -&gt; String) -&gt; ([QueueID] -&gt; ShowS) -&gt; Show QueueID
 forall a.
 (Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
-showList :: [QueueID] -&gt; ShowS
-$cshowList :: [QueueID] -&gt; ShowS
-show :: QueueID -&gt; String
-$cshow :: QueueID -&gt; String
-showsPrec :: Int -&gt; QueueID -&gt; ShowS
 $cshowsPrec :: Int -&gt; QueueID -&gt; ShowS
-</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679203333"><span id="local-6989586621679203339"><span class="annot"><span class="annottext">QueueID -&gt; QueueID -&gt; Bool
+showsPrec :: Int -&gt; QueueID -&gt; ShowS
+$cshow :: QueueID -&gt; String
+show :: QueueID -&gt; String
+$cshowList :: [QueueID] -&gt; ShowS
+showList :: [QueueID] -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679207651"><span id="local-6989586621679207657"><span class="annot"><span class="annottext">QueueID -&gt; QueueID -&gt; Bool
+(QueueID -&gt; QueueID -&gt; Bool)
+-&gt; (QueueID -&gt; QueueID -&gt; Bool) -&gt; Eq QueueID
 forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
-/= :: QueueID -&gt; QueueID -&gt; Bool
-$c/= :: QueueID -&gt; QueueID -&gt; Bool
-== :: QueueID -&gt; QueueID -&gt; Bool
 $c== :: QueueID -&gt; QueueID -&gt; Bool
-</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679203308"><span id="local-6989586621679203310"><span id="local-6989586621679203313"><span id="local-6989586621679203316"><span id="local-6989586621679203319"><span id="local-6989586621679203323"><span id="local-6989586621679203328"><span class="annot"><span class="annottext">Eq QueueID
+== :: QueueID -&gt; QueueID -&gt; Bool
+$c/= :: QueueID -&gt; QueueID -&gt; Bool
+/= :: QueueID -&gt; QueueID -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679207664"><span id="local-6989586621679207669"><span id="local-6989586621679207673"><span id="local-6989586621679207677"><span id="local-6989586621679207680"><span id="local-6989586621679207683"><span id="local-6989586621679207686"><span class="annot"><span class="annottext">Eq QueueID
+Eq QueueID
+-&gt; (QueueID -&gt; QueueID -&gt; Ordering)
+-&gt; (QueueID -&gt; QueueID -&gt; Bool)
+-&gt; (QueueID -&gt; QueueID -&gt; Bool)
+-&gt; (QueueID -&gt; QueueID -&gt; Bool)
+-&gt; (QueueID -&gt; QueueID -&gt; Bool)
+-&gt; (QueueID -&gt; QueueID -&gt; QueueID)
+-&gt; (QueueID -&gt; QueueID -&gt; QueueID)
+-&gt; Ord QueueID
 QueueID -&gt; QueueID -&gt; Bool
 QueueID -&gt; QueueID -&gt; Ordering
 QueueID -&gt; QueueID -&gt; QueueID
@@ -52,184 +65,232 @@ Eq a
 -&gt; (a -&gt; a -&gt; a)
 -&gt; (a -&gt; a -&gt; a)
 -&gt; Ord a
-min :: QueueID -&gt; QueueID -&gt; QueueID
-$cmin :: QueueID -&gt; QueueID -&gt; QueueID
-max :: QueueID -&gt; QueueID -&gt; QueueID
-$cmax :: QueueID -&gt; QueueID -&gt; QueueID
-&gt;= :: QueueID -&gt; QueueID -&gt; Bool
-$c&gt;= :: QueueID -&gt; QueueID -&gt; Bool
-&gt; :: QueueID -&gt; QueueID -&gt; Bool
-$c&gt; :: QueueID -&gt; QueueID -&gt; Bool
-&lt;= :: QueueID -&gt; QueueID -&gt; Bool
-$c&lt;= :: QueueID -&gt; QueueID -&gt; Bool
-&lt; :: QueueID -&gt; QueueID -&gt; Bool
-$c&lt; :: QueueID -&gt; QueueID -&gt; Bool
-compare :: QueueID -&gt; QueueID -&gt; Ordering
 $ccompare :: QueueID -&gt; QueueID -&gt; Ordering
+compare :: QueueID -&gt; QueueID -&gt; Ordering
+$c&lt; :: QueueID -&gt; QueueID -&gt; Bool
+&lt; :: QueueID -&gt; QueueID -&gt; Bool
+$c&lt;= :: QueueID -&gt; QueueID -&gt; Bool
+&lt;= :: QueueID -&gt; QueueID -&gt; Bool
+$c&gt; :: QueueID -&gt; QueueID -&gt; Bool
+&gt; :: QueueID -&gt; QueueID -&gt; Bool
+$c&gt;= :: QueueID -&gt; QueueID -&gt; Bool
+&gt;= :: QueueID -&gt; QueueID -&gt; Bool
+$cmax :: QueueID -&gt; QueueID -&gt; QueueID
+max :: QueueID -&gt; QueueID -&gt; QueueID
+$cmin :: QueueID -&gt; QueueID -&gt; QueueID
+min :: QueueID -&gt; QueueID -&gt; QueueID
 </span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Ord</span></span></span></span></span></span></span></span></span><span class="hs-special">)</span><span>
 </span><span id="line-23"></span><span>
-</span><span id="line-24"></span><span class="hs-keyword">type</span><span> </span><span id="TimedQueue"><span class="annot"><a href="Scheduler.html#TimedQueue"><span class="hs-identifier hs-var">TimedQueue</span></a></span></span><span> </span><span id="local-6989586621679203306"><span class="annot"><a href="#local-6989586621679203306"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Map</span></span><span> </span><span class="annot"><a href="Scheduler.html#QueueID"><span class="hs-identifier hs-type">QueueID</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679203306"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-24"></span><span class="hs-keyword">type</span><span> </span><span id="TimedQueue"><span class="annot"><a href="Scheduler.html#TimedQueue"><span class="hs-identifier hs-var">TimedQueue</span></a></span></span><span> </span><span id="local-6989586621679207689"><span class="annot"><a href="#local-6989586621679207689"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Map</span></span><span> </span><span class="annot"><a href="Scheduler.html#QueueID"><span class="hs-identifier hs-type">QueueID</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679207689"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span><span>
 </span><span id="line-25"></span><span>
-</span><span id="line-26"></span><span id="local-6989586621679203513"><span class="annot"><a href="Scheduler.html#add"><span class="hs-identifier hs-type">add</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Ord</span></span><span> </span><span class="annot"><a href="#local-6989586621679203513"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Scheduler.html#QueueID"><span class="hs-identifier hs-type">QueueID</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679203513"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Scheduler.html#TimedQueue"><span class="hs-identifier hs-type">TimedQueue</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679203513"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Scheduler.html#TimedQueue"><span class="hs-identifier hs-type">TimedQueue</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679203513"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-26"></span><span id="local-6989586621679207482"><span class="annot"><a href="Scheduler.html#add"><span class="hs-identifier hs-type">add</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Ord</span></span><span> </span><span class="annot"><a href="#local-6989586621679207482"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Scheduler.html#QueueID"><span class="hs-identifier hs-type">QueueID</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679207482"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Scheduler.html#TimedQueue"><span class="hs-identifier hs-type">TimedQueue</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679207482"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Scheduler.html#TimedQueue"><span class="hs-identifier hs-type">TimedQueue</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679207482"><span class="hs-identifier hs-type">a</span></a></span></span><span>
 </span><span id="line-27"></span><span id="add"><span class="annot"><span class="annottext">add :: forall a. Ord a =&gt; QueueID -&gt; a -&gt; TimedQueue a -&gt; TimedQueue a
-</span><a href="Scheduler.html#add"><span class="hs-identifier hs-var hs-var">add</span></a></span></span><span> </span><span id="local-6989586621679203301"><span class="annot"><span class="annottext">QueueID
-</span><a href="#local-6989586621679203301"><span class="hs-identifier hs-var">k</span></a></span></span><span> </span><span id="local-6989586621679203300"><span class="annot"><span class="annottext">a
-</span><a href="#local-6989586621679203300"><span class="hs-identifier hs-var">v</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall k a. Ord k =&gt; (a -&gt; a -&gt; a) -&gt; k -&gt; a -&gt; Map k a -&gt; Map k a
-</span><span class="hs-identifier hs-var">Map.insertWith</span></span><span> </span><span class="annot"><span class="annottext">forall a. Semigroup a =&gt; a -&gt; a -&gt; a
+</span><a href="Scheduler.html#add"><span class="hs-identifier hs-var hs-var">add</span></a></span></span><span> </span><span id="local-6989586621679207694"><span class="annot"><span class="annottext">QueueID
+</span><a href="#local-6989586621679207694"><span class="hs-identifier hs-var">k</span></a></span></span><span> </span><span id="local-6989586621679207695"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679207695"><span class="hs-identifier hs-var">v</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">([a] -&gt; [a] -&gt; [a])
+-&gt; QueueID -&gt; [a] -&gt; Map QueueID [a] -&gt; Map QueueID [a]
+forall k a. Ord k =&gt; (a -&gt; a -&gt; a) -&gt; k -&gt; a -&gt; Map k a -&gt; Map k a
+</span><span class="hs-identifier hs-var">Map.insertWith</span></span><span> </span><span class="annot"><span class="annottext">[a] -&gt; [a] -&gt; [a]
+forall a. Semigroup a =&gt; a -&gt; a -&gt; a
 </span><span class="hs-operator hs-var">(&lt;&gt;)</span></span><span> </span><span class="annot"><span class="annottext">QueueID
-</span><a href="#local-6989586621679203301"><span class="hs-identifier hs-var">k</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">a
-</span><a href="#local-6989586621679203300"><span class="hs-identifier hs-var">v</span></a></span><span class="hs-special">]</span><span>
+</span><a href="#local-6989586621679207694"><span class="hs-identifier hs-var">k</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679207695"><span class="hs-identifier hs-var">v</span></a></span><span class="hs-special">]</span><span>
 </span><span id="line-28"></span><span>
-</span><span id="line-29"></span><span id="local-6989586621679203505"><span class="annot"><a href="Scheduler.html#ready"><span class="hs-identifier hs-type">ready</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">UTCTime</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Scheduler.html#TimedQueue"><span class="hs-identifier hs-type">TimedQueue</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679203505"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679203505"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Scheduler.html#TimedQueue"><span class="hs-identifier hs-type">TimedQueue</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679203505"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span><span>
+</span><span id="line-29"></span><span id="local-6989586621679207490"><span class="annot"><a href="Scheduler.html#ready"><span class="hs-identifier hs-type">ready</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">UTCTime</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Scheduler.html#TimedQueue"><span class="hs-identifier hs-type">TimedQueue</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679207490"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679207490"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Scheduler.html#TimedQueue"><span class="hs-identifier hs-type">TimedQueue</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679207490"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span><span>
 </span><span id="line-30"></span><span id="ready"><span class="annot"><span class="annottext">ready :: forall a. UTCTime -&gt; TimedQueue a -&gt; ([a], TimedQueue a)
-</span><a href="Scheduler.html#ready"><span class="hs-identifier hs-var hs-var">ready</span></a></span></span><span> </span><span id="local-6989586621679203293"><span class="annot"><span class="annottext">UTCTime
-</span><a href="#local-6989586621679203293"><span class="hs-identifier hs-var">now</span></a></span></span><span> </span><span id="local-6989586621679203292"><span class="annot"><span class="annottext">TimedQueue a
-</span><a href="#local-6989586621679203292"><span class="hs-identifier hs-var">tq</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall (t :: * -&gt; *) m. (Foldable t, Monoid m) =&gt; t m -&gt; m
+</span><a href="Scheduler.html#ready"><span class="hs-identifier hs-var hs-var">ready</span></a></span></span><span> </span><span id="local-6989586621679207702"><span class="annot"><span class="annottext">UTCTime
+</span><a href="#local-6989586621679207702"><span class="hs-identifier hs-var">now</span></a></span></span><span> </span><span id="local-6989586621679207703"><span class="annot"><span class="annottext">TimedQueue a
+</span><a href="#local-6989586621679207703"><span class="hs-identifier hs-var">tq</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">TimedQueue a -&gt; [a]
+forall m. Monoid m =&gt; Map QueueID m -&gt; m
+forall (t :: * -&gt; *) m. (Foldable t, Monoid m) =&gt; t m -&gt; m
 </span><span class="hs-identifier hs-var">fold</span></span><span> </span><span class="annot"><span class="annottext">TimedQueue a
-</span><a href="#local-6989586621679203291"><span class="hs-identifier hs-var">rm</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Semigroup a =&gt; a -&gt; a -&gt; a
-</span><span class="hs-operator hs-var">&lt;&gt;</span></span><span> </span><span class="annot"><span class="annottext">forall a. a -&gt; Maybe a -&gt; a
+</span><a href="#local-6989586621679207704"><span class="hs-identifier hs-var">rm</span></a></span><span> </span><span class="annot"><span class="annottext">[a] -&gt; [a] -&gt; [a]
+forall a. Semigroup a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">&lt;&gt;</span></span><span> </span><span class="annot"><span class="annottext">[a] -&gt; Maybe [a] -&gt; [a]
+forall a. a -&gt; Maybe a -&gt; a
 </span><span class="hs-identifier hs-var">fromMaybe</span></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span> </span><span class="annot"><span class="annottext">Maybe [a]
-</span><a href="#local-6989586621679203290"><span class="hs-identifier hs-var">mm</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">TimedQueue a
-</span><a href="#local-6989586621679203289"><span class="hs-identifier hs-var">q</span></a></span><span class="hs-special">)</span><span>
+</span><a href="#local-6989586621679207705"><span class="hs-identifier hs-var">mm</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">TimedQueue a
+</span><a href="#local-6989586621679207706"><span class="hs-identifier hs-var">q</span></a></span><span class="hs-special">)</span><span>
 </span><span id="line-31"></span><span>  </span><span class="hs-keyword">where</span><span>
-</span><span id="line-32"></span><span>    </span><span class="hs-special">(</span><span id="local-6989586621679203291"><span class="annot"><span class="annottext">TimedQueue a
-</span><a href="#local-6989586621679203291"><span class="hs-identifier hs-var">rm</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679203290"><span class="annot"><span class="annottext">Maybe [a]
-</span><a href="#local-6989586621679203290"><span class="hs-identifier hs-var">mm</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679203289"><span class="annot"><span class="annottext">TimedQueue a
-</span><a href="#local-6989586621679203289"><span class="hs-identifier hs-var">q</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall k a. Ord k =&gt; k -&gt; Map k a -&gt; (Map k a, Maybe a, Map k a)
+</span><span id="line-32"></span><span>    </span><span class="hs-special">(</span><span id="local-6989586621679207704"><span class="annot"><span class="annottext">TimedQueue a
+</span><a href="#local-6989586621679207704"><span class="hs-identifier hs-var">rm</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679207705"><span class="annot"><span class="annottext">Maybe [a]
+</span><a href="#local-6989586621679207705"><span class="hs-identifier hs-var">mm</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679207706"><span class="annot"><span class="annottext">TimedQueue a
+</span><a href="#local-6989586621679207706"><span class="hs-identifier hs-var">q</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">QueueID -&gt; TimedQueue a -&gt; (TimedQueue a, Maybe [a], TimedQueue a)
+forall k a. Ord k =&gt; k -&gt; Map k a -&gt; (Map k a, Maybe a, Map k a)
 </span><span class="hs-identifier hs-var">Map.splitLookup</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">UTCTime -&gt; Int -&gt; QueueID
 </span><a href="Scheduler.html#QueueID"><span class="hs-identifier hs-var">QueueID</span></a></span><span> </span><span class="annot"><span class="annottext">UTCTime
-</span><a href="#local-6989586621679203293"><span class="hs-identifier hs-var">now</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679207702"><span class="hs-identifier hs-var">now</span></a></span><span> </span><span class="annot"><span class="annottext">Int
 </span><span class="hs-number">0</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">TimedQueue a
-</span><a href="#local-6989586621679203292"><span class="hs-identifier hs-var">tq</span></a></span><span>
+</span><a href="#local-6989586621679207703"><span class="hs-identifier hs-var">tq</span></a></span><span>
 </span><span id="line-33"></span><span>
-</span><span id="line-34"></span><span id="local-6989586621679203495"><span class="annot"><a href="Scheduler.html#next"><span class="hs-identifier hs-type">next</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Scheduler.html#TimedQueue"><span class="hs-identifier hs-type">TimedQueue</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679203495"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">UTCTime</span></span></span><span>
+</span><span id="line-34"></span><span id="local-6989586621679207500"><span class="annot"><a href="Scheduler.html#next"><span class="hs-identifier hs-type">next</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Scheduler.html#TimedQueue"><span class="hs-identifier hs-type">TimedQueue</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679207500"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">UTCTime</span></span></span><span>
 </span><span id="line-35"></span><span id="next"><span class="annot"><span class="annottext">next :: forall a. TimedQueue a -&gt; Maybe UTCTime
-</span><a href="Scheduler.html#next"><span class="hs-identifier hs-var hs-var">next</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><a href="Scheduler.html#next"><span class="hs-identifier hs-var hs-var">next</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">((QueueID, [a]) -&gt; UTCTime)
+-&gt; Maybe (QueueID, [a]) -&gt; Maybe UTCTime
+forall a b. (a -&gt; b) -&gt; Maybe a -&gt; Maybe b
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
 </span><span class="hs-identifier hs-var">fmap</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">QueueID -&gt; UTCTime
-</span><a href="Scheduler.html#_qidT"><span class="hs-identifier hs-var">_qidT</span></a></span><span> </span><span class="annot"><span class="annottext">forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
-</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a, b) -&gt; a
-</span><span class="hs-identifier hs-var">fst</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
-</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">forall k a. Map k a -&gt; Maybe (k, a)
+</span><a href="Scheduler.html#_qidT"><span class="hs-identifier hs-var">_qidT</span></a></span><span> </span><span class="annot"><span class="annottext">(QueueID -&gt; UTCTime)
+-&gt; ((QueueID, [a]) -&gt; QueueID) -&gt; (QueueID, [a]) -&gt; UTCTime
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">(QueueID, [a]) -&gt; QueueID
+forall a b. (a, b) -&gt; a
+</span><span class="hs-identifier hs-var">fst</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(Maybe (QueueID, [a]) -&gt; Maybe UTCTime)
+-&gt; (TimedQueue a -&gt; Maybe (QueueID, [a]))
+-&gt; TimedQueue a
+-&gt; Maybe UTCTime
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">TimedQueue a -&gt; Maybe (QueueID, [a])
+forall k a. Map k a -&gt; Maybe (k, a)
 </span><span class="hs-identifier hs-var">Map.lookupMin</span></span><span>
 </span><span id="line-36"></span><span>
 </span><span id="line-37"></span><span class="hs-comment">-- The actual queue machination is below.</span><span>
 </span><span id="line-38"></span><span>
-</span><span id="line-39"></span><span class="hs-keyword">data</span><span> </span><span id="QueueRunner"><span class="annot"><a href="Scheduler.html#QueueRunner"><span class="hs-identifier hs-var">QueueRunner</span></a></span></span><span> </span><span id="local-6989586621679203483"><span class="annot"><a href="#local-6989586621679203483"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="QueueRunner"><span class="annot"><a href="Scheduler.html#QueueRunner"><span class="hs-identifier hs-var">QueueRunner</span></a></span></span><span> </span><span class="hs-special">{</span><span>
+</span><span id="line-39"></span><span class="hs-keyword">data</span><span> </span><span id="QueueRunner"><span class="annot"><a href="Scheduler.html#QueueRunner"><span class="hs-identifier hs-var">QueueRunner</span></a></span></span><span> </span><span id="local-6989586621679207512"><span class="annot"><a href="#local-6989586621679207512"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="QueueRunner"><span class="annot"><a href="Scheduler.html#QueueRunner"><span class="hs-identifier hs-var">QueueRunner</span></a></span></span><span> </span><span class="hs-special">{</span><span>
 </span><span id="line-40"></span><span>  </span><span id="_tq"><span class="annot"><span class="annottext">forall a. QueueRunner a -&gt; TVar (TimedQueue a)
-</span><a href="Scheduler.html#_tq"><span class="hs-identifier hs-var hs-var">_tq</span></a></span></span><span>   </span><span class="hs-glyph">::</span><span> </span><span class="hs-glyph">!</span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">TVar</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Scheduler.html#TimedQueue"><span class="hs-identifier hs-type">TimedQueue</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679203483"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span class="hs-special">,</span><span>
+</span><a href="Scheduler.html#_tq"><span class="hs-identifier hs-var hs-var">_tq</span></a></span></span><span>   </span><span class="hs-glyph">::</span><span> </span><span class="hs-glyph">!</span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">TVar</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Scheduler.html#TimedQueue"><span class="hs-identifier hs-type">TimedQueue</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679207512"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span class="hs-special">,</span><span>
 </span><span id="line-41"></span><span>  </span><span id="_ider"><span class="annot"><span class="annottext">forall a. QueueRunner a -&gt; TVar Int
 </span><a href="Scheduler.html#_ider"><span class="hs-identifier hs-var hs-var">_ider</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-glyph">!</span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">TVar</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span class="hs-special">)</span><span>
 </span><span id="line-42"></span><span>  </span><span class="hs-special">}</span><span>
 </span><span id="line-43"></span><span>
-</span><span id="line-44"></span><span id="local-6989586621679203476"><span id="local-6989586621679203478"><span class="annot"><a href="Scheduler.html#newRunner"><span class="hs-identifier hs-type">newRunner</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MonadIO</span></span><span> </span><span class="annot"><a href="#local-6989586621679203478"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679203478"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Scheduler.html#QueueRunner"><span class="hs-identifier hs-type">QueueRunner</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679203476"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span></span><span>
+</span><span id="line-44"></span><span id="local-6989586621679207517"><span id="local-6989586621679207519"><span class="annot"><a href="Scheduler.html#newRunner"><span class="hs-identifier hs-type">newRunner</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MonadIO</span></span><span> </span><span class="annot"><a href="#local-6989586621679207517"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679207517"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Scheduler.html#QueueRunner"><span class="hs-identifier hs-type">QueueRunner</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679207519"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span></span><span>
 </span><span id="line-45"></span><span id="newRunner"><span class="annot"><span class="annottext">newRunner :: forall (m :: * -&gt; *) a. MonadIO m =&gt; m (QueueRunner a)
-</span><a href="Scheduler.html#newRunner"><span class="hs-identifier hs-var hs-var">newRunner</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a. TVar (TimedQueue a) -&gt; TVar Int -&gt; QueueRunner a
-</span><a href="Scheduler.html#QueueRunner"><span class="hs-identifier hs-var">QueueRunner</span></a></span><span> </span><span class="annot"><span class="annottext">forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
-</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. MonadIO m =&gt; IO a -&gt; m a
-</span><span class="hs-identifier hs-var">liftIO</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a. a -&gt; IO (TVar a)
-</span><span class="hs-identifier hs-var">newTVarIO</span></span><span> </span><span class="annot"><span class="annottext">forall a. Monoid a =&gt; a
-</span><span class="hs-identifier hs-var">mempty</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">forall (f :: * -&gt; *) a b. Applicative f =&gt; f (a -&gt; b) -&gt; f a -&gt; f b
-</span><span class="hs-operator hs-var">&lt;*&gt;</span></span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. MonadIO m =&gt; IO a -&gt; m a
-</span><span class="hs-identifier hs-var">liftIO</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a. a -&gt; IO (TVar a)
+</span><a href="Scheduler.html#newRunner"><span class="hs-identifier hs-var hs-var">newRunner</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">TVar (TimedQueue a) -&gt; TVar Int -&gt; QueueRunner a
+forall a. TVar (TimedQueue a) -&gt; TVar Int -&gt; QueueRunner a
+</span><a href="Scheduler.html#QueueRunner"><span class="hs-identifier hs-var">QueueRunner</span></a></span><span> </span><span class="annot"><span class="annottext">(TVar (TimedQueue a) -&gt; TVar Int -&gt; QueueRunner a)
+-&gt; m (TVar (TimedQueue a)) -&gt; m (TVar Int -&gt; QueueRunner a)
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">IO (TVar (TimedQueue a)) -&gt; m (TVar (TimedQueue a))
+forall a. IO a -&gt; m a
+forall (m :: * -&gt; *) a. MonadIO m =&gt; IO a -&gt; m a
+</span><span class="hs-identifier hs-var">liftIO</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">TimedQueue a -&gt; IO (TVar (TimedQueue a))
+forall a. a -&gt; IO (TVar a)
+</span><span class="hs-identifier hs-var">newTVarIO</span></span><span> </span><span class="annot"><span class="annottext">TimedQueue a
+forall a. Monoid a =&gt; a
+</span><span class="hs-identifier hs-var">mempty</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">m (TVar Int -&gt; QueueRunner a) -&gt; m (TVar Int) -&gt; m (QueueRunner a)
+forall a b. m (a -&gt; b) -&gt; m a -&gt; m b
+forall (f :: * -&gt; *) a b. Applicative f =&gt; f (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;*&gt;</span></span><span> </span><span class="annot"><span class="annottext">IO (TVar Int) -&gt; m (TVar Int)
+forall a. IO a -&gt; m a
+forall (m :: * -&gt; *) a. MonadIO m =&gt; IO a -&gt; m a
+</span><span class="hs-identifier hs-var">liftIO</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int -&gt; IO (TVar Int)
+forall a. a -&gt; IO (TVar a)
 </span><span class="hs-identifier hs-var">newTVarIO</span></span><span> </span><span class="annot"><span class="annottext">Int
 </span><span class="hs-number">0</span></span><span class="hs-special">)</span><span>
 </span><span id="line-46"></span><span>
-</span><span id="line-47"></span><span id="local-6989586621679203458"><span id="local-6989586621679203460"><span class="annot"><a href="Scheduler.html#enqueue"><span class="hs-identifier hs-type">enqueue</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="MQTTD.Stats.html#HasStats"><span class="hs-identifier hs-type">HasStats</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679203460"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Ord</span></span><span> </span><span class="annot"><a href="#local-6989586621679203458"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MonadIO</span></span><span> </span><span class="annot"><a href="#local-6989586621679203460"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">UTCTime</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679203458"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Scheduler.html#QueueRunner"><span class="hs-identifier hs-type">QueueRunner</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679203458"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679203460"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="Scheduler.html#QueueID"><span class="hs-identifier hs-type">QueueID</span></a></span></span></span><span>
+</span><span id="line-47"></span><span id="local-6989586621679207535"><span id="local-6989586621679207537"><span class="annot"><a href="Scheduler.html#enqueue"><span class="hs-identifier hs-type">enqueue</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="MQTTD.Stats.html#HasStats"><span class="hs-identifier hs-type">HasStats</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679207535"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Ord</span></span><span> </span><span class="annot"><a href="#local-6989586621679207537"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MonadIO</span></span><span> </span><span class="annot"><a href="#local-6989586621679207535"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">UTCTime</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679207537"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Scheduler.html#QueueRunner"><span class="hs-identifier hs-type">QueueRunner</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679207537"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679207535"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="Scheduler.html#QueueID"><span class="hs-identifier hs-type">QueueID</span></a></span></span></span><span>
 </span><span id="line-48"></span><span id="enqueue"><span class="annot"><span class="annottext">enqueue :: forall (m :: * -&gt; *) a.
 (HasStats m, Ord a, MonadIO m) =&gt;
 UTCTime -&gt; a -&gt; QueueRunner a -&gt; m QueueID
-</span><a href="Scheduler.html#enqueue"><span class="hs-identifier hs-var hs-var">enqueue</span></a></span></span><span> </span><span id="local-6989586621679203254"><span class="annot"><span class="annottext">UTCTime
-</span><a href="#local-6989586621679203254"><span class="hs-identifier hs-var">t</span></a></span></span><span> </span><span id="local-6989586621679203253"><span class="annot"><span class="annottext">a
-</span><a href="#local-6989586621679203253"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="local-6989586621679203252"><span class="annot"><span class="annottext">QueueRunner a
-</span><a href="#local-6989586621679203252"><span class="hs-identifier hs-var">qr</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *). HasStats m =&gt; m StatStore
-</span><a href="MQTTD.Stats.html#statStore"><span class="hs-identifier hs-var">statStore</span></a></span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a b. Monad m =&gt; m a -&gt; (a -&gt; m b) -&gt; m b
-</span><span class="hs-operator hs-var">&gt;&gt;=</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621679203250"><span class="annot"><span class="annottext">StatStore
-</span><a href="#local-6989586621679203250"><span class="hs-identifier hs-var">ss</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. MonadIO m =&gt; STM a -&gt; m a
-</span><span class="hs-identifier hs-var">atomically</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
-</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall a.
+</span><a href="Scheduler.html#enqueue"><span class="hs-identifier hs-var hs-var">enqueue</span></a></span></span><span> </span><span id="local-6989586621679207742"><span class="annot"><span class="annottext">UTCTime
+</span><a href="#local-6989586621679207742"><span class="hs-identifier hs-var">t</span></a></span></span><span> </span><span id="local-6989586621679207743"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679207743"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="local-6989586621679207744"><span class="annot"><span class="annottext">QueueRunner a
+</span><a href="#local-6989586621679207744"><span class="hs-identifier hs-var">qr</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">m StatStore
+forall (m :: * -&gt; *). HasStats m =&gt; m StatStore
+</span><a href="MQTTD.Stats.html#statStore"><span class="hs-identifier hs-var">statStore</span></a></span><span> </span><span class="annot"><span class="annottext">m StatStore -&gt; (StatStore -&gt; m QueueID) -&gt; m QueueID
+forall a b. m a -&gt; (a -&gt; m b) -&gt; m b
+forall (m :: * -&gt; *) a b. Monad m =&gt; m a -&gt; (a -&gt; m b) -&gt; m b
+</span><span class="hs-operator hs-var">&gt;&gt;=</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621679207746"><span class="annot"><span class="annottext">StatStore
+</span><a href="#local-6989586621679207746"><span class="hs-identifier hs-var">ss</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">STM QueueID -&gt; m QueueID
+forall (m :: * -&gt; *) a. MonadIO m =&gt; STM a -&gt; m a
+</span><span class="hs-identifier hs-var">atomically</span></span><span> </span><span class="annot"><span class="annottext">(STM QueueID -&gt; m QueueID) -&gt; STM QueueID -&gt; m QueueID
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">StatStore -&gt; UTCTime -&gt; a -&gt; QueueRunner a -&gt; STM QueueID
+forall a.
 Ord a =&gt;
 StatStore -&gt; UTCTime -&gt; a -&gt; QueueRunner a -&gt; STM QueueID
 </span><a href="Scheduler.html#enqueueSTM"><span class="hs-identifier hs-var">enqueueSTM</span></a></span><span> </span><span class="annot"><span class="annottext">StatStore
-</span><a href="#local-6989586621679203250"><span class="hs-identifier hs-var">ss</span></a></span><span> </span><span class="annot"><span class="annottext">UTCTime
-</span><a href="#local-6989586621679203254"><span class="hs-identifier hs-var">t</span></a></span><span> </span><span class="annot"><span class="annottext">a
-</span><a href="#local-6989586621679203253"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">QueueRunner a
-</span><a href="#local-6989586621679203252"><span class="hs-identifier hs-var">qr</span></a></span><span>
+</span><a href="#local-6989586621679207746"><span class="hs-identifier hs-var">ss</span></a></span><span> </span><span class="annot"><span class="annottext">UTCTime
+</span><a href="#local-6989586621679207742"><span class="hs-identifier hs-var">t</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679207743"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">QueueRunner a
+</span><a href="#local-6989586621679207744"><span class="hs-identifier hs-var">qr</span></a></span><span>
 </span><span id="line-49"></span><span>
-</span><span id="line-50"></span><span id="local-6989586621679203445"><span class="annot"><a href="Scheduler.html#enqueueSTM"><span class="hs-identifier hs-type">enqueueSTM</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Ord</span></span><span> </span><span class="annot"><a href="#local-6989586621679203445"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="MQTTD.Stats.html#StatStore"><span class="hs-identifier hs-type">StatStore</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">UTCTime</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679203445"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Scheduler.html#QueueRunner"><span class="hs-identifier hs-type">QueueRunner</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679203445"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">STM</span></span><span> </span><span class="annot"><a href="Scheduler.html#QueueID"><span class="hs-identifier hs-type">QueueID</span></a></span></span><span>
+</span><span id="line-50"></span><span id="local-6989586621679207550"><span class="annot"><a href="Scheduler.html#enqueueSTM"><span class="hs-identifier hs-type">enqueueSTM</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Ord</span></span><span> </span><span class="annot"><a href="#local-6989586621679207550"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="MQTTD.Stats.html#StatStore"><span class="hs-identifier hs-type">StatStore</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">UTCTime</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679207550"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Scheduler.html#QueueRunner"><span class="hs-identifier hs-type">QueueRunner</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679207550"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">STM</span></span><span> </span><span class="annot"><a href="Scheduler.html#QueueID"><span class="hs-identifier hs-type">QueueID</span></a></span></span><span>
 </span><span id="line-51"></span><span id="enqueueSTM"><span class="annot"><span class="annottext">enqueueSTM :: forall a.
 Ord a =&gt;
 StatStore -&gt; UTCTime -&gt; a -&gt; QueueRunner a -&gt; STM QueueID
-</span><a href="Scheduler.html#enqueueSTM"><span class="hs-identifier hs-var hs-var">enqueueSTM</span></a></span></span><span> </span><span id="local-6989586621679203239"><span class="annot"><span class="annottext">StatStore
-</span><a href="#local-6989586621679203239"><span class="hs-identifier hs-var">ss</span></a></span></span><span> </span><span id="local-6989586621679203238"><span class="annot"><span class="annottext">UTCTime
-</span><a href="#local-6989586621679203238"><span class="hs-identifier hs-var">t</span></a></span></span><span> </span><span id="local-6989586621679203237"><span class="annot"><span class="annottext">a
-</span><a href="#local-6989586621679203237"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span class="annot"><a href="Scheduler.html#QueueRunner"><span class="hs-identifier hs-type">QueueRunner</span></a></span><span class="hs-special">{</span><span id="local-6989586621679203235"><span id="local-6989586621679203236"><span class="annot"><span class="annottext">TVar Int
+</span><a href="Scheduler.html#enqueueSTM"><span class="hs-identifier hs-var hs-var">enqueueSTM</span></a></span></span><span> </span><span id="local-6989586621679207757"><span class="annot"><span class="annottext">StatStore
+</span><a href="#local-6989586621679207757"><span class="hs-identifier hs-var">ss</span></a></span></span><span> </span><span id="local-6989586621679207758"><span class="annot"><span class="annottext">UTCTime
+</span><a href="#local-6989586621679207758"><span class="hs-identifier hs-var">t</span></a></span></span><span> </span><span id="local-6989586621679207759"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679207759"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span class="annot"><a href="Scheduler.html#QueueRunner"><span class="hs-identifier hs-type">QueueRunner</span></a></span><span class="hs-special">{</span><span id="local-6989586621679207760"><span id="local-6989586621679207761"><span class="annot"><span class="annottext">TVar Int
 TVar (TimedQueue a)
-_ider :: TVar Int
-_tq :: TVar (TimedQueue a)
-_ider :: forall a. QueueRunner a -&gt; TVar Int
 _tq :: forall a. QueueRunner a -&gt; TVar (TimedQueue a)
-</span><a href="#local-6989586621679203235"><span class="hs-glyph hs-var hs-var hs-var hs-var">..</span></a></span></span></span><span class="hs-special">}</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+_ider :: forall a. QueueRunner a -&gt; TVar Int
+_tq :: TVar (TimedQueue a)
+_ider :: TVar Int
+</span><a href="Scheduler.html#_tq"><span class="hs-glyph hs-var hs-var hs-var hs-var">..</span></a></span></span></span><span class="hs-special">}</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
 </span><span id="line-52"></span><span>  </span><span class="annot"><span class="annottext">StatKey -&gt; Int -&gt; StatStore -&gt; STM ()
 </span><a href="MQTTD.Stats.html#incrementStatSTM"><span class="hs-identifier hs-var">incrementStatSTM</span></a></span><span> </span><span class="annot"><span class="annottext">StatKey
 </span><a href="MQTTD.Stats.html#StatsActionQueued"><span class="hs-identifier hs-var">StatsActionQueued</span></a></span><span> </span><span class="annot"><span class="annottext">Int
 </span><span class="hs-number">1</span></span><span> </span><span class="annot"><span class="annottext">StatStore
-</span><a href="#local-6989586621679203239"><span class="hs-identifier hs-var">ss</span></a></span><span>
-</span><span id="line-53"></span><span>  </span><span id="local-6989586621679203232"><span class="annot"><span class="annottext">Int
-</span><a href="#local-6989586621679203232"><span class="hs-identifier hs-var">nextId</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">forall a. TVar a -&gt; (a -&gt; a) -&gt; STM a
+</span><a href="#local-6989586621679207757"><span class="hs-identifier hs-var">ss</span></a></span><span>
+</span><span id="line-53"></span><span>  </span><span id="local-6989586621679207764"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679207764"><span class="hs-identifier hs-var">nextId</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">TVar Int -&gt; (Int -&gt; Int) -&gt; STM Int
+forall a. TVar a -&gt; (a -&gt; a) -&gt; STM a
 </span><a href="MQTTD.Util.html#modifyTVarRet"><span class="hs-identifier hs-var">modifyTVarRet</span></a></span><span> </span><span class="annot"><span class="annottext">TVar Int
-</span><a href="#local-6989586621679203235"><span class="hs-identifier hs-var">_ider</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Enum a =&gt; a -&gt; a
+</span><a href="#local-6989586621679207761"><span class="hs-identifier hs-var">_ider</span></a></span><span> </span><span class="annot"><span class="annottext">Int -&gt; Int
+forall a. Enum a =&gt; a -&gt; a
 </span><span class="hs-identifier hs-var">succ</span></span><span>
-</span><span id="line-54"></span><span>  </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679203229"><span class="annot"><span class="annottext">k :: QueueID
-</span><a href="#local-6989586621679203229"><span class="hs-identifier hs-var hs-var">k</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">UTCTime -&gt; Int -&gt; QueueID
+</span><span id="line-54"></span><span>  </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679207767"><span class="annot"><span class="annottext">k :: QueueID
+</span><a href="#local-6989586621679207767"><span class="hs-identifier hs-var hs-var">k</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">UTCTime -&gt; Int -&gt; QueueID
 </span><a href="Scheduler.html#QueueID"><span class="hs-identifier hs-var">QueueID</span></a></span><span> </span><span class="annot"><span class="annottext">UTCTime
-</span><a href="#local-6989586621679203238"><span class="hs-identifier hs-var">t</span></a></span><span> </span><span class="annot"><span class="annottext">Int
-</span><a href="#local-6989586621679203232"><span class="hs-identifier hs-var">nextId</span></a></span><span>
-</span><span id="line-55"></span><span>  </span><span class="annot"><span class="annottext">forall a. TVar a -&gt; (a -&gt; a) -&gt; STM ()
+</span><a href="#local-6989586621679207758"><span class="hs-identifier hs-var">t</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679207764"><span class="hs-identifier hs-var">nextId</span></a></span><span>
+</span><span id="line-55"></span><span>  </span><span class="annot"><span class="annottext">TVar (TimedQueue a) -&gt; (TimedQueue a -&gt; TimedQueue a) -&gt; STM ()
+forall a. TVar a -&gt; (a -&gt; a) -&gt; STM ()
 </span><span class="hs-identifier hs-var">modifyTVar'</span></span><span> </span><span class="annot"><span class="annottext">TVar (TimedQueue a)
-</span><a href="#local-6989586621679203236"><span class="hs-identifier hs-var">_tq</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a. Ord a =&gt; QueueID -&gt; a -&gt; TimedQueue a -&gt; TimedQueue a
+</span><a href="#local-6989586621679207760"><span class="hs-identifier hs-var">_tq</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">QueueID -&gt; a -&gt; TimedQueue a -&gt; TimedQueue a
+forall a. Ord a =&gt; QueueID -&gt; a -&gt; TimedQueue a -&gt; TimedQueue a
 </span><a href="Scheduler.html#add"><span class="hs-identifier hs-var">add</span></a></span><span> </span><span class="annot"><span class="annottext">QueueID
-</span><a href="#local-6989586621679203229"><span class="hs-identifier hs-var">k</span></a></span><span> </span><span class="annot"><span class="annottext">a
-</span><a href="#local-6989586621679203237"><span class="hs-identifier hs-var">a</span></a></span><span class="hs-special">)</span><span>
-</span><span id="line-56"></span><span>  </span><span class="annot"><span class="annottext">forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><a href="#local-6989586621679207767"><span class="hs-identifier hs-var">k</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679207759"><span class="hs-identifier hs-var">a</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-56"></span><span>  </span><span class="annot"><span class="annottext">QueueID -&gt; STM QueueID
+forall a. a -&gt; STM a
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
 </span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">QueueID
-</span><a href="#local-6989586621679203229"><span class="hs-identifier hs-var">k</span></a></span><span>
+</span><a href="#local-6989586621679207767"><span class="hs-identifier hs-var">k</span></a></span><span>
 </span><span id="line-57"></span><span>
-</span><span id="line-58"></span><span id="local-6989586621679203438"><span class="annot"><a href="Scheduler.html#cancelSTM"><span class="hs-identifier hs-type">cancelSTM</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Ord</span></span><span> </span><span class="annot"><a href="#local-6989586621679203438"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="MQTTD.Stats.html#StatStore"><span class="hs-identifier hs-type">StatStore</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Scheduler.html#QueueID"><span class="hs-identifier hs-type">QueueID</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Scheduler.html#QueueRunner"><span class="hs-identifier hs-type">QueueRunner</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679203438"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">STM</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span></span><span>
+</span><span id="line-58"></span><span id="local-6989586621679207557"><span class="annot"><a href="Scheduler.html#cancelSTM"><span class="hs-identifier hs-type">cancelSTM</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Ord</span></span><span> </span><span class="annot"><a href="#local-6989586621679207557"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="MQTTD.Stats.html#StatStore"><span class="hs-identifier hs-type">StatStore</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Scheduler.html#QueueID"><span class="hs-identifier hs-type">QueueID</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Scheduler.html#QueueRunner"><span class="hs-identifier hs-type">QueueRunner</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679207557"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">STM</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span></span><span>
 </span><span id="line-59"></span><span id="cancelSTM"><span class="annot"><span class="annottext">cancelSTM :: forall a. Ord a =&gt; StatStore -&gt; QueueID -&gt; QueueRunner a -&gt; STM ()
-</span><a href="Scheduler.html#cancelSTM"><span class="hs-identifier hs-var hs-var">cancelSTM</span></a></span></span><span> </span><span id="local-6989586621679203225"><span class="annot"><span class="annottext">StatStore
-</span><a href="#local-6989586621679203225"><span class="hs-identifier hs-var">ss</span></a></span></span><span> </span><span id="local-6989586621679203224"><span class="annot"><span class="annottext">QueueID
-</span><a href="#local-6989586621679203224"><span class="hs-identifier hs-var">qid</span></a></span></span><span> </span><span class="annot"><a href="Scheduler.html#QueueRunner"><span class="hs-identifier hs-type">QueueRunner</span></a></span><span class="hs-special">{</span><span id="local-6989586621679203222"><span id="local-6989586621679203223"><span class="annot"><span class="annottext">TVar Int
+</span><a href="Scheduler.html#cancelSTM"><span class="hs-identifier hs-var hs-var">cancelSTM</span></a></span></span><span> </span><span id="local-6989586621679207771"><span class="annot"><span class="annottext">StatStore
+</span><a href="#local-6989586621679207771"><span class="hs-identifier hs-var">ss</span></a></span></span><span> </span><span id="local-6989586621679207772"><span class="annot"><span class="annottext">QueueID
+</span><a href="#local-6989586621679207772"><span class="hs-identifier hs-var">qid</span></a></span></span><span> </span><span class="annot"><a href="Scheduler.html#QueueRunner"><span class="hs-identifier hs-type">QueueRunner</span></a></span><span class="hs-special">{</span><span id="local-6989586621679207773"><span id="local-6989586621679207774"><span class="annot"><span class="annottext">TVar Int
 TVar (TimedQueue a)
-_ider :: TVar Int
-_tq :: TVar (TimedQueue a)
-_ider :: forall a. QueueRunner a -&gt; TVar Int
 _tq :: forall a. QueueRunner a -&gt; TVar (TimedQueue a)
-</span><a href="#local-6989586621679203222"><span class="hs-glyph hs-var hs-var hs-var hs-var">..</span></a></span></span></span><span class="hs-special">}</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+_ider :: forall a. QueueRunner a -&gt; TVar Int
+_tq :: TVar (TimedQueue a)
+_ider :: TVar Int
+</span><a href="Scheduler.html#_tq"><span class="hs-glyph hs-var hs-var hs-var hs-var">..</span></a></span></span></span><span class="hs-special">}</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
 </span><span id="line-60"></span><span>  </span><span class="annot"><span class="annottext">StatKey -&gt; Int -&gt; StatStore -&gt; STM ()
 </span><a href="MQTTD.Stats.html#incrementStatSTM"><span class="hs-identifier hs-var">incrementStatSTM</span></a></span><span> </span><span class="annot"><span class="annottext">StatKey
 </span><a href="MQTTD.Stats.html#StatsActionCanceled"><span class="hs-identifier hs-var">StatsActionCanceled</span></a></span><span> </span><span class="annot"><span class="annottext">Int
 </span><span class="hs-number">1</span></span><span> </span><span class="annot"><span class="annottext">StatStore
-</span><a href="#local-6989586621679203225"><span class="hs-identifier hs-var">ss</span></a></span><span>
-</span><span id="line-61"></span><span>  </span><span class="annot"><span class="annottext">forall a. TVar a -&gt; (a -&gt; a) -&gt; STM ()
+</span><a href="#local-6989586621679207771"><span class="hs-identifier hs-var">ss</span></a></span><span>
+</span><span id="line-61"></span><span>  </span><span class="annot"><span class="annottext">TVar (TimedQueue a) -&gt; (TimedQueue a -&gt; TimedQueue a) -&gt; STM ()
+forall a. TVar a -&gt; (a -&gt; a) -&gt; STM ()
 </span><span class="hs-identifier hs-var">modifyTVar'</span></span><span> </span><span class="annot"><span class="annottext">TVar (TimedQueue a)
-</span><a href="#local-6989586621679203223"><span class="hs-identifier hs-var">_tq</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall k a. Ord k =&gt; k -&gt; Map k a -&gt; Map k a
+</span><a href="#local-6989586621679207773"><span class="hs-identifier hs-var">_tq</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">QueueID -&gt; TimedQueue a -&gt; TimedQueue a
+forall k a. Ord k =&gt; k -&gt; Map k a -&gt; Map k a
 </span><span class="hs-identifier hs-var">Map.delete</span></span><span> </span><span class="annot"><span class="annottext">QueueID
-</span><a href="#local-6989586621679203224"><span class="hs-identifier hs-var">qid</span></a></span><span class="hs-special">)</span><span>
+</span><a href="#local-6989586621679207772"><span class="hs-identifier hs-var">qid</span></a></span><span class="hs-special">)</span><span>
 </span><span id="line-62"></span><span>
-</span><span id="line-63"></span><span class="hs-comment">-- | Run forever.</span><span>
-</span><span id="line-64"></span><span id="local-6989586621679203432"><span id="local-6989586621679203434"><span class="annot"><a href="Scheduler.html#run"><span class="hs-identifier hs-type">run</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="MQTTD.Stats.html#HasStats"><span class="hs-identifier hs-type">HasStats</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679203434"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MonadLogger</span></span><span> </span><span class="annot"><a href="#local-6989586621679203434"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MonadIO</span></span><span> </span><span class="annot"><a href="#local-6989586621679203434"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679203432"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679203434"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Scheduler.html#QueueRunner"><span class="hs-identifier hs-type">QueueRunner</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679203432"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679203434"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span></span></span><span>
+</span><span id="line-63"></span><span class="annot"><span class="hs-comment">-- | Run forever.</span></span><span>
+</span><span id="line-64"></span><span id="local-6989586621679207561"><span id="local-6989586621679207563"><span class="annot"><a href="Scheduler.html#run"><span class="hs-identifier hs-type">run</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="MQTTD.Stats.html#HasStats"><span class="hs-identifier hs-type">HasStats</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679207561"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MonadLogger</span></span><span> </span><span class="annot"><a href="#local-6989586621679207561"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MonadIO</span></span><span> </span><span class="annot"><a href="#local-6989586621679207561"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679207563"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679207561"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Scheduler.html#QueueRunner"><span class="hs-identifier hs-type">QueueRunner</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679207563"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679207561"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span></span></span><span>
 </span><span id="line-65"></span><span id="run"><span class="annot"><span class="annottext">run :: forall (m :: * -&gt; *) a.
 (HasStats m, MonadLogger m, MonadIO m) =&gt;
 (a -&gt; m ()) -&gt; QueueRunner a -&gt; m ()
-</span><a href="Scheduler.html#run"><span class="hs-identifier hs-var hs-var">run</span></a></span></span><span> </span><span id="local-6989586621679203209"><span class="annot"><span class="annottext">a -&gt; m ()
-</span><a href="#local-6989586621679203209"><span class="hs-identifier hs-var">action</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall (f :: * -&gt; *) a b. Applicative f =&gt; f a -&gt; f b
-</span><span class="hs-identifier hs-var">forever</span></span><span> </span><span class="annot"><span class="annottext">forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
-</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a.
+</span><a href="Scheduler.html#run"><span class="hs-identifier hs-var hs-var">run</span></a></span></span><span> </span><span id="local-6989586621679207787"><span class="annot"><span class="annottext">a -&gt; m ()
+</span><a href="#local-6989586621679207787"><span class="hs-identifier hs-var">action</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">m () -&gt; m ()
+forall (f :: * -&gt; *) a b. Applicative f =&gt; f a -&gt; f b
+</span><span class="hs-identifier hs-var">forever</span></span><span> </span><span class="annot"><span class="annottext">(m () -&gt; m ()) -&gt; (QueueRunner a -&gt; m ()) -&gt; QueueRunner a -&gt; m ()
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Clock -&gt; (a -&gt; m ()) -&gt; QueueRunner a -&gt; m ()
+forall (m :: * -&gt; *) a.
 (HasStats m, MonadLogger m, MonadIO m) =&gt;
 Clock -&gt; (a -&gt; m ()) -&gt; QueueRunner a -&gt; m ()
 </span><a href="Scheduler.html#runOnce"><span class="hs-identifier hs-var">runOnce</span></a></span><span> </span><span class="annot"><span class="annottext">Clock
 </span><a href="Scheduler.html#sysClock"><span class="hs-identifier hs-var">sysClock</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; m ()
-</span><a href="#local-6989586621679203209"><span class="hs-identifier hs-var">action</span></a></span><span>
+</span><a href="#local-6989586621679207787"><span class="hs-identifier hs-var">action</span></a></span><span>
 </span><span id="line-66"></span><span>
 </span><span id="line-67"></span><span class="hs-keyword">data</span><span> </span><span id="Clock"><span class="annot"><a href="Scheduler.html#Clock"><span class="hs-identifier hs-var">Clock</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="Clock"><span class="annot"><a href="Scheduler.html#Clock"><span class="hs-identifier hs-var">Clock</span></a></span></span><span> </span><span class="hs-special">{</span><span>
 </span><span id="line-68"></span><span>  </span><span id="getTime"><span class="annot"><span class="annottext">Clock -&gt; IO UTCTime
@@ -245,181 +306,237 @@ Clock -&gt; (a -&gt; m ()) -&gt; QueueRunner a -&gt; m ()
 </span><span class="hs-identifier hs-var">getCurrentTime</span></span><span> </span><span class="annot"><span class="annottext">Int -&gt; IO (TVar Bool)
 </span><span class="hs-identifier hs-var">registerDelay</span></span><span>
 </span><span id="line-74"></span><span>
-</span><span id="line-75"></span><span id="local-6989586621679203421"><span id="local-6989586621679203422"><span class="annot"><a href="Scheduler.html#blockUntilReady"><span class="hs-identifier hs-type">blockUntilReady</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MonadIO</span></span><span> </span><span class="annot"><a href="#local-6989586621679203422"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Scheduler.html#Clock"><span class="hs-identifier hs-type">Clock</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Scheduler.html#QueueRunner"><span class="hs-identifier hs-type">QueueRunner</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679203421"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679203422"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span></span></span><span>
+</span><span id="line-75"></span><span id="local-6989586621679207573"><span id="local-6989586621679207574"><span class="annot"><a href="Scheduler.html#blockUntilReady"><span class="hs-identifier hs-type">blockUntilReady</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MonadIO</span></span><span> </span><span class="annot"><a href="#local-6989586621679207573"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Scheduler.html#Clock"><span class="hs-identifier hs-type">Clock</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Scheduler.html#QueueRunner"><span class="hs-identifier hs-type">QueueRunner</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679207574"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679207573"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span></span></span><span>
 </span><span id="line-76"></span><span id="blockUntilReady"><span class="annot"><span class="annottext">blockUntilReady :: forall (m :: * -&gt; *) a. MonadIO m =&gt; Clock -&gt; QueueRunner a -&gt; m ()
-</span><a href="Scheduler.html#blockUntilReady"><span class="hs-identifier hs-var hs-var">blockUntilReady</span></a></span></span><span> </span><span class="annot"><a href="Scheduler.html#Clock"><span class="hs-identifier hs-type">Clock</span></a></span><span class="hs-special">{</span><span id="local-6989586621679203185"><span id="local-6989586621679203186"><span class="annot"><span class="annottext">IO UTCTime
+</span><a href="Scheduler.html#blockUntilReady"><span class="hs-identifier hs-var hs-var">blockUntilReady</span></a></span></span><span> </span><span class="annot"><a href="Scheduler.html#Clock"><span class="hs-identifier hs-type">Clock</span></a></span><span class="hs-special">{</span><span id="local-6989586621679207810"><span id="local-6989586621679207811"><span class="annot"><span class="annottext">IO UTCTime
 Int -&gt; IO (TVar Bool)
-delay :: Int -&gt; IO (TVar Bool)
-getTime :: IO UTCTime
-delay :: Clock -&gt; Int -&gt; IO (TVar Bool)
 getTime :: Clock -&gt; IO UTCTime
-</span><a href="#local-6989586621679203185"><span class="hs-glyph hs-var hs-var hs-var hs-var">..</span></a></span></span></span><span class="hs-special">}</span><span> </span><span class="annot"><a href="Scheduler.html#QueueRunner"><span class="hs-identifier hs-type">QueueRunner</span></a></span><span class="hs-special">{</span><span id="local-6989586621679203183"><span id="local-6989586621679203184"><span class="annot"><span class="annottext">TVar Int
+delay :: Clock -&gt; Int -&gt; IO (TVar Bool)
+getTime :: IO UTCTime
+delay :: Int -&gt; IO (TVar Bool)
+</span><a href="Scheduler.html#getTime"><span class="hs-glyph hs-var hs-var hs-var hs-var">..</span></a></span></span></span><span class="hs-special">}</span><span> </span><span class="annot"><a href="Scheduler.html#QueueRunner"><span class="hs-identifier hs-type">QueueRunner</span></a></span><span class="hs-special">{</span><span id="local-6989586621679207812"><span id="local-6989586621679207813"><span class="annot"><span class="annottext">TVar Int
 TVar (TimedQueue a)
-_ider :: TVar Int
-_tq :: TVar (TimedQueue a)
-_ider :: forall a. QueueRunner a -&gt; TVar Int
 _tq :: forall a. QueueRunner a -&gt; TVar (TimedQueue a)
-</span><a href="#local-6989586621679203183"><span class="hs-glyph hs-var hs-var hs-var hs-var">..</span></a></span></span></span><span class="hs-special">}</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. MonadIO m =&gt; IO a -&gt; m a
-</span><span class="hs-identifier hs-var">liftIO</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+_ider :: forall a. QueueRunner a -&gt; TVar Int
+_tq :: TVar (TimedQueue a)
+_ider :: TVar Int
+</span><a href="Scheduler.html#_tq"><span class="hs-glyph hs-var hs-var hs-var hs-var">..</span></a></span></span></span><span class="hs-special">}</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">IO () -&gt; m ()
+forall a. IO a -&gt; m a
+forall (m :: * -&gt; *) a. MonadIO m =&gt; IO a -&gt; m a
+</span><span class="hs-identifier hs-var">liftIO</span></span><span> </span><span class="annot"><span class="annottext">(IO () -&gt; m ()) -&gt; IO () -&gt; m ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
 </span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-keyword">do</span><span>
-</span><span id="line-77"></span><span>  </span><span id="local-6989586621679203182"><span class="annot"><span class="annottext">UTCTime
-</span><a href="#local-6989586621679203182"><span class="hs-identifier hs-var">now</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">IO UTCTime
-</span><a href="#local-6989586621679203186"><span class="hs-identifier hs-var">getTime</span></a></span><span>
-</span><span id="line-78"></span><span>  </span><span id="local-6989586621679203181"><span class="annot"><span class="annottext">Maybe UTCTime
-</span><a href="#local-6989586621679203181"><span class="hs-identifier hs-var">mnext</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. MonadIO m =&gt; STM a -&gt; m a
-</span><span class="hs-identifier hs-var">atomically</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a. TimedQueue a -&gt; Maybe UTCTime
-</span><a href="Scheduler.html#next"><span class="hs-identifier hs-var">next</span></a></span><span> </span><span class="annot"><span class="annottext">forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
-</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">forall a. TVar a -&gt; STM a
+</span><span id="line-77"></span><span>  </span><span id="local-6989586621679207814"><span class="annot"><span class="annottext">UTCTime
+</span><a href="#local-6989586621679207814"><span class="hs-identifier hs-var">now</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">IO UTCTime
+</span><a href="#local-6989586621679207810"><span class="hs-identifier hs-var">getTime</span></a></span><span>
+</span><span id="line-78"></span><span>  </span><span id="local-6989586621679207815"><span class="annot"><span class="annottext">Maybe UTCTime
+</span><a href="#local-6989586621679207815"><span class="hs-identifier hs-var">mnext</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">STM (Maybe UTCTime) -&gt; IO (Maybe UTCTime)
+forall (m :: * -&gt; *) a. MonadIO m =&gt; STM a -&gt; m a
+</span><span class="hs-identifier hs-var">atomically</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">TimedQueue a -&gt; Maybe UTCTime
+forall a. TimedQueue a -&gt; Maybe UTCTime
+</span><a href="Scheduler.html#next"><span class="hs-identifier hs-var">next</span></a></span><span> </span><span class="annot"><span class="annottext">(TimedQueue a -&gt; Maybe UTCTime)
+-&gt; STM (TimedQueue a) -&gt; STM (Maybe UTCTime)
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">TVar (TimedQueue a) -&gt; STM (TimedQueue a)
+forall a. TVar a -&gt; STM a
 </span><span class="hs-identifier hs-var">readTVar</span></span><span> </span><span class="annot"><span class="annottext">TVar (TimedQueue a)
-</span><a href="#local-6989586621679203184"><span class="hs-identifier hs-var">_tq</span></a></span><span class="hs-special">)</span><span>
-</span><span id="line-79"></span><span>  </span><span id="local-6989586621679203180"><span class="annot"><span class="annottext">TVar Bool
-</span><a href="#local-6989586621679203180"><span class="hs-identifier hs-var">timedOut</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">NominalDiffTime -&gt; Int
-</span><a href="Scheduler.html#diffTimeToMicros"><span class="hs-identifier hs-var">diffTimeToMicros</span></a></span><span> </span><span class="annot"><span class="annottext">forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><a href="#local-6989586621679207812"><span class="hs-identifier hs-var">_tq</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-79"></span><span>  </span><span id="local-6989586621679207816"><span class="annot"><span class="annottext">TVar Bool
+</span><a href="#local-6989586621679207816"><span class="hs-identifier hs-var">timedOut</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">NominalDiffTime -&gt; Int
+</span><a href="Scheduler.html#diffTimeToMicros"><span class="hs-identifier hs-var">diffTimeToMicros</span></a></span><span> </span><span class="annot"><span class="annottext">(NominalDiffTime -&gt; Int)
+-&gt; (UTCTime -&gt; NominalDiffTime) -&gt; UTCTime -&gt; Int
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
 </span><span class="hs-operator hs-var">.</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">UTCTime -&gt; UTCTime -&gt; NominalDiffTime
 </span><span class="hs-operator hs-var">`diffUTCTime`</span></span><span> </span><span class="annot"><span class="annottext">UTCTime
-</span><a href="#local-6989586621679203182"><span class="hs-identifier hs-var">now</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><a href="#local-6989586621679207814"><span class="hs-identifier hs-var">now</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(UTCTime -&gt; Int) -&gt; Maybe UTCTime -&gt; Maybe Int
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
 </span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">Maybe UTCTime
-</span><a href="#local-6989586621679203181"><span class="hs-identifier hs-var">mnext</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><a href="#local-6989586621679207815"><span class="hs-identifier hs-var">mnext</span></a></span><span> </span><span class="hs-keyword">of</span><span>
 </span><span id="line-80"></span><span>                </span><span class="annot"><span class="annottext">Maybe Int
-</span><span class="hs-identifier hs-var">Nothing</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">forall a. a -&gt; IO (TVar a)
+</span><span class="hs-identifier hs-var">Nothing</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Bool -&gt; IO (TVar Bool)
+forall a. a -&gt; IO (TVar a)
 </span><span class="hs-identifier hs-var">newTVarIO</span></span><span> </span><span class="annot"><span class="annottext">Bool
 </span><span class="hs-identifier hs-var">False</span></span><span>
-</span><span id="line-81"></span><span>                </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span id="local-6989586621679203178"><span class="annot"><span class="annottext">Int
-</span><a href="#local-6989586621679203178"><span class="hs-identifier hs-var">d</span></a></span></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Int -&gt; IO (TVar Bool)
-</span><a href="#local-6989586621679203185"><span class="hs-identifier hs-var">delay</span></a></span><span> </span><span class="annot"><span class="annottext">Int
-</span><a href="#local-6989586621679203178"><span class="hs-identifier hs-var">d</span></a></span><span>
-</span><span id="line-82"></span><span>  </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. MonadIO m =&gt; STM a -&gt; m a
-</span><span class="hs-identifier hs-var">atomically</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span id="line-81"></span><span>                </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span id="local-6989586621679207818"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679207818"><span class="hs-identifier hs-var">d</span></a></span></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Int -&gt; IO (TVar Bool)
+</span><a href="#local-6989586621679207811"><span class="hs-identifier hs-var">delay</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679207818"><span class="hs-identifier hs-var">d</span></a></span><span>
+</span><span id="line-82"></span><span>  </span><span class="annot"><span class="annottext">STM () -&gt; IO ()
+forall (m :: * -&gt; *) a. MonadIO m =&gt; STM a -&gt; m a
+</span><span class="hs-identifier hs-var">atomically</span></span><span> </span><span class="annot"><span class="annottext">(STM () -&gt; IO ()) -&gt; STM () -&gt; IO ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
 </span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Bool -&gt; STM ()
-</span><span class="hs-identifier hs-var">check</span></span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a b. Monad m =&gt; (a -&gt; m b) -&gt; m a -&gt; m b
-</span><span class="hs-operator hs-var">=&lt;&lt;</span></span><span> </span><span class="annot"><span class="annottext">forall a. TVar a -&gt; STM a
+</span><span class="hs-identifier hs-var">check</span></span><span> </span><span class="annot"><span class="annottext">(Bool -&gt; STM ()) -&gt; STM Bool -&gt; STM ()
+forall (m :: * -&gt; *) a b. Monad m =&gt; (a -&gt; m b) -&gt; m a -&gt; m b
+</span><span class="hs-operator hs-var">=&lt;&lt;</span></span><span> </span><span class="annot"><span class="annottext">TVar Bool -&gt; STM Bool
+forall a. TVar a -&gt; STM a
 </span><span class="hs-identifier hs-var">readTVar</span></span><span> </span><span class="annot"><span class="annottext">TVar Bool
-</span><a href="#local-6989586621679203180"><span class="hs-identifier hs-var">timedOut</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">forall a. STM a -&gt; STM a -&gt; STM a
+</span><a href="#local-6989586621679207816"><span class="hs-identifier hs-var">timedOut</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">STM () -&gt; STM () -&gt; STM ()
+forall a. STM a -&gt; STM a -&gt; STM a
 </span><span class="hs-operator hs-var">`orElse`</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Bool -&gt; STM ()
-</span><span class="hs-identifier hs-var">check</span></span><span> </span><span class="annot"><span class="annottext">forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
-</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-identifier hs-var">check</span></span><span> </span><span class="annot"><span class="annottext">(Bool -&gt; STM ())
+-&gt; (TimedQueue a -&gt; Bool) -&gt; TimedQueue a -&gt; STM ()
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Maybe UTCTime -&gt; Maybe UTCTime -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
 </span><span class="hs-operator hs-var">/=</span></span><span> </span><span class="annot"><span class="annottext">Maybe UTCTime
-</span><a href="#local-6989586621679203181"><span class="hs-identifier hs-var">mnext</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
-</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">forall a. TimedQueue a -&gt; Maybe UTCTime
-</span><a href="Scheduler.html#next"><span class="hs-identifier hs-var">next</span></a></span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a b. Monad m =&gt; (a -&gt; m b) -&gt; m a -&gt; m b
-</span><span class="hs-operator hs-var">=&lt;&lt;</span></span><span> </span><span class="annot"><span class="annottext">forall a. TVar a -&gt; STM a
+</span><a href="#local-6989586621679207815"><span class="hs-identifier hs-var">mnext</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(Maybe UTCTime -&gt; Bool)
+-&gt; (TimedQueue a -&gt; Maybe UTCTime) -&gt; TimedQueue a -&gt; Bool
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">TimedQueue a -&gt; Maybe UTCTime
+forall a. TimedQueue a -&gt; Maybe UTCTime
+</span><a href="Scheduler.html#next"><span class="hs-identifier hs-var">next</span></a></span><span> </span><span class="annot"><span class="annottext">(TimedQueue a -&gt; STM ()) -&gt; STM (TimedQueue a) -&gt; STM ()
+forall (m :: * -&gt; *) a b. Monad m =&gt; (a -&gt; m b) -&gt; m a -&gt; m b
+</span><span class="hs-operator hs-var">=&lt;&lt;</span></span><span> </span><span class="annot"><span class="annottext">TVar (TimedQueue a) -&gt; STM (TimedQueue a)
+forall a. TVar a -&gt; STM a
 </span><span class="hs-identifier hs-var">readTVar</span></span><span> </span><span class="annot"><span class="annottext">TVar (TimedQueue a)
-</span><a href="#local-6989586621679203184"><span class="hs-identifier hs-var">_tq</span></a></span><span class="hs-special">)</span><span>
+</span><a href="#local-6989586621679207812"><span class="hs-identifier hs-var">_tq</span></a></span><span class="hs-special">)</span><span>
 </span><span id="line-83"></span><span>
-</span><span id="line-84"></span><span id="local-6989586621679203410"><span id="local-6989586621679203411"><span class="annot"><a href="Scheduler.html#runReady"><span class="hs-identifier hs-type">runReady</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MonadIO</span></span><span> </span><span class="annot"><a href="#local-6989586621679203411"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Scheduler.html#Clock"><span class="hs-identifier hs-type">Clock</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679203410"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679203411"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Scheduler.html#QueueRunner"><span class="hs-identifier hs-type">QueueRunner</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679203410"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679203411"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679203410"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span></span></span><span>
+</span><span id="line-84"></span><span id="local-6989586621679207584"><span id="local-6989586621679207585"><span class="annot"><a href="Scheduler.html#runReady"><span class="hs-identifier hs-type">runReady</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MonadIO</span></span><span> </span><span class="annot"><a href="#local-6989586621679207584"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Scheduler.html#Clock"><span class="hs-identifier hs-type">Clock</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679207585"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679207584"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Scheduler.html#QueueRunner"><span class="hs-identifier hs-type">QueueRunner</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679207585"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679207584"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679207585"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span></span></span><span>
 </span><span id="line-85"></span><span id="runReady"><span class="annot"><span class="annottext">runReady :: forall (m :: * -&gt; *) a.
 MonadIO m =&gt;
 Clock -&gt; (a -&gt; m ()) -&gt; QueueRunner a -&gt; m [a]
-</span><a href="Scheduler.html#runReady"><span class="hs-identifier hs-var hs-var">runReady</span></a></span></span><span> </span><span class="annot"><a href="Scheduler.html#Clock"><span class="hs-identifier hs-type">Clock</span></a></span><span class="hs-special">{</span><span id="local-6989586621679203157"><span id="local-6989586621679203158"><span class="annot"><span class="annottext">IO UTCTime
+</span><a href="Scheduler.html#runReady"><span class="hs-identifier hs-var hs-var">runReady</span></a></span></span><span> </span><span class="annot"><a href="Scheduler.html#Clock"><span class="hs-identifier hs-type">Clock</span></a></span><span class="hs-special">{</span><span id="local-6989586621679207838"><span id="local-6989586621679207839"><span class="annot"><span class="annottext">IO UTCTime
 Int -&gt; IO (TVar Bool)
-delay :: Int -&gt; IO (TVar Bool)
-getTime :: IO UTCTime
-delay :: Clock -&gt; Int -&gt; IO (TVar Bool)
 getTime :: Clock -&gt; IO UTCTime
-</span><a href="#local-6989586621679203157"><span class="hs-glyph hs-var hs-var hs-var hs-var">..</span></a></span></span></span><span class="hs-special">}</span><span> </span><span id="local-6989586621679203156"><span class="annot"><span class="annottext">a -&gt; m ()
-</span><a href="#local-6989586621679203156"><span class="hs-identifier hs-var">action</span></a></span></span><span> </span><span class="annot"><a href="Scheduler.html#QueueRunner"><span class="hs-identifier hs-type">QueueRunner</span></a></span><span class="hs-special">{</span><span id="local-6989586621679203154"><span id="local-6989586621679203155"><span class="annot"><span class="annottext">TVar Int
+delay :: Clock -&gt; Int -&gt; IO (TVar Bool)
+getTime :: IO UTCTime
+delay :: Int -&gt; IO (TVar Bool)
+</span><a href="Scheduler.html#getTime"><span class="hs-glyph hs-var hs-var hs-var hs-var">..</span></a></span></span></span><span class="hs-special">}</span><span> </span><span id="local-6989586621679207840"><span class="annot"><span class="annottext">a -&gt; m ()
+</span><a href="#local-6989586621679207840"><span class="hs-identifier hs-var">action</span></a></span></span><span> </span><span class="annot"><a href="Scheduler.html#QueueRunner"><span class="hs-identifier hs-type">QueueRunner</span></a></span><span class="hs-special">{</span><span id="local-6989586621679207841"><span id="local-6989586621679207842"><span class="annot"><span class="annottext">TVar Int
 TVar (TimedQueue a)
-_ider :: TVar Int
-_tq :: TVar (TimedQueue a)
-_ider :: forall a. QueueRunner a -&gt; TVar Int
 _tq :: forall a. QueueRunner a -&gt; TVar (TimedQueue a)
-</span><a href="#local-6989586621679203154"><span class="hs-glyph hs-var hs-var hs-var hs-var">..</span></a></span></span></span><span class="hs-special">}</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
-</span><span id="line-86"></span><span>  </span><span id="local-6989586621679203153"><span class="annot"><span class="annottext">UTCTime
-</span><a href="#local-6989586621679203153"><span class="hs-identifier hs-var">now</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. MonadIO m =&gt; IO a -&gt; m a
+_ider :: forall a. QueueRunner a -&gt; TVar Int
+_tq :: TVar (TimedQueue a)
+_ider :: TVar Int
+</span><a href="Scheduler.html#_tq"><span class="hs-glyph hs-var hs-var hs-var hs-var">..</span></a></span></span></span><span class="hs-special">}</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-86"></span><span>  </span><span id="local-6989586621679207843"><span class="annot"><span class="annottext">UTCTime
+</span><a href="#local-6989586621679207843"><span class="hs-identifier hs-var">now</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">IO UTCTime -&gt; m UTCTime
+forall a. IO a -&gt; m a
+forall (m :: * -&gt; *) a. MonadIO m =&gt; IO a -&gt; m a
 </span><span class="hs-identifier hs-var">liftIO</span></span><span> </span><span class="annot"><span class="annottext">IO UTCTime
-</span><a href="#local-6989586621679203158"><span class="hs-identifier hs-var">getTime</span></a></span><span>
-</span><span id="line-87"></span><span>  </span><span id="local-6989586621679203152"><span class="annot"><span class="annottext">[a]
-</span><a href="#local-6989586621679203152"><span class="hs-identifier hs-var">todo</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. MonadIO m =&gt; STM a -&gt; m a
-</span><span class="hs-identifier hs-var">atomically</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><a href="#local-6989586621679207838"><span class="hs-identifier hs-var">getTime</span></a></span><span>
+</span><span id="line-87"></span><span>  </span><span id="local-6989586621679207844"><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621679207844"><span class="hs-identifier hs-var">todo</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">STM [a] -&gt; m [a]
+forall (m :: * -&gt; *) a. MonadIO m =&gt; STM a -&gt; m a
+</span><span class="hs-identifier hs-var">atomically</span></span><span> </span><span class="annot"><span class="annottext">(STM [a] -&gt; m [a]) -&gt; STM [a] -&gt; m [a]
+forall a b. (a -&gt; b) -&gt; a -&gt; b
 </span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-keyword">do</span><span>
-</span><span id="line-88"></span><span>    </span><span class="hs-special">(</span><span id="local-6989586621679203151"><span class="annot"><span class="annottext">[a]
-</span><a href="#local-6989586621679203151"><span class="hs-identifier hs-var">todo</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679203150"><span class="annot"><span class="annottext">TimedQueue a
-</span><a href="#local-6989586621679203150"><span class="hs-identifier hs-var">nq</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">forall a. UTCTime -&gt; TimedQueue a -&gt; ([a], TimedQueue a)
+</span><span id="line-88"></span><span>    </span><span class="hs-special">(</span><span id="local-6989586621679207845"><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621679207845"><span class="hs-identifier hs-var">todo</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679207846"><span class="annot"><span class="annottext">TimedQueue a
+</span><a href="#local-6989586621679207846"><span class="hs-identifier hs-var">nq</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">UTCTime -&gt; TimedQueue a -&gt; ([a], TimedQueue a)
+forall a. UTCTime -&gt; TimedQueue a -&gt; ([a], TimedQueue a)
 </span><a href="Scheduler.html#ready"><span class="hs-identifier hs-var">ready</span></a></span><span> </span><span class="annot"><span class="annottext">UTCTime
-</span><a href="#local-6989586621679203153"><span class="hs-identifier hs-var">now</span></a></span><span> </span><span class="annot"><span class="annottext">forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
-</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">forall a. TVar a -&gt; STM a
+</span><a href="#local-6989586621679207843"><span class="hs-identifier hs-var">now</span></a></span><span> </span><span class="annot"><span class="annottext">(TimedQueue a -&gt; ([a], TimedQueue a))
+-&gt; STM (TimedQueue a) -&gt; STM ([a], TimedQueue a)
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">TVar (TimedQueue a) -&gt; STM (TimedQueue a)
+forall a. TVar a -&gt; STM a
 </span><span class="hs-identifier hs-var">readTVar</span></span><span> </span><span class="annot"><span class="annottext">TVar (TimedQueue a)
-</span><a href="#local-6989586621679203155"><span class="hs-identifier hs-var">_tq</span></a></span><span>
-</span><span id="line-89"></span><span>    </span><span class="annot"><span class="annottext">forall a. TVar a -&gt; a -&gt; STM ()
+</span><a href="#local-6989586621679207841"><span class="hs-identifier hs-var">_tq</span></a></span><span>
+</span><span id="line-89"></span><span>    </span><span class="annot"><span class="annottext">TVar (TimedQueue a) -&gt; TimedQueue a -&gt; STM ()
+forall a. TVar a -&gt; a -&gt; STM ()
 </span><span class="hs-identifier hs-var">writeTVar</span></span><span> </span><span class="annot"><span class="annottext">TVar (TimedQueue a)
-</span><a href="#local-6989586621679203155"><span class="hs-identifier hs-var">_tq</span></a></span><span> </span><span class="annot"><span class="annottext">TimedQueue a
-</span><a href="#local-6989586621679203150"><span class="hs-identifier hs-var">nq</span></a></span><span>
-</span><span id="line-90"></span><span>    </span><span class="annot"><span class="annottext">forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><a href="#local-6989586621679207841"><span class="hs-identifier hs-var">_tq</span></a></span><span> </span><span class="annot"><span class="annottext">TimedQueue a
+</span><a href="#local-6989586621679207846"><span class="hs-identifier hs-var">nq</span></a></span><span>
+</span><span id="line-90"></span><span>    </span><span class="annot"><span class="annottext">[a] -&gt; STM [a]
+forall a. a -&gt; STM a
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
 </span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">[a]
-</span><a href="#local-6989586621679203151"><span class="hs-identifier hs-var">todo</span></a></span><span>
-</span><span id="line-91"></span><span>  </span><span class="annot"><span class="annottext">forall (t :: * -&gt; *) (f :: * -&gt; *) a b.
+</span><a href="#local-6989586621679207845"><span class="hs-identifier hs-var">todo</span></a></span><span>
+</span><span id="line-91"></span><span>  </span><span class="annot"><span class="annottext">(a -&gt; m ()) -&gt; [a] -&gt; m ()
+forall (t :: * -&gt; *) (f :: * -&gt; *) a b.
 (Foldable t, Applicative f) =&gt;
 (a -&gt; f b) -&gt; t a -&gt; f ()
 </span><span class="hs-identifier hs-var">traverse_</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; m ()
-</span><a href="#local-6989586621679203156"><span class="hs-identifier hs-var">action</span></a></span><span> </span><span class="annot"><span class="annottext">[a]
-</span><a href="#local-6989586621679203152"><span class="hs-identifier hs-var">todo</span></a></span><span>
-</span><span id="line-92"></span><span>  </span><span class="annot"><span class="annottext">forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><a href="#local-6989586621679207840"><span class="hs-identifier hs-var">action</span></a></span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621679207844"><span class="hs-identifier hs-var">todo</span></a></span><span>
+</span><span id="line-92"></span><span>  </span><span class="annot"><span class="annottext">[a] -&gt; m [a]
+forall a. a -&gt; m a
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
 </span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">[a]
-</span><a href="#local-6989586621679203152"><span class="hs-identifier hs-var">todo</span></a></span><span>
+</span><a href="#local-6989586621679207844"><span class="hs-identifier hs-var">todo</span></a></span><span>
 </span><span id="line-93"></span><span>
 </span><span id="line-94"></span><span class="hs-comment">-- | Block until an item might be ready and then run (and remove) all</span><span>
 </span><span id="line-95"></span><span class="hs-comment">-- ready items.  This will sometimes run 0 items.  It shouldn't ever</span><span>
 </span><span id="line-96"></span><span class="hs-comment">-- run any items that are scheduled for the future, and it shouldn't</span><span>
 </span><span id="line-97"></span><span class="hs-comment">-- forget any items that are ready.</span><span>
-</span><span id="line-98"></span><span id="local-6989586621679203423"><span id="local-6989586621679203425"><span class="annot"><a href="Scheduler.html#runOnce"><span class="hs-identifier hs-type">runOnce</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="MQTTD.Stats.html#HasStats"><span class="hs-identifier hs-type">HasStats</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679203425"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MonadLogger</span></span><span> </span><span class="annot"><a href="#local-6989586621679203425"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MonadIO</span></span><span> </span><span class="annot"><a href="#local-6989586621679203425"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Scheduler.html#Clock"><span class="hs-identifier hs-type">Clock</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679203423"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679203425"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Scheduler.html#QueueRunner"><span class="hs-identifier hs-type">QueueRunner</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679203423"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679203425"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span></span></span><span>
+</span><span id="line-98"></span><span id="local-6989586621679207571"><span id="local-6989586621679207572"><span class="annot"><a href="Scheduler.html#runOnce"><span class="hs-identifier hs-type">runOnce</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="MQTTD.Stats.html#HasStats"><span class="hs-identifier hs-type">HasStats</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679207571"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MonadLogger</span></span><span> </span><span class="annot"><a href="#local-6989586621679207571"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MonadIO</span></span><span> </span><span class="annot"><a href="#local-6989586621679207571"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Scheduler.html#Clock"><span class="hs-identifier hs-type">Clock</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679207572"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679207571"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Scheduler.html#QueueRunner"><span class="hs-identifier hs-type">QueueRunner</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679207572"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679207571"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span></span></span><span>
 </span><span id="line-99"></span><span id="runOnce"><span class="annot"><span class="annottext">runOnce :: forall (m :: * -&gt; *) a.
 (HasStats m, MonadLogger m, MonadIO m) =&gt;
 Clock -&gt; (a -&gt; m ()) -&gt; QueueRunner a -&gt; m ()
-</span><a href="Scheduler.html#runOnce"><span class="hs-identifier hs-var hs-var">runOnce</span></a></span></span><span> </span><span id="local-6989586621679203130"><span class="annot"><span class="annottext">Clock
-</span><a href="#local-6989586621679203130"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span id="local-6989586621679203129"><span class="annot"><span class="annottext">a -&gt; m ()
-</span><a href="#local-6989586621679203129"><span class="hs-identifier hs-var">action</span></a></span></span><span> </span><span id="local-6989586621679203128"><span class="annot"><span class="annottext">QueueRunner a
-</span><a href="#local-6989586621679203128"><span class="hs-identifier hs-var">qr</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
-</span><span id="line-100"></span><span>  </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. MonadIO m =&gt; Clock -&gt; QueueRunner a -&gt; m ()
+</span><a href="Scheduler.html#runOnce"><span class="hs-identifier hs-var hs-var">runOnce</span></a></span></span><span> </span><span id="local-6989586621679207866"><span class="annot"><span class="annottext">Clock
+</span><a href="#local-6989586621679207866"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span id="local-6989586621679207867"><span class="annot"><span class="annottext">a -&gt; m ()
+</span><a href="#local-6989586621679207867"><span class="hs-identifier hs-var">action</span></a></span></span><span> </span><span id="local-6989586621679207868"><span class="annot"><span class="annottext">QueueRunner a
+</span><a href="#local-6989586621679207868"><span class="hs-identifier hs-var">qr</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-100"></span><span>  </span><span class="annot"><span class="annottext">Clock -&gt; QueueRunner a -&gt; m ()
+forall (m :: * -&gt; *) a. MonadIO m =&gt; Clock -&gt; QueueRunner a -&gt; m ()
 </span><a href="Scheduler.html#blockUntilReady"><span class="hs-identifier hs-var">blockUntilReady</span></a></span><span> </span><span class="annot"><span class="annottext">Clock
-</span><a href="#local-6989586621679203130"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="annot"><span class="annottext">QueueRunner a
-</span><a href="#local-6989586621679203128"><span class="hs-identifier hs-var">qr</span></a></span><span>
-</span><span id="line-101"></span><span>  </span><span id="local-6989586621679203127"><span class="annot"><span class="annottext">[a]
-</span><a href="#local-6989586621679203127"><span class="hs-identifier hs-var">done</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a.
+</span><a href="#local-6989586621679207866"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="annot"><span class="annottext">QueueRunner a
+</span><a href="#local-6989586621679207868"><span class="hs-identifier hs-var">qr</span></a></span><span>
+</span><span id="line-101"></span><span>  </span><span id="local-6989586621679207869"><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621679207869"><span class="hs-identifier hs-var">done</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Clock -&gt; (a -&gt; m ()) -&gt; QueueRunner a -&gt; m [a]
+forall (m :: * -&gt; *) a.
 MonadIO m =&gt;
 Clock -&gt; (a -&gt; m ()) -&gt; QueueRunner a -&gt; m [a]
 </span><a href="Scheduler.html#runReady"><span class="hs-identifier hs-var">runReady</span></a></span><span> </span><span class="annot"><span class="annottext">Clock
-</span><a href="#local-6989586621679203130"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; m ()
-</span><a href="#local-6989586621679203129"><span class="hs-identifier hs-var">action</span></a></span><span> </span><span class="annot"><span class="annottext">QueueRunner a
-</span><a href="#local-6989586621679203128"><span class="hs-identifier hs-var">qr</span></a></span><span>
-</span><span id="line-102"></span><span>  </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *).
+</span><a href="#local-6989586621679207866"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; m ()
+</span><a href="#local-6989586621679207867"><span class="hs-identifier hs-var">action</span></a></span><span> </span><span class="annot"><span class="annottext">QueueRunner a
+</span><a href="#local-6989586621679207868"><span class="hs-identifier hs-var">qr</span></a></span><span>
+</span><span id="line-102"></span><span>  </span><span class="annot"><span class="annottext">StatKey -&gt; Int -&gt; m ()
+forall (m :: * -&gt; *).
 (MonadIO m, HasStats m) =&gt;
 StatKey -&gt; Int -&gt; m ()
 </span><a href="MQTTD.Stats.html#incrementStat"><span class="hs-identifier hs-var">incrementStat</span></a></span><span> </span><span class="annot"><span class="annottext">StatKey
-</span><a href="MQTTD.Stats.html#StatsActionExecuted"><span class="hs-identifier hs-var">StatsActionExecuted</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall (t :: * -&gt; *) a. Foldable t =&gt; t a -&gt; Int
+</span><a href="MQTTD.Stats.html#StatsActionExecuted"><span class="hs-identifier hs-var">StatsActionExecuted</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[a] -&gt; Int
+forall a. [a] -&gt; Int
+forall (t :: * -&gt; *) a. Foldable t =&gt; t a -&gt; Int
 </span><span class="hs-identifier hs-var">length</span></span><span> </span><span class="annot"><span class="annottext">[a]
-</span><a href="#local-6989586621679203127"><span class="hs-identifier hs-var">done</span></a></span><span class="hs-special">)</span><span>
-</span><span id="line-103"></span><span>  </span><span class="annot"><span class="annottext">forall (f :: * -&gt; *) (m :: * -&gt; *).
+</span><a href="#local-6989586621679207869"><span class="hs-identifier hs-var">done</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-103"></span><span>  </span><span class="annot"><span class="annottext">[Text] -&gt; m ()
+forall (f :: * -&gt; *) (m :: * -&gt; *).
 (Foldable f, MonadLogger m) =&gt;
 f Text -&gt; m ()
 </span><a href="MQTTD.Logging.html#logDbgL"><span class="hs-identifier hs-var">logDbgL</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Text
-</span><span class="hs-string">&quot;Running &quot;</span></span><span class="hs-special">,</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a. Show a =&gt; a -&gt; Text
-</span><a href="MQTTD.Util.html#tshow"><span class="hs-identifier hs-var">tshow</span></a></span><span> </span><span class="annot"><span class="annottext">forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
-</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">forall (t :: * -&gt; *) a. Foldable t =&gt; t a -&gt; Int
+</span><span class="hs-string">&quot;Running &quot;</span></span><span class="hs-special">,</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int -&gt; Text
+forall a. Show a =&gt; a -&gt; Text
+</span><a href="MQTTD.Util.html#tshow"><span class="hs-identifier hs-var">tshow</span></a></span><span> </span><span class="annot"><span class="annottext">(Int -&gt; Text) -&gt; ([a] -&gt; Int) -&gt; [a] -&gt; Text
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">[a] -&gt; Int
+forall a. [a] -&gt; Int
+forall (t :: * -&gt; *) a. Foldable t =&gt; t a -&gt; Int
 </span><span class="hs-identifier hs-var">length</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">[a]
-</span><a href="#local-6989586621679203127"><span class="hs-identifier hs-var">done</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Text
+</span><a href="#local-6989586621679207869"><span class="hs-identifier hs-var">done</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Text
 </span><span class="hs-string">&quot; actions&quot;</span></span><span class="hs-special">]</span><span>
 </span><span id="line-104"></span><span>
 </span><span id="line-105"></span><span class="hs-comment">-- utilities</span><span>
 </span><span id="line-106"></span><span>
 </span><span id="line-107"></span><span class="annot"><a href="Scheduler.html#diffTimeToMicros"><span class="hs-identifier hs-type">diffTimeToMicros</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">NominalDiffTime</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span>
 </span><span id="line-108"></span><span id="diffTimeToMicros"><span class="annot"><span class="annottext">diffTimeToMicros :: NominalDiffTime -&gt; Int
-</span><a href="Scheduler.html#diffTimeToMicros"><span class="hs-identifier hs-var hs-var">diffTimeToMicros</span></a></span></span><span> </span><span id="local-6989586621679203121"><span class="annot"><span class="annottext">NominalDiffTime
-</span><a href="#local-6989586621679203121"><span class="hs-identifier hs-var">dt</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">let</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679203116"><span class="annot"><span class="annottext">Int
-</span><a href="#local-6989586621679203116"><span class="hs-identifier hs-var">s</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679203115"><span class="annot"><span class="annottext">NominalDiffTime
-</span><a href="#local-6989586621679203115"><span class="hs-identifier hs-var">f</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a b. (RealFrac a, Integral b) =&gt; a -&gt; (b, a)
+</span><a href="Scheduler.html#diffTimeToMicros"><span class="hs-identifier hs-var hs-var">diffTimeToMicros</span></a></span></span><span> </span><span id="local-6989586621679207875"><span class="annot"><span class="annottext">NominalDiffTime
+</span><a href="#local-6989586621679207875"><span class="hs-identifier hs-var">dt</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">let</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679207886"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679207886"><span class="hs-identifier hs-var">s</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679207887"><span class="annot"><span class="annottext">NominalDiffTime
+</span><a href="#local-6989586621679207887"><span class="hs-identifier hs-var">f</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">NominalDiffTime -&gt; (Int, NominalDiffTime)
+forall b. Integral b =&gt; NominalDiffTime -&gt; (b, NominalDiffTime)
+forall a b. (RealFrac a, Integral b) =&gt; a -&gt; (b, a)
 </span><span class="hs-identifier hs-var">properFraction</span></span><span> </span><span class="annot"><span class="annottext">NominalDiffTime
-</span><a href="#local-6989586621679203121"><span class="hs-identifier hs-var">dt</span></a></span><span>
-</span><span id="line-109"></span><span>                          </span><span class="hs-special">(</span><span id="local-6989586621679203108"><span class="annot"><span class="annottext">Int
-</span><a href="#local-6989586621679203108"><span class="hs-identifier hs-var">&#956;</span></a></span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">NominalDiffTime
-</span><span class="hs-identifier">_</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a b. (RealFrac a, Integral b) =&gt; a -&gt; (b, a)
+</span><a href="#local-6989586621679207875"><span class="hs-identifier hs-var">dt</span></a></span><span>
+</span><span id="line-109"></span><span>                          </span><span class="hs-special">(</span><span id="local-6989586621679207899"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679207899"><span class="hs-identifier hs-var">&#956;</span></a></span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">NominalDiffTime
+</span><span class="hs-identifier">_</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">NominalDiffTime -&gt; (Int, NominalDiffTime)
+forall b. Integral b =&gt; NominalDiffTime -&gt; (b, NominalDiffTime)
+forall a b. (RealFrac a, Integral b) =&gt; a -&gt; (b, a)
 </span><span class="hs-identifier hs-var">properFraction</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">NominalDiffTime
-</span><a href="#local-6989586621679203115"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><a href="#local-6989586621679207887"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">NominalDiffTime -&gt; NominalDiffTime -&gt; NominalDiffTime
+forall a. Num a =&gt; a -&gt; a -&gt; a
 </span><span class="hs-operator hs-var">*</span></span><span> </span><span class="annot"><span class="annottext">NominalDiffTime
 </span><span class="hs-number">1000000</span></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">in</span><span>
 </span><span id="line-110"></span><span>                        </span><span class="annot"><span class="annottext">Int
-</span><a href="#local-6989586621679203116"><span class="hs-identifier hs-var">s</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><a href="#local-6989586621679207886"><span class="hs-identifier hs-var">s</span></a></span><span> </span><span class="annot"><span class="annottext">Int -&gt; Int -&gt; Int
+forall a. Num a =&gt; a -&gt; a -&gt; a
 </span><span class="hs-operator hs-var">*</span></span><span> </span><span class="annot"><span class="annottext">Int
-</span><span class="hs-number">1000000</span></span><span> </span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-number">1000000</span></span><span> </span><span class="annot"><span class="annottext">Int -&gt; Int -&gt; Int
+forall a. Num a =&gt; a -&gt; a -&gt; a
 </span><span class="hs-operator hs-var">+</span></span><span> </span><span class="annot"><span class="annottext">Int
-</span><a href="#local-6989586621679203108"><span class="hs-identifier hs-var">&#956;</span></a></span><span>
+</span><a href="#local-6989586621679207899"><span class="hs-identifier hs-var">&#956;</span></a></span><span>
 </span><span id="line-111"></span></pre></body></html>

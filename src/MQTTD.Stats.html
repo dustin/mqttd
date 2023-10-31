@@ -1,4 +1,4 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span id="local-6989586621679202462"><span id="local-6989586621679202463"></span></span><span class="hs-pragma">{-# LANGUAGE FlexibleInstances #-}</span><span>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span id="local-6989586621679206722"><span id="local-6989586621679206723"></span></span><span class="hs-pragma">{-# LANGUAGE FlexibleInstances #-}</span><span>
 </span><span id="line-2"></span><span>
 </span><span id="line-3"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">MQTTD.Stats</span><span> </span><span class="hs-keyword">where</span><span>
 </span><span id="line-4"></span><span>
@@ -20,24 +20,37 @@
 </span><span id="line-20"></span><span>             </span><span class="hs-glyph">|</span><span> </span><span id="StatsActionQueued"><span class="annot"><a href="MQTTD.Stats.html#StatsActionQueued"><span class="hs-identifier hs-var">StatsActionQueued</span></a></span></span><span>
 </span><span id="line-21"></span><span>             </span><span class="hs-glyph">|</span><span> </span><span id="StatsActionCanceled"><span class="annot"><a href="MQTTD.Stats.html#StatsActionCanceled"><span class="hs-identifier hs-var">StatsActionCanceled</span></a></span></span><span>
 </span><span id="line-22"></span><span>             </span><span class="hs-glyph">|</span><span> </span><span id="StatsActionExecuted"><span class="annot"><a href="MQTTD.Stats.html#StatsActionExecuted"><span class="hs-identifier hs-var">StatsActionExecuted</span></a></span></span><span>
-</span><span id="line-23"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679202428"><span id="local-6989586621679202430"><span class="annot"><span class="annottext">StatKey -&gt; StatKey -&gt; Bool
+</span><span id="line-23"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679206755"><span id="local-6989586621679206757"><span class="annot"><span class="annottext">StatKey -&gt; StatKey -&gt; Bool
+(StatKey -&gt; StatKey -&gt; Bool)
+-&gt; (StatKey -&gt; StatKey -&gt; Bool) -&gt; Eq StatKey
 forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
-/= :: StatKey -&gt; StatKey -&gt; Bool
-$c/= :: StatKey -&gt; StatKey -&gt; Bool
-== :: StatKey -&gt; StatKey -&gt; Bool
 $c== :: StatKey -&gt; StatKey -&gt; Bool
-</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679202421"><span id="local-6989586621679202423"><span id="local-6989586621679202425"><span class="annot"><span class="annottext">Int -&gt; StatKey -&gt; ShowS
+== :: StatKey -&gt; StatKey -&gt; Bool
+$c/= :: StatKey -&gt; StatKey -&gt; Bool
+/= :: StatKey -&gt; StatKey -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679206762"><span id="local-6989586621679206764"><span id="local-6989586621679206768"><span class="annot"><span class="annottext">Int -&gt; StatKey -&gt; ShowS
 [StatKey] -&gt; ShowS
 StatKey -&gt; String
+(Int -&gt; StatKey -&gt; ShowS)
+-&gt; (StatKey -&gt; String) -&gt; ([StatKey] -&gt; ShowS) -&gt; Show StatKey
 forall a.
 (Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
-showList :: [StatKey] -&gt; ShowS
-$cshowList :: [StatKey] -&gt; ShowS
-show :: StatKey -&gt; String
-$cshow :: StatKey -&gt; String
-showsPrec :: Int -&gt; StatKey -&gt; ShowS
 $cshowsPrec :: Int -&gt; StatKey -&gt; ShowS
-</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679202401"><span id="local-6989586621679202403"><span id="local-6989586621679202406"><span id="local-6989586621679202409"><span id="local-6989586621679202412"><span id="local-6989586621679202414"><span id="local-6989586621679202416"><span class="annot"><span class="annottext">Eq StatKey
+showsPrec :: Int -&gt; StatKey -&gt; ShowS
+$cshow :: StatKey -&gt; String
+show :: StatKey -&gt; String
+$cshowList :: [StatKey] -&gt; ShowS
+showList :: [StatKey] -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679206774"><span id="local-6989586621679206776"><span id="local-6989586621679206778"><span id="local-6989586621679206782"><span id="local-6989586621679206785"><span id="local-6989586621679206788"><span id="local-6989586621679206791"><span class="annot"><span class="annottext">Eq StatKey
+Eq StatKey
+-&gt; (StatKey -&gt; StatKey -&gt; Ordering)
+-&gt; (StatKey -&gt; StatKey -&gt; Bool)
+-&gt; (StatKey -&gt; StatKey -&gt; Bool)
+-&gt; (StatKey -&gt; StatKey -&gt; Bool)
+-&gt; (StatKey -&gt; StatKey -&gt; Bool)
+-&gt; (StatKey -&gt; StatKey -&gt; StatKey)
+-&gt; (StatKey -&gt; StatKey -&gt; StatKey)
+-&gt; Ord StatKey
 StatKey -&gt; StatKey -&gt; Bool
 StatKey -&gt; StatKey -&gt; Ordering
 StatKey -&gt; StatKey -&gt; StatKey
@@ -51,26 +64,35 @@ Eq a
 -&gt; (a -&gt; a -&gt; a)
 -&gt; (a -&gt; a -&gt; a)
 -&gt; Ord a
-min :: StatKey -&gt; StatKey -&gt; StatKey
-$cmin :: StatKey -&gt; StatKey -&gt; StatKey
-max :: StatKey -&gt; StatKey -&gt; StatKey
-$cmax :: StatKey -&gt; StatKey -&gt; StatKey
-&gt;= :: StatKey -&gt; StatKey -&gt; Bool
-$c&gt;= :: StatKey -&gt; StatKey -&gt; Bool
-&gt; :: StatKey -&gt; StatKey -&gt; Bool
-$c&gt; :: StatKey -&gt; StatKey -&gt; Bool
-&lt;= :: StatKey -&gt; StatKey -&gt; Bool
-$c&lt;= :: StatKey -&gt; StatKey -&gt; Bool
-&lt; :: StatKey -&gt; StatKey -&gt; Bool
-$c&lt; :: StatKey -&gt; StatKey -&gt; Bool
-compare :: StatKey -&gt; StatKey -&gt; Ordering
 $ccompare :: StatKey -&gt; StatKey -&gt; Ordering
-</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Ord</span></span></span></span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679202358"><span id="local-6989586621679202360"><span id="local-6989586621679202364"><span id="local-6989586621679202368"><span id="local-6989586621679202370"><span id="local-6989586621679202384"><span id="local-6989586621679202390"><span id="local-6989586621679202398"><span class="annot"><span class="annottext">Int -&gt; StatKey
+compare :: StatKey -&gt; StatKey -&gt; Ordering
+$c&lt; :: StatKey -&gt; StatKey -&gt; Bool
+&lt; :: StatKey -&gt; StatKey -&gt; Bool
+$c&lt;= :: StatKey -&gt; StatKey -&gt; Bool
+&lt;= :: StatKey -&gt; StatKey -&gt; Bool
+$c&gt; :: StatKey -&gt; StatKey -&gt; Bool
+&gt; :: StatKey -&gt; StatKey -&gt; Bool
+$c&gt;= :: StatKey -&gt; StatKey -&gt; Bool
+&gt;= :: StatKey -&gt; StatKey -&gt; Bool
+$cmax :: StatKey -&gt; StatKey -&gt; StatKey
+max :: StatKey -&gt; StatKey -&gt; StatKey
+$cmin :: StatKey -&gt; StatKey -&gt; StatKey
+min :: StatKey -&gt; StatKey -&gt; StatKey
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Ord</span></span></span></span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679206795"><span id="local-6989586621679206803"><span id="local-6989586621679206809"><span id="local-6989586621679206823"><span id="local-6989586621679206825"><span id="local-6989586621679206829"><span id="local-6989586621679206833"><span id="local-6989586621679206837"><span class="annot"><span class="annottext">Int -&gt; StatKey
 StatKey -&gt; Int
 StatKey -&gt; [StatKey]
 StatKey -&gt; StatKey
 StatKey -&gt; StatKey -&gt; [StatKey]
 StatKey -&gt; StatKey -&gt; StatKey -&gt; [StatKey]
+(StatKey -&gt; StatKey)
+-&gt; (StatKey -&gt; StatKey)
+-&gt; (Int -&gt; StatKey)
+-&gt; (StatKey -&gt; Int)
+-&gt; (StatKey -&gt; [StatKey])
+-&gt; (StatKey -&gt; StatKey -&gt; [StatKey])
+-&gt; (StatKey -&gt; StatKey -&gt; [StatKey])
+-&gt; (StatKey -&gt; StatKey -&gt; StatKey -&gt; [StatKey])
+-&gt; Enum StatKey
 forall a.
 (a -&gt; a)
 -&gt; (a -&gt; a)
@@ -81,22 +103,22 @@ forall a.
 -&gt; (a -&gt; a -&gt; [a])
 -&gt; (a -&gt; a -&gt; a -&gt; [a])
 -&gt; Enum a
-enumFromThenTo :: StatKey -&gt; StatKey -&gt; StatKey -&gt; [StatKey]
-$cenumFromThenTo :: StatKey -&gt; StatKey -&gt; StatKey -&gt; [StatKey]
-enumFromTo :: StatKey -&gt; StatKey -&gt; [StatKey]
-$cenumFromTo :: StatKey -&gt; StatKey -&gt; [StatKey]
-enumFromThen :: StatKey -&gt; StatKey -&gt; [StatKey]
-$cenumFromThen :: StatKey -&gt; StatKey -&gt; [StatKey]
-enumFrom :: StatKey -&gt; [StatKey]
-$cenumFrom :: StatKey -&gt; [StatKey]
-fromEnum :: StatKey -&gt; Int
-$cfromEnum :: StatKey -&gt; Int
-toEnum :: Int -&gt; StatKey
-$ctoEnum :: Int -&gt; StatKey
-pred :: StatKey -&gt; StatKey
-$cpred :: StatKey -&gt; StatKey
-succ :: StatKey -&gt; StatKey
 $csucc :: StatKey -&gt; StatKey
+succ :: StatKey -&gt; StatKey
+$cpred :: StatKey -&gt; StatKey
+pred :: StatKey -&gt; StatKey
+$ctoEnum :: Int -&gt; StatKey
+toEnum :: Int -&gt; StatKey
+$cfromEnum :: StatKey -&gt; Int
+fromEnum :: StatKey -&gt; Int
+$cenumFrom :: StatKey -&gt; [StatKey]
+enumFrom :: StatKey -&gt; [StatKey]
+$cenumFromThen :: StatKey -&gt; StatKey -&gt; [StatKey]
+enumFromThen :: StatKey -&gt; StatKey -&gt; [StatKey]
+$cenumFromTo :: StatKey -&gt; StatKey -&gt; [StatKey]
+enumFromTo :: StatKey -&gt; StatKey -&gt; [StatKey]
+$cenumFromThenTo :: StatKey -&gt; StatKey -&gt; StatKey -&gt; [StatKey]
+enumFromThenTo :: StatKey -&gt; StatKey -&gt; StatKey -&gt; [StatKey]
 </span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Enum</span></span></span></span></span></span></span></span></span></span><span class="hs-special">)</span><span>
 </span><span id="line-24"></span><span>
 </span><span id="line-25"></span><span class="annot"><a href="MQTTD.Stats.html#statKeyName"><span class="hs-identifier hs-type">statKeyName</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="MQTTD.Stats.html#StatKey"><span class="hs-identifier hs-type">StatKey</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">BL.ByteString</span></span><span>
@@ -138,102 +160,137 @@ $csucc :: StatKey -&gt; StatKey
 </span><a href="MQTTD.Stats.html#_stats_map"><span class="hs-identifier hs-var hs-var">_stats_map</span></a></span></span><span>   </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">TVar</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Map</span></span><span> </span><span class="annot"><a href="MQTTD.Stats.html#StatKey"><span class="hs-identifier hs-type">StatKey</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span class="hs-special">)</span><span>
 </span><span id="line-41"></span><span>  </span><span class="hs-special">}</span><span>
 </span><span id="line-42"></span><span>
-</span><span id="line-43"></span><span class="hs-keyword">class</span><span> </span><span id="HasStats"><span class="annot"><a href="MQTTD.Stats.html#HasStats"><span class="hs-identifier hs-var">HasStats</span></a></span></span><span> </span><span id="local-6989586621679202536"><span class="annot"><a href="#local-6989586621679202536"><span class="hs-identifier hs-type">m</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
-</span><span id="line-44"></span><span>  </span><span id="statStore"><span class="annot"><a href="MQTTD.Stats.html#statStore"><span class="hs-identifier hs-type">statStore</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="#local-6989586621679202536"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="MQTTD.Stats.html#StatStore"><span class="hs-identifier hs-type">StatStore</span></a></span><span>
+</span><span id="line-43"></span><span class="hs-keyword">class</span><span> </span><span id="HasStats"><span class="annot"><a href="MQTTD.Stats.html#HasStats"><span class="hs-identifier hs-var">HasStats</span></a></span></span><span> </span><span id="local-6989586621679206663"><span class="annot"><a href="#local-6989586621679206663"><span class="hs-identifier hs-type">m</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-44"></span><span>  </span><span id="statStore"><span class="annot"><a href="MQTTD.Stats.html#statStore"><span class="hs-identifier hs-type">statStore</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="#local-6989586621679206663"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="MQTTD.Stats.html#StatStore"><span class="hs-identifier hs-type">StatStore</span></a></span><span>
 </span><span id="line-45"></span><span>
-</span><span id="line-46"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621679202532"><span class="annot"><span class="hs-identifier hs-type">Monad</span></span><span> </span><span class="annot"><a href="#local-6989586621679202532"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="MQTTD.Stats.html#HasStats"><span class="hs-identifier hs-type">HasStats</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">ReaderT</span></span><span> </span><span class="annot"><a href="MQTTD.Stats.html#StatStore"><span class="hs-identifier hs-type">StatStore</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679202532"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span></span><span> </span><span class="hs-keyword">where</span><span>
-</span><span id="line-47"></span><span>  </span><span id="local-6989586621679202345"><span class="annot"><span class="annottext">statStore :: ReaderT StatStore m StatStore
-</span><a href="#local-6989586621679202345"><span class="hs-identifier hs-var hs-var hs-var hs-var">statStore</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall r (m :: * -&gt; *). MonadReader r m =&gt; m r
+</span><span id="line-46"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621679206664"><span class="annot"><span class="hs-identifier hs-type">Monad</span></span><span> </span><span class="annot"><a href="#local-6989586621679206664"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="MQTTD.Stats.html#HasStats"><span class="hs-identifier hs-type">HasStats</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">ReaderT</span></span><span> </span><span class="annot"><a href="MQTTD.Stats.html#StatStore"><span class="hs-identifier hs-type">StatStore</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679206664"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-47"></span><span>  </span><span id="local-6989586621679206851"><span class="annot"><span class="annottext">statStore :: ReaderT StatStore m StatStore
+</span><a href="MQTTD.Stats.html#statStore"><span class="hs-identifier hs-var hs-var hs-var hs-var">statStore</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ReaderT StatStore m StatStore
+forall r (m :: * -&gt; *). MonadReader r m =&gt; m r
 </span><span class="hs-identifier hs-var">ask</span></span><span>
 </span><span id="line-48"></span><span>
-</span><span id="line-49"></span><span id="local-6989586621679202526"><span class="annot"><a href="MQTTD.Stats.html#newStatStore"><span class="hs-identifier hs-type">newStatStore</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MonadIO</span></span><span> </span><span class="annot"><a href="#local-6989586621679202526"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679202526"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="MQTTD.Stats.html#StatStore"><span class="hs-identifier hs-type">StatStore</span></a></span></span><span>
+</span><span id="line-49"></span><span id="local-6989586621679206670"><span class="annot"><a href="MQTTD.Stats.html#newStatStore"><span class="hs-identifier hs-type">newStatStore</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MonadIO</span></span><span> </span><span class="annot"><a href="#local-6989586621679206670"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679206670"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="MQTTD.Stats.html#StatStore"><span class="hs-identifier hs-type">StatStore</span></a></span></span><span>
 </span><span id="line-50"></span><span id="newStatStore"><span class="annot"><span class="annottext">newStatStore :: forall (m :: * -&gt; *). MonadIO m =&gt; m StatStore
 </span><a href="MQTTD.Stats.html#newStatStore"><span class="hs-identifier hs-var hs-var">newStatStore</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">TBQueue Increment -&gt; TVar (Map StatKey Int) -&gt; StatStore
-</span><a href="MQTTD.Stats.html#StatStore"><span class="hs-identifier hs-var">StatStore</span></a></span><span> </span><span class="annot"><span class="annottext">forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
-</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. MonadIO m =&gt; Natural -&gt; m (TBQueue a)
+</span><a href="MQTTD.Stats.html#StatStore"><span class="hs-identifier hs-var">StatStore</span></a></span><span> </span><span class="annot"><span class="annottext">(TBQueue Increment -&gt; TVar (Map StatKey Int) -&gt; StatStore)
+-&gt; m (TBQueue Increment) -&gt; m (TVar (Map StatKey Int) -&gt; StatStore)
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">Natural -&gt; m (TBQueue Increment)
+forall (m :: * -&gt; *) a. MonadIO m =&gt; Natural -&gt; m (TBQueue a)
 </span><span class="hs-identifier hs-var">newTBQueueIO</span></span><span> </span><span class="annot"><span class="annottext">Natural
-</span><span class="hs-number">100</span></span><span> </span><span class="annot"><span class="annottext">forall (f :: * -&gt; *) a b. Applicative f =&gt; f (a -&gt; b) -&gt; f a -&gt; f b
-</span><span class="hs-operator hs-var">&lt;*&gt;</span></span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. MonadIO m =&gt; a -&gt; m (TVar a)
-</span><span class="hs-identifier hs-var">newTVarIO</span></span><span> </span><span class="annot"><span class="annottext">forall a. Monoid a =&gt; a
+</span><span class="hs-number">100</span></span><span> </span><span class="annot"><span class="annottext">m (TVar (Map StatKey Int) -&gt; StatStore)
+-&gt; m (TVar (Map StatKey Int)) -&gt; m StatStore
+forall a b. m (a -&gt; b) -&gt; m a -&gt; m b
+forall (f :: * -&gt; *) a b. Applicative f =&gt; f (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;*&gt;</span></span><span> </span><span class="annot"><span class="annottext">Map StatKey Int -&gt; m (TVar (Map StatKey Int))
+forall (m :: * -&gt; *) a. MonadIO m =&gt; a -&gt; m (TVar a)
+</span><span class="hs-identifier hs-var">newTVarIO</span></span><span> </span><span class="annot"><span class="annottext">Map StatKey Int
+forall a. Monoid a =&gt; a
 </span><span class="hs-identifier hs-var">mempty</span></span><span>
 </span><span id="line-51"></span><span>
-</span><span id="line-52"></span><span id="local-6989586621679202508"><span class="annot"><a href="MQTTD.Stats.html#applyStats"><span class="hs-identifier hs-type">applyStats</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MonadIO</span></span><span> </span><span class="annot"><a href="#local-6989586621679202508"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="MQTTD.Stats.html#StatStore"><span class="hs-identifier hs-type">StatStore</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679202508"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span></span><span>
+</span><span id="line-52"></span><span id="local-6989586621679206688"><span class="annot"><a href="MQTTD.Stats.html#applyStats"><span class="hs-identifier hs-type">applyStats</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MonadIO</span></span><span> </span><span class="annot"><a href="#local-6989586621679206688"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="MQTTD.Stats.html#StatStore"><span class="hs-identifier hs-type">StatStore</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679206688"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span></span><span>
 </span><span id="line-53"></span><span id="applyStats"><span class="annot"><span class="annottext">applyStats :: forall (m :: * -&gt; *). MonadIO m =&gt; StatStore -&gt; m ()
-</span><a href="MQTTD.Stats.html#applyStats"><span class="hs-identifier hs-var hs-var">applyStats</span></a></span></span><span> </span><span class="annot"><a href="MQTTD.Stats.html#StatStore"><span class="hs-identifier hs-type">StatStore</span></a></span><span class="hs-special">{</span><span id="local-6989586621679202311"><span id="local-6989586621679202312"><span class="annot"><span class="annottext">TVar (Map StatKey Int)
+</span><a href="MQTTD.Stats.html#applyStats"><span class="hs-identifier hs-var hs-var">applyStats</span></a></span></span><span> </span><span class="annot"><a href="MQTTD.Stats.html#StatStore"><span class="hs-identifier hs-type">StatStore</span></a></span><span class="hs-special">{</span><span id="local-6989586621679206884"><span id="local-6989586621679206885"><span class="annot"><span class="annottext">TVar (Map StatKey Int)
 TBQueue Increment
-_stats_map :: TVar (Map StatKey Int)
-_stats_queue :: TBQueue Increment
-_stats_map :: StatStore -&gt; TVar (Map StatKey Int)
 _stats_queue :: StatStore -&gt; TBQueue Increment
-</span><a href="#local-6989586621679202311"><span class="hs-glyph hs-var hs-var hs-var hs-var">..</span></a></span></span></span><span class="hs-special">}</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall (f :: * -&gt; *) a b. Applicative f =&gt; f a -&gt; f b
-</span><span class="hs-identifier hs-var">forever</span></span><span> </span><span class="annot"><span class="annottext">forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
-</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. MonadIO m =&gt; STM a -&gt; m a
-</span><span class="hs-identifier hs-var">atomically</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+_stats_map :: StatStore -&gt; TVar (Map StatKey Int)
+_stats_queue :: TBQueue Increment
+_stats_map :: TVar (Map StatKey Int)
+</span><a href="MQTTD.Stats.html#_stats_queue"><span class="hs-glyph hs-var hs-var hs-var hs-var">..</span></a></span></span></span><span class="hs-special">}</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">m () -&gt; m ()
+forall (f :: * -&gt; *) a b. Applicative f =&gt; f a -&gt; f b
+</span><span class="hs-identifier hs-var">forever</span></span><span> </span><span class="annot"><span class="annottext">(m () -&gt; m ()) -&gt; (STM () -&gt; m ()) -&gt; STM () -&gt; m ()
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">STM () -&gt; m ()
+forall (m :: * -&gt; *) a. MonadIO m =&gt; STM a -&gt; m a
+</span><span class="hs-identifier hs-var">atomically</span></span><span> </span><span class="annot"><span class="annottext">(STM () -&gt; m ()) -&gt; STM () -&gt; m ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
 </span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-keyword">do</span><span>
 </span><span id="line-54"></span><span>  </span><span class="annot"><span class="annottext">Bool -&gt; STM ()
-</span><span class="hs-identifier hs-var">check</span></span><span> </span><span class="annot"><span class="annottext">forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-identifier hs-var">check</span></span><span> </span><span class="annot"><span class="annottext">(Bool -&gt; STM ()) -&gt; (Bool -&gt; Bool) -&gt; Bool -&gt; STM ()
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
 </span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool
-</span><span class="hs-identifier hs-var">not</span></span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a b. Monad m =&gt; (a -&gt; m b) -&gt; m a -&gt; m b
-</span><span class="hs-operator hs-var">=&lt;&lt;</span></span><span> </span><span class="annot"><span class="annottext">forall a. TBQueue a -&gt; STM Bool
+</span><span class="hs-identifier hs-var">not</span></span><span> </span><span class="annot"><span class="annottext">(Bool -&gt; STM ()) -&gt; STM Bool -&gt; STM ()
+forall (m :: * -&gt; *) a b. Monad m =&gt; (a -&gt; m b) -&gt; m a -&gt; m b
+</span><span class="hs-operator hs-var">=&lt;&lt;</span></span><span> </span><span class="annot"><span class="annottext">TBQueue Increment -&gt; STM Bool
+forall a. TBQueue a -&gt; STM Bool
 </span><span class="hs-identifier hs-var">isEmptyTBQueue</span></span><span> </span><span class="annot"><span class="annottext">TBQueue Increment
-</span><a href="#local-6989586621679202312"><span class="hs-identifier hs-var">_stats_queue</span></a></span><span>
-</span><span id="line-55"></span><span>  </span><span id="local-6989586621679202307"><span class="annot"><span class="annottext">[Increment]
-</span><a href="#local-6989586621679202307"><span class="hs-identifier hs-var">todo</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">forall a. TBQueue a -&gt; STM [a]
+</span><a href="#local-6989586621679206884"><span class="hs-identifier hs-var">_stats_queue</span></a></span><span>
+</span><span id="line-55"></span><span>  </span><span id="local-6989586621679206889"><span class="annot"><span class="annottext">[Increment]
+</span><a href="#local-6989586621679206889"><span class="hs-identifier hs-var">todo</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">TBQueue Increment -&gt; STM [Increment]
+forall a. TBQueue a -&gt; STM [a]
 </span><span class="hs-identifier hs-var">flushTBQueue</span></span><span> </span><span class="annot"><span class="annottext">TBQueue Increment
-</span><a href="#local-6989586621679202312"><span class="hs-identifier hs-var">_stats_queue</span></a></span><span>
-</span><span id="line-56"></span><span>  </span><span class="annot"><span class="annottext">forall a. TVar a -&gt; (a -&gt; a) -&gt; STM ()
+</span><a href="#local-6989586621679206884"><span class="hs-identifier hs-var">_stats_queue</span></a></span><span>
+</span><span id="line-56"></span><span>  </span><span class="annot"><span class="annottext">TVar (Map StatKey Int)
+-&gt; (Map StatKey Int -&gt; Map StatKey Int) -&gt; STM ()
+forall a. TVar a -&gt; (a -&gt; a) -&gt; STM ()
 </span><span class="hs-identifier hs-var">modifyTVar'</span></span><span> </span><span class="annot"><span class="annottext">TVar (Map StatKey Int)
-</span><a href="#local-6989586621679202311"><span class="hs-identifier hs-var">_stats_map</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall k a. Ord k =&gt; (a -&gt; a -&gt; a) -&gt; Map k a -&gt; Map k a -&gt; Map k a
-</span><span class="hs-identifier hs-var">Map.unionWith</span></span><span> </span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
-</span><span class="hs-operator hs-var">(+)</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall k a. Ord k =&gt; (a -&gt; a -&gt; a) -&gt; [(k, a)] -&gt; Map k a
-</span><span class="hs-identifier hs-var">Map.fromListWith</span></span><span> </span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><a href="#local-6989586621679206885"><span class="hs-identifier hs-var">_stats_map</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(Int -&gt; Int -&gt; Int)
+-&gt; Map StatKey Int -&gt; Map StatKey Int -&gt; Map StatKey Int
+forall k a. Ord k =&gt; (a -&gt; a -&gt; a) -&gt; Map k a -&gt; Map k a -&gt; Map k a
+</span><span class="hs-identifier hs-var">Map.unionWith</span></span><span> </span><span class="annot"><span class="annottext">Int -&gt; Int -&gt; Int
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">(+)</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(Int -&gt; Int -&gt; Int) -&gt; [Increment] -&gt; Map StatKey Int
+forall k a. Ord k =&gt; (a -&gt; a -&gt; a) -&gt; [(k, a)] -&gt; Map k a
+</span><span class="hs-identifier hs-var">Map.fromListWith</span></span><span> </span><span class="annot"><span class="annottext">Int -&gt; Int -&gt; Int
+forall a. Num a =&gt; a -&gt; a -&gt; a
 </span><span class="hs-operator hs-var">(+)</span></span><span> </span><span class="annot"><span class="annottext">[Increment]
-</span><a href="#local-6989586621679202307"><span class="hs-identifier hs-var">todo</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><a href="#local-6989586621679206889"><span class="hs-identifier hs-var">todo</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
 </span><span id="line-57"></span><span>
 </span><span id="line-58"></span><span class="annot"><a href="MQTTD.Stats.html#incrementStatSTM"><span class="hs-identifier hs-type">incrementStatSTM</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="MQTTD.Stats.html#StatKey"><span class="hs-identifier hs-type">StatKey</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="MQTTD.Stats.html#StatStore"><span class="hs-identifier hs-type">StatStore</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">STM</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
 </span><span id="line-59"></span><span id="incrementStatSTM"><span class="annot"><span class="annottext">incrementStatSTM :: StatKey -&gt; Int -&gt; StatStore -&gt; STM ()
-</span><a href="MQTTD.Stats.html#incrementStatSTM"><span class="hs-identifier hs-var hs-var">incrementStatSTM</span></a></span></span><span> </span><span id="local-6989586621679202302"><span class="annot"><span class="annottext">StatKey
-</span><a href="#local-6989586621679202302"><span class="hs-identifier hs-var">k</span></a></span></span><span> </span><span id="local-6989586621679202301"><span class="annot"><span class="annottext">Int
-</span><a href="#local-6989586621679202301"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span class="annot"><a href="MQTTD.Stats.html#StatStore"><span class="hs-identifier hs-type">StatStore</span></a></span><span class="hs-special">{</span><span id="local-6989586621679202299"><span id="local-6989586621679202300"><span class="annot"><span class="annottext">TVar (Map StatKey Int)
+</span><a href="MQTTD.Stats.html#incrementStatSTM"><span class="hs-identifier hs-var hs-var">incrementStatSTM</span></a></span></span><span> </span><span id="local-6989586621679206894"><span class="annot"><span class="annottext">StatKey
+</span><a href="#local-6989586621679206894"><span class="hs-identifier hs-var">k</span></a></span></span><span> </span><span id="local-6989586621679206895"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679206895"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span class="annot"><a href="MQTTD.Stats.html#StatStore"><span class="hs-identifier hs-type">StatStore</span></a></span><span class="hs-special">{</span><span id="local-6989586621679206896"><span id="local-6989586621679206897"><span class="annot"><span class="annottext">TVar (Map StatKey Int)
 TBQueue Increment
-_stats_map :: TVar (Map StatKey Int)
-_stats_queue :: TBQueue Increment
-_stats_map :: StatStore -&gt; TVar (Map StatKey Int)
 _stats_queue :: StatStore -&gt; TBQueue Increment
-</span><a href="#local-6989586621679202299"><span class="hs-glyph hs-var hs-var hs-var hs-var">..</span></a></span></span></span><span class="hs-special">}</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a. TBQueue a -&gt; a -&gt; STM ()
+_stats_map :: StatStore -&gt; TVar (Map StatKey Int)
+_stats_queue :: TBQueue Increment
+_stats_map :: TVar (Map StatKey Int)
+</span><a href="MQTTD.Stats.html#_stats_queue"><span class="hs-glyph hs-var hs-var hs-var hs-var">..</span></a></span></span></span><span class="hs-special">}</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">TBQueue Increment -&gt; Increment -&gt; STM ()
+forall a. TBQueue a -&gt; a -&gt; STM ()
 </span><span class="hs-identifier hs-var">writeTBQueue</span></span><span> </span><span class="annot"><span class="annottext">TBQueue Increment
-</span><a href="#local-6989586621679202300"><span class="hs-identifier hs-var">_stats_queue</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">StatKey
-</span><a href="#local-6989586621679202302"><span class="hs-identifier hs-var">k</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Int
-</span><a href="#local-6989586621679202301"><span class="hs-identifier hs-var">i</span></a></span><span class="hs-special">)</span><span>
+</span><a href="#local-6989586621679206896"><span class="hs-identifier hs-var">_stats_queue</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">StatKey
+</span><a href="#local-6989586621679206894"><span class="hs-identifier hs-var">k</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679206895"><span class="hs-identifier hs-var">i</span></a></span><span class="hs-special">)</span><span>
 </span><span id="line-60"></span><span>
-</span><span id="line-61"></span><span id="local-6989586621679202482"><span class="annot"><a href="MQTTD.Stats.html#incrementStat"><span class="hs-identifier hs-type">incrementStat</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">MonadIO</span></span><span> </span><span class="annot"><a href="#local-6989586621679202482"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="MQTTD.Stats.html#HasStats"><span class="hs-identifier hs-type">HasStats</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679202482"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="MQTTD.Stats.html#StatKey"><span class="hs-identifier hs-type">StatKey</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679202482"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span></span><span>
+</span><span id="line-61"></span><span id="local-6989586621679206714"><span class="annot"><a href="MQTTD.Stats.html#incrementStat"><span class="hs-identifier hs-type">incrementStat</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">MonadIO</span></span><span> </span><span class="annot"><a href="#local-6989586621679206714"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="MQTTD.Stats.html#HasStats"><span class="hs-identifier hs-type">HasStats</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679206714"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="MQTTD.Stats.html#StatKey"><span class="hs-identifier hs-type">StatKey</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679206714"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span></span><span>
 </span><span id="line-62"></span><span id="incrementStat"><span class="annot"><span class="annottext">incrementStat :: forall (m :: * -&gt; *).
 (MonadIO m, HasStats m) =&gt;
 StatKey -&gt; Int -&gt; m ()
-</span><a href="MQTTD.Stats.html#incrementStat"><span class="hs-identifier hs-var hs-var">incrementStat</span></a></span></span><span> </span><span id="local-6989586621679202291"><span class="annot"><span class="annottext">StatKey
-</span><a href="#local-6989586621679202291"><span class="hs-identifier hs-var">k</span></a></span></span><span> </span><span id="local-6989586621679202290"><span class="annot"><span class="annottext">Int
-</span><a href="#local-6989586621679202290"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *). HasStats m =&gt; m StatStore
-</span><a href="MQTTD.Stats.html#statStore"><span class="hs-identifier hs-var">statStore</span></a></span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a b. Monad m =&gt; m a -&gt; (a -&gt; m b) -&gt; m b
-</span><span class="hs-operator hs-var">&gt;&gt;=</span></span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. MonadIO m =&gt; STM a -&gt; m a
-</span><span class="hs-identifier hs-var">atomically</span></span><span> </span><span class="annot"><span class="annottext">forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><a href="MQTTD.Stats.html#incrementStat"><span class="hs-identifier hs-var hs-var">incrementStat</span></a></span></span><span> </span><span id="local-6989586621679206905"><span class="annot"><span class="annottext">StatKey
+</span><a href="#local-6989586621679206905"><span class="hs-identifier hs-var">k</span></a></span></span><span> </span><span id="local-6989586621679206906"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679206906"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">m StatStore
+forall (m :: * -&gt; *). HasStats m =&gt; m StatStore
+</span><a href="MQTTD.Stats.html#statStore"><span class="hs-identifier hs-var">statStore</span></a></span><span> </span><span class="annot"><span class="annottext">m StatStore -&gt; (StatStore -&gt; m ()) -&gt; m ()
+forall a b. m a -&gt; (a -&gt; m b) -&gt; m b
+forall (m :: * -&gt; *) a b. Monad m =&gt; m a -&gt; (a -&gt; m b) -&gt; m b
+</span><span class="hs-operator hs-var">&gt;&gt;=</span></span><span> </span><span class="annot"><span class="annottext">STM () -&gt; m ()
+forall (m :: * -&gt; *) a. MonadIO m =&gt; STM a -&gt; m a
+</span><span class="hs-identifier hs-var">atomically</span></span><span> </span><span class="annot"><span class="annottext">(STM () -&gt; m ()) -&gt; (StatStore -&gt; STM ()) -&gt; StatStore -&gt; m ()
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
 </span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">StatKey -&gt; Int -&gt; StatStore -&gt; STM ()
 </span><a href="MQTTD.Stats.html#incrementStatSTM"><span class="hs-identifier hs-var">incrementStatSTM</span></a></span><span> </span><span class="annot"><span class="annottext">StatKey
-</span><a href="#local-6989586621679202291"><span class="hs-identifier hs-var">k</span></a></span><span> </span><span class="annot"><span class="annottext">Int
-</span><a href="#local-6989586621679202290"><span class="hs-identifier hs-var">i</span></a></span><span>
+</span><a href="#local-6989586621679206905"><span class="hs-identifier hs-var">k</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679206906"><span class="hs-identifier hs-var">i</span></a></span><span>
 </span><span id="line-63"></span><span>
-</span><span id="line-64"></span><span id="local-6989586621679202478"><span class="annot"><a href="MQTTD.Stats.html#retrieveStats"><span class="hs-identifier hs-type">retrieveStats</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">MonadIO</span></span><span> </span><span class="annot"><a href="#local-6989586621679202478"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="MQTTD.Stats.html#HasStats"><span class="hs-identifier hs-type">HasStats</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679202478"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679202478"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Map</span></span><span> </span><span class="annot"><a href="MQTTD.Stats.html#StatKey"><span class="hs-identifier hs-type">StatKey</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span class="hs-special">)</span></span><span>
+</span><span id="line-64"></span><span id="local-6989586621679206718"><span class="annot"><a href="MQTTD.Stats.html#retrieveStats"><span class="hs-identifier hs-type">retrieveStats</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">MonadIO</span></span><span> </span><span class="annot"><a href="#local-6989586621679206718"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="MQTTD.Stats.html#HasStats"><span class="hs-identifier hs-type">HasStats</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679206718"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679206718"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Map</span></span><span> </span><span class="annot"><a href="MQTTD.Stats.html#StatKey"><span class="hs-identifier hs-type">StatKey</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span class="hs-special">)</span></span><span>
 </span><span id="line-65"></span><span id="retrieveStats"><span class="annot"><span class="annottext">retrieveStats :: forall (m :: * -&gt; *).
 (MonadIO m, HasStats m) =&gt;
 m (Map StatKey Int)
-</span><a href="MQTTD.Stats.html#retrieveStats"><span class="hs-identifier hs-var hs-var">retrieveStats</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *). HasStats m =&gt; m StatStore
-</span><a href="MQTTD.Stats.html#statStore"><span class="hs-identifier hs-var">statStore</span></a></span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a b. Monad m =&gt; m a -&gt; (a -&gt; m b) -&gt; m b
-</span><span class="hs-operator hs-var">&gt;&gt;=</span></span><span> </span><span class="hs-glyph">\</span><span class="annot"><a href="MQTTD.Stats.html#StatStore"><span class="hs-identifier hs-type">StatStore</span></a></span><span class="hs-special">{</span><span id="local-6989586621679202281"><span id="local-6989586621679202282"><span class="annot"><span class="annottext">TVar (Map StatKey Int)
+</span><a href="MQTTD.Stats.html#retrieveStats"><span class="hs-identifier hs-var hs-var">retrieveStats</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">m StatStore
+forall (m :: * -&gt; *). HasStats m =&gt; m StatStore
+</span><a href="MQTTD.Stats.html#statStore"><span class="hs-identifier hs-var">statStore</span></a></span><span> </span><span class="annot"><span class="annottext">m StatStore
+-&gt; (StatStore -&gt; m (Map StatKey Int)) -&gt; m (Map StatKey Int)
+forall a b. m a -&gt; (a -&gt; m b) -&gt; m b
+forall (m :: * -&gt; *) a b. Monad m =&gt; m a -&gt; (a -&gt; m b) -&gt; m b
+</span><span class="hs-operator hs-var">&gt;&gt;=</span></span><span> </span><span class="hs-glyph">\</span><span class="annot"><a href="MQTTD.Stats.html#StatStore"><span class="hs-identifier hs-type">StatStore</span></a></span><span class="hs-special">{</span><span id="local-6989586621679206914"><span id="local-6989586621679206915"><span class="annot"><span class="annottext">TVar (Map StatKey Int)
 TBQueue Increment
-_stats_map :: TVar (Map StatKey Int)
-_stats_queue :: TBQueue Increment
-_stats_map :: StatStore -&gt; TVar (Map StatKey Int)
 _stats_queue :: StatStore -&gt; TBQueue Increment
-</span><a href="#local-6989586621679202281"><span class="hs-glyph hs-var hs-var hs-var hs-var">..</span></a></span></span></span><span class="hs-special">}</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. MonadIO m =&gt; TVar a -&gt; m a
+_stats_map :: StatStore -&gt; TVar (Map StatKey Int)
+_stats_queue :: TBQueue Increment
+_stats_map :: TVar (Map StatKey Int)
+</span><a href="MQTTD.Stats.html#_stats_queue"><span class="hs-glyph hs-var hs-var hs-var hs-var">..</span></a></span></span></span><span class="hs-special">}</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">TVar (Map StatKey Int) -&gt; m (Map StatKey Int)
+forall (m :: * -&gt; *) a. MonadIO m =&gt; TVar a -&gt; m a
 </span><span class="hs-identifier hs-var">readTVarIO</span></span><span> </span><span class="annot"><span class="annottext">TVar (Map StatKey Int)
-</span><a href="#local-6989586621679202281"><span class="hs-identifier hs-var">_stats_map</span></a></span><span>
+</span><a href="#local-6989586621679206915"><span class="hs-identifier hs-var">_stats_map</span></a></span><span>
 </span><span id="line-66"></span></pre></body></html>

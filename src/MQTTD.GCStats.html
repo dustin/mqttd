@@ -9,162 +9,177 @@
 </span><span id="line-9"></span><span class="hs-keyword">import</span><span>           </span><span class="annot"><a href="MQTTD.Types.html"><span class="hs-identifier">MQTTD.Types</span></a></span><span>
 </span><span id="line-10"></span><span class="hs-keyword">import</span><span>           </span><span class="annot"><a href="MQTTD.Util.html"><span class="hs-identifier">MQTTD.Util</span></a></span><span>
 </span><span id="line-11"></span><span>
-</span><span id="line-12"></span><span id="local-6989586621679204203"><span class="annot"><a href="MQTTD.GCStats.html#hasGCStats"><span class="hs-identifier hs-type">hasGCStats</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MonadIO</span></span><span> </span><span class="annot"><a href="#local-6989586621679204203"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679204203"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span></span><span>
+</span><span id="line-12"></span><span id="local-6989586621679208420"><span class="annot"><a href="MQTTD.GCStats.html#hasGCStats"><span class="hs-identifier hs-type">hasGCStats</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MonadIO</span></span><span> </span><span class="annot"><a href="#local-6989586621679208420"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679208420"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span></span><span>
 </span><span id="line-13"></span><span id="hasGCStats"><span class="annot"><span class="annottext">hasGCStats :: forall (m :: * -&gt; *). MonadIO m =&gt; m Bool
-</span><a href="MQTTD.GCStats.html#hasGCStats"><span class="hs-identifier hs-var hs-var">hasGCStats</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. MonadIO m =&gt; IO a -&gt; m a
+</span><a href="MQTTD.GCStats.html#hasGCStats"><span class="hs-identifier hs-var hs-var">hasGCStats</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">IO Bool -&gt; m Bool
+forall a. IO a -&gt; m a
+forall (m :: * -&gt; *) a. MonadIO m =&gt; IO a -&gt; m a
 </span><span class="hs-identifier hs-var">liftIO</span></span><span> </span><span class="annot"><span class="annottext">IO Bool
 </span><span class="hs-identifier hs-var">getRTSStatsEnabled</span></span><span>
 </span><span id="line-14"></span><span>
-</span><span id="line-15"></span><span class="annot"><a href="MQTTD.GCStats.html#pubGCStats"><span class="hs-identifier hs-type">pubGCStats</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-keyword">forall</span><span> </span><span id="local-6989586621679204198"><span class="annot"><a href="#local-6989586621679204198"><span class="hs-identifier hs-type">m</span></a></span></span><span class="hs-operator">.</span><span> </span><span class="annot"><a href="MQTTD.Types.html#PublishConstraint"><span class="hs-identifier hs-type">PublishConstraint</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679204198"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">BL.ByteString</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">BL.ByteString</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679204198"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679204198"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-15"></span><span class="annot"><a href="MQTTD.GCStats.html#pubGCStats"><span class="hs-identifier hs-type">pubGCStats</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-keyword">forall</span><span> </span><span id="local-6989586621679208425"><span class="annot"><a href="#local-6989586621679208425"><span class="hs-identifier hs-type">m</span></a></span></span><span class="hs-operator">.</span><span> </span><span class="annot"><a href="MQTTD.Types.html#PublishConstraint"><span class="hs-identifier hs-type">PublishConstraint</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679208425"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">BL.ByteString</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">BL.ByteString</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679208425"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679208425"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
 </span><span id="line-16"></span><span id="pubGCStats"><span class="annot"><span class="annottext">pubGCStats :: forall (m :: * -&gt; *).
 PublishConstraint m =&gt;
 (ByteString -&gt; ByteString -&gt; m ()) -&gt; m ()
-</span><a href="MQTTD.GCStats.html#pubGCStats"><span class="hs-identifier hs-var hs-var">pubGCStats</span></a></span></span><span> </span><span id="local-6989586621679204140"><span class="annot"><span class="annottext">ByteString -&gt; ByteString -&gt; m ()
-</span><a href="#local-6989586621679204140"><span class="hs-identifier hs-var">pubBS</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
-</span><span id="line-17"></span><span>  </span><span class="annot"><span class="hs-identifier hs-type">RTSStats</span></span><span class="hs-special">{</span><span id="local-6989586621679204111"><span id="local-6989586621679204112"><span id="local-6989586621679204113"><span id="local-6989586621679204114"><span id="local-6989586621679204115"><span id="local-6989586621679204116"><span id="local-6989586621679204117"><span id="local-6989586621679204118"><span id="local-6989586621679204119"><span id="local-6989586621679204120"><span id="local-6989586621679204121"><span id="local-6989586621679204122"><span id="local-6989586621679204123"><span id="local-6989586621679204124"><span id="local-6989586621679204125"><span id="local-6989586621679204126"><span id="local-6989586621679204127"><span id="local-6989586621679204128"><span id="local-6989586621679204129"><span id="local-6989586621679204130"><span id="local-6989586621679204131"><span id="local-6989586621679204132"><span id="local-6989586621679204133"><span id="local-6989586621679204134"><span id="local-6989586621679204135"><span id="local-6989586621679204136"><span id="local-6989586621679204137"><span id="local-6989586621679204138"><span class="annot"><span class="annottext">RtsTime
+</span><a href="MQTTD.GCStats.html#pubGCStats"><span class="hs-identifier hs-var hs-var">pubGCStats</span></a></span></span><span> </span><span id="local-6989586621679208483"><span class="annot"><span class="annottext">ByteString -&gt; ByteString -&gt; m ()
+</span><a href="#local-6989586621679208483"><span class="hs-identifier hs-var">pubBS</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-17"></span><span>  </span><span class="annot"><span class="hs-identifier hs-type">RTSStats</span></span><span class="hs-special">{</span><span id="local-6989586621679208485"><span id="local-6989586621679208486"><span id="local-6989586621679208487"><span id="local-6989586621679208488"><span id="local-6989586621679208489"><span id="local-6989586621679208490"><span id="local-6989586621679208491"><span id="local-6989586621679208492"><span id="local-6989586621679208493"><span id="local-6989586621679208494"><span id="local-6989586621679208495"><span id="local-6989586621679208496"><span id="local-6989586621679208497"><span id="local-6989586621679208498"><span id="local-6989586621679208499"><span id="local-6989586621679208500"><span id="local-6989586621679208501"><span id="local-6989586621679208502"><span id="local-6989586621679208503"><span id="local-6989586621679208504"><span id="local-6989586621679208505"><span id="local-6989586621679208506"><span id="local-6989586621679208507"><span id="local-6989586621679208508"><span id="local-6989586621679208509"><span id="local-6989586621679208510"><span id="local-6989586621679208511"><span id="local-6989586621679208512"><span class="annot"><span class="annottext">RtsTime
 Word32
 Word64
 GCDetails
-allocated_bytes :: RTSStats -&gt; Word64
-copied_bytes :: RTSStats -&gt; Word64
-cpu_ns :: RTSStats -&gt; RtsTime
-cumulative_live_bytes :: RTSStats -&gt; Word64
-cumulative_par_balanced_copied_bytes :: RTSStats -&gt; Word64
-cumulative_par_max_copied_bytes :: RTSStats -&gt; Word64
-elapsed_ns :: RTSStats -&gt; RtsTime
-gc :: RTSStats -&gt; GCDetails
-gc_cpu_ns :: RTSStats -&gt; RtsTime
-gc_elapsed_ns :: RTSStats -&gt; RtsTime
+gcs :: Word32
+major_gcs :: Word32
+allocated_bytes :: Word64
+max_live_bytes :: Word64
+max_large_objects_bytes :: Word64
+max_compact_bytes :: Word64
+max_slop_bytes :: Word64
+max_mem_in_use_bytes :: Word64
+cumulative_live_bytes :: Word64
+copied_bytes :: Word64
+par_copied_bytes :: Word64
+cumulative_par_max_copied_bytes :: Word64
+cumulative_par_balanced_copied_bytes :: Word64
+init_cpu_ns :: RtsTime
+init_elapsed_ns :: RtsTime
+mutator_cpu_ns :: RtsTime
+mutator_elapsed_ns :: RtsTime
+gc_cpu_ns :: RtsTime
+gc_elapsed_ns :: RtsTime
+cpu_ns :: RtsTime
+elapsed_ns :: RtsTime
+nonmoving_gc_sync_cpu_ns :: RtsTime
+nonmoving_gc_sync_elapsed_ns :: RtsTime
+nonmoving_gc_sync_max_elapsed_ns :: RtsTime
+nonmoving_gc_cpu_ns :: RtsTime
+nonmoving_gc_elapsed_ns :: RtsTime
+nonmoving_gc_max_elapsed_ns :: RtsTime
+gc :: GCDetails
 gcs :: RTSStats -&gt; Word32
+major_gcs :: RTSStats -&gt; Word32
+allocated_bytes :: RTSStats -&gt; Word64
+max_live_bytes :: RTSStats -&gt; Word64
+max_large_objects_bytes :: RTSStats -&gt; Word64
+max_compact_bytes :: RTSStats -&gt; Word64
+max_slop_bytes :: RTSStats -&gt; Word64
+max_mem_in_use_bytes :: RTSStats -&gt; Word64
+cumulative_live_bytes :: RTSStats -&gt; Word64
+copied_bytes :: RTSStats -&gt; Word64
+par_copied_bytes :: RTSStats -&gt; Word64
+cumulative_par_max_copied_bytes :: RTSStats -&gt; Word64
+cumulative_par_balanced_copied_bytes :: RTSStats -&gt; Word64
 init_cpu_ns :: RTSStats -&gt; RtsTime
 init_elapsed_ns :: RTSStats -&gt; RtsTime
-major_gcs :: RTSStats -&gt; Word32
-max_compact_bytes :: RTSStats -&gt; Word64
-max_large_objects_bytes :: RTSStats -&gt; Word64
-max_live_bytes :: RTSStats -&gt; Word64
-max_mem_in_use_bytes :: RTSStats -&gt; Word64
-max_slop_bytes :: RTSStats -&gt; Word64
 mutator_cpu_ns :: RTSStats -&gt; RtsTime
 mutator_elapsed_ns :: RTSStats -&gt; RtsTime
-nonmoving_gc_cpu_ns :: RTSStats -&gt; RtsTime
-nonmoving_gc_elapsed_ns :: RTSStats -&gt; RtsTime
-nonmoving_gc_max_elapsed_ns :: RTSStats -&gt; RtsTime
+gc_cpu_ns :: RTSStats -&gt; RtsTime
+gc_elapsed_ns :: RTSStats -&gt; RtsTime
+cpu_ns :: RTSStats -&gt; RtsTime
+elapsed_ns :: RTSStats -&gt; RtsTime
 nonmoving_gc_sync_cpu_ns :: RTSStats -&gt; RtsTime
 nonmoving_gc_sync_elapsed_ns :: RTSStats -&gt; RtsTime
 nonmoving_gc_sync_max_elapsed_ns :: RTSStats -&gt; RtsTime
-par_copied_bytes :: RTSStats -&gt; Word64
-gc :: GCDetails
-nonmoving_gc_max_elapsed_ns :: RtsTime
-nonmoving_gc_elapsed_ns :: RtsTime
-nonmoving_gc_cpu_ns :: RtsTime
-nonmoving_gc_sync_max_elapsed_ns :: RtsTime
-nonmoving_gc_sync_elapsed_ns :: RtsTime
-nonmoving_gc_sync_cpu_ns :: RtsTime
-elapsed_ns :: RtsTime
-cpu_ns :: RtsTime
-gc_elapsed_ns :: RtsTime
-gc_cpu_ns :: RtsTime
-mutator_elapsed_ns :: RtsTime
-mutator_cpu_ns :: RtsTime
-init_elapsed_ns :: RtsTime
-init_cpu_ns :: RtsTime
-cumulative_par_balanced_copied_bytes :: Word64
-cumulative_par_max_copied_bytes :: Word64
-par_copied_bytes :: Word64
-copied_bytes :: Word64
-cumulative_live_bytes :: Word64
-max_mem_in_use_bytes :: Word64
-max_slop_bytes :: Word64
-max_compact_bytes :: Word64
-max_large_objects_bytes :: Word64
-max_live_bytes :: Word64
-allocated_bytes :: Word64
-major_gcs :: Word32
-gcs :: Word32
-</span><span class="hs-glyph hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">..</span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span><span class="hs-special">}</span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. MonadIO m =&gt; IO a -&gt; m a
+nonmoving_gc_cpu_ns :: RTSStats -&gt; RtsTime
+nonmoving_gc_elapsed_ns :: RTSStats -&gt; RtsTime
+nonmoving_gc_max_elapsed_ns :: RTSStats -&gt; RtsTime
+gc :: RTSStats -&gt; GCDetails
+</span><a href="#local-6989586621679208485"><span class="hs-glyph hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">..</span></a></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span><span class="hs-special">}</span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">IO RTSStats -&gt; m RTSStats
+forall a. IO a -&gt; m a
+forall (m :: * -&gt; *) a. MonadIO m =&gt; IO a -&gt; m a
 </span><span class="hs-identifier hs-var">liftIO</span></span><span> </span><span class="annot"><span class="annottext">IO RTSStats
 </span><span class="hs-identifier hs-var">getRTSStats</span></span><span>
 </span><span id="line-18"></span><span>
-</span><span id="line-19"></span><span>  </span><span class="annot"><span class="annottext">forall {a}. Show a =&gt; ByteString -&gt; a -&gt; m ()
-</span><a href="#local-6989586621679204081"><span class="hs-identifier hs-var">pub</span></a></span><span> </span><span class="annot"><span class="annottext">ByteString
+</span><span id="line-19"></span><span>  </span><span class="annot"><span class="annottext">ByteString -&gt; Word32 -&gt; m ()
+forall {a}. Show a =&gt; ByteString -&gt; a -&gt; m ()
+</span><a href="#local-6989586621679208542"><span class="hs-identifier hs-var">pub</span></a></span><span> </span><span class="annot"><span class="annottext">ByteString
 </span><span class="hs-string">&quot;gcs&quot;</span></span><span> </span><span class="annot"><span class="annottext">Word32
-</span><a href="#local-6989586621679204138"><span class="hs-identifier hs-var">gcs</span></a></span><span>
-</span><span id="line-20"></span><span>  </span><span class="annot"><span class="annottext">forall {a}. Show a =&gt; ByteString -&gt; a -&gt; m ()
-</span><a href="#local-6989586621679204081"><span class="hs-identifier hs-var">pub</span></a></span><span> </span><span class="annot"><span class="annottext">ByteString
+</span><a href="#local-6989586621679208485"><span class="hs-identifier hs-var">gcs</span></a></span><span>
+</span><span id="line-20"></span><span>  </span><span class="annot"><span class="annottext">ByteString -&gt; Word64 -&gt; m ()
+forall {a}. Show a =&gt; ByteString -&gt; a -&gt; m ()
+</span><a href="#local-6989586621679208542"><span class="hs-identifier hs-var">pub</span></a></span><span> </span><span class="annot"><span class="annottext">ByteString
 </span><span class="hs-string">&quot;allocated&quot;</span></span><span> </span><span class="annot"><span class="annottext">Word64
-</span><a href="#local-6989586621679204136"><span class="hs-identifier hs-var">allocated_bytes</span></a></span><span>
-</span><span id="line-21"></span><span>  </span><span class="annot"><span class="annottext">forall {a}. Show a =&gt; ByteString -&gt; a -&gt; m ()
-</span><a href="#local-6989586621679204081"><span class="hs-identifier hs-var">pub</span></a></span><span> </span><span class="annot"><span class="annottext">ByteString
+</span><a href="#local-6989586621679208487"><span class="hs-identifier hs-var">allocated_bytes</span></a></span><span>
+</span><span id="line-21"></span><span>  </span><span class="annot"><span class="annottext">ByteString -&gt; RtsTime -&gt; m ()
+forall {a}. Show a =&gt; ByteString -&gt; a -&gt; m ()
+</span><a href="#local-6989586621679208542"><span class="hs-identifier hs-var">pub</span></a></span><span> </span><span class="annot"><span class="annottext">ByteString
 </span><span class="hs-string">&quot;gc_elapsed&quot;</span></span><span> </span><span class="annot"><span class="annottext">RtsTime
-</span><a href="#local-6989586621679204120"><span class="hs-identifier hs-var">gc_elapsed_ns</span></a></span><span>
+</span><a href="#local-6989586621679208503"><span class="hs-identifier hs-var">gc_elapsed_ns</span></a></span><span>
 </span><span id="line-22"></span><span>
-</span><span id="line-23"></span><span>  </span><span class="hs-keyword">let</span><span> </span><span class="annot"><span class="hs-identifier hs-type">GCDetails</span></span><span class="hs-special">{</span><span id="local-6989586621679204064"><span id="local-6989586621679204065"><span id="local-6989586621679204066"><span id="local-6989586621679204067"><span id="local-6989586621679204068"><span id="local-6989586621679204069"><span id="local-6989586621679204070"><span id="local-6989586621679204071"><span id="local-6989586621679204072"><span id="local-6989586621679204073"><span id="local-6989586621679204074"><span id="local-6989586621679204075"><span id="local-6989586621679204076"><span id="local-6989586621679204077"><span id="local-6989586621679204078"><span id="local-6989586621679204079"><span class="annot"><span class="annottext">RtsTime
+</span><span id="line-23"></span><span>  </span><span class="hs-keyword">let</span><span> </span><span class="annot"><span class="hs-identifier hs-type">GCDetails</span></span><span class="hs-special">{</span><span id="local-6989586621679208544"><span id="local-6989586621679208545"><span id="local-6989586621679208546"><span id="local-6989586621679208547"><span id="local-6989586621679208548"><span id="local-6989586621679208549"><span id="local-6989586621679208550"><span id="local-6989586621679208551"><span id="local-6989586621679208552"><span id="local-6989586621679208553"><span id="local-6989586621679208554"><span id="local-6989586621679208555"><span id="local-6989586621679208556"><span id="local-6989586621679208557"><span id="local-6989586621679208558"><span id="local-6989586621679208559"><span class="annot"><span class="annottext">RtsTime
 Word32
 Word64
+gcdetails_gen :: Word32
+gcdetails_threads :: Word32
+gcdetails_allocated_bytes :: Word64
+gcdetails_live_bytes :: Word64
+gcdetails_large_objects_bytes :: Word64
+gcdetails_compact_bytes :: Word64
+gcdetails_slop_bytes :: Word64
+gcdetails_mem_in_use_bytes :: Word64
+gcdetails_copied_bytes :: Word64
+gcdetails_par_max_copied_bytes :: Word64
+gcdetails_par_balanced_copied_bytes :: Word64
+gcdetails_sync_elapsed_ns :: RtsTime
+gcdetails_cpu_ns :: RtsTime
+gcdetails_elapsed_ns :: RtsTime
+gcdetails_nonmoving_gc_sync_cpu_ns :: RtsTime
+gcdetails_nonmoving_gc_sync_elapsed_ns :: RtsTime
+gcdetails_gen :: GCDetails -&gt; Word32
+gcdetails_threads :: GCDetails -&gt; Word32
 gcdetails_allocated_bytes :: GCDetails -&gt; Word64
+gcdetails_live_bytes :: GCDetails -&gt; Word64
+gcdetails_large_objects_bytes :: GCDetails -&gt; Word64
 gcdetails_compact_bytes :: GCDetails -&gt; Word64
+gcdetails_slop_bytes :: GCDetails -&gt; Word64
+gcdetails_mem_in_use_bytes :: GCDetails -&gt; Word64
 gcdetails_copied_bytes :: GCDetails -&gt; Word64
+gcdetails_par_max_copied_bytes :: GCDetails -&gt; Word64
+gcdetails_par_balanced_copied_bytes :: GCDetails -&gt; Word64
+gcdetails_sync_elapsed_ns :: GCDetails -&gt; RtsTime
 gcdetails_cpu_ns :: GCDetails -&gt; RtsTime
 gcdetails_elapsed_ns :: GCDetails -&gt; RtsTime
-gcdetails_gen :: GCDetails -&gt; Word32
-gcdetails_large_objects_bytes :: GCDetails -&gt; Word64
-gcdetails_live_bytes :: GCDetails -&gt; Word64
-gcdetails_mem_in_use_bytes :: GCDetails -&gt; Word64
 gcdetails_nonmoving_gc_sync_cpu_ns :: GCDetails -&gt; RtsTime
 gcdetails_nonmoving_gc_sync_elapsed_ns :: GCDetails -&gt; RtsTime
-gcdetails_par_balanced_copied_bytes :: GCDetails -&gt; Word64
-gcdetails_par_max_copied_bytes :: GCDetails -&gt; Word64
-gcdetails_slop_bytes :: GCDetails -&gt; Word64
-gcdetails_sync_elapsed_ns :: GCDetails -&gt; RtsTime
-gcdetails_threads :: GCDetails -&gt; Word32
-gcdetails_nonmoving_gc_sync_elapsed_ns :: RtsTime
-gcdetails_nonmoving_gc_sync_cpu_ns :: RtsTime
-gcdetails_elapsed_ns :: RtsTime
-gcdetails_cpu_ns :: RtsTime
-gcdetails_sync_elapsed_ns :: RtsTime
-gcdetails_par_balanced_copied_bytes :: Word64
-gcdetails_par_max_copied_bytes :: Word64
-gcdetails_copied_bytes :: Word64
-gcdetails_mem_in_use_bytes :: Word64
-gcdetails_slop_bytes :: Word64
-gcdetails_compact_bytes :: Word64
-gcdetails_large_objects_bytes :: Word64
-gcdetails_live_bytes :: Word64
-gcdetails_allocated_bytes :: Word64
-gcdetails_threads :: Word32
-gcdetails_gen :: Word32
-</span><span class="hs-glyph hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">..</span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span><span class="hs-special">}</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">GCDetails
-</span><a href="#local-6989586621679204111"><span class="hs-identifier hs-var">gc</span></a></span><span>
-</span><span id="line-24"></span><span>  </span><span class="annot"><span class="annottext">forall {a}. Show a =&gt; ByteString -&gt; a -&gt; m ()
-</span><a href="#local-6989586621679204081"><span class="hs-identifier hs-var">pub</span></a></span><span> </span><span class="annot"><span class="annottext">ByteString
+</span><a href="#local-6989586621679208544"><span class="hs-glyph hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">..</span></a></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span><span class="hs-special">}</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">GCDetails
+</span><a href="#local-6989586621679208512"><span class="hs-identifier hs-var">gc</span></a></span><span>
+</span><span id="line-24"></span><span>  </span><span class="annot"><span class="annottext">ByteString -&gt; Word64 -&gt; m ()
+forall {a}. Show a =&gt; ByteString -&gt; a -&gt; m ()
+</span><a href="#local-6989586621679208542"><span class="hs-identifier hs-var">pub</span></a></span><span> </span><span class="annot"><span class="annottext">ByteString
 </span><span class="hs-string">&quot;live_bytes&quot;</span></span><span> </span><span class="annot"><span class="annottext">Word64
-</span><a href="#local-6989586621679204076"><span class="hs-identifier hs-var">gcdetails_live_bytes</span></a></span><span>
-</span><span id="line-25"></span><span>  </span><span class="annot"><span class="annottext">forall {a}. Show a =&gt; ByteString -&gt; a -&gt; m ()
-</span><a href="#local-6989586621679204081"><span class="hs-identifier hs-var">pub</span></a></span><span> </span><span class="annot"><span class="annottext">ByteString
+</span><a href="#local-6989586621679208547"><span class="hs-identifier hs-var">gcdetails_live_bytes</span></a></span><span>
+</span><span id="line-25"></span><span>  </span><span class="annot"><span class="annottext">ByteString -&gt; Word64 -&gt; m ()
+forall {a}. Show a =&gt; ByteString -&gt; a -&gt; m ()
+</span><a href="#local-6989586621679208542"><span class="hs-identifier hs-var">pub</span></a></span><span> </span><span class="annot"><span class="annottext">ByteString
 </span><span class="hs-string">&quot;large_bytes&quot;</span></span><span> </span><span class="annot"><span class="annottext">Word64
-</span><a href="#local-6989586621679204075"><span class="hs-identifier hs-var">gcdetails_large_objects_bytes</span></a></span><span>
-</span><span id="line-26"></span><span>  </span><span class="annot"><span class="annottext">forall {a}. Show a =&gt; ByteString -&gt; a -&gt; m ()
-</span><a href="#local-6989586621679204081"><span class="hs-identifier hs-var">pub</span></a></span><span> </span><span class="annot"><span class="annottext">ByteString
+</span><a href="#local-6989586621679208548"><span class="hs-identifier hs-var">gcdetails_large_objects_bytes</span></a></span><span>
+</span><span id="line-26"></span><span>  </span><span class="annot"><span class="annottext">ByteString -&gt; Word64 -&gt; m ()
+forall {a}. Show a =&gt; ByteString -&gt; a -&gt; m ()
+</span><a href="#local-6989586621679208542"><span class="hs-identifier hs-var">pub</span></a></span><span> </span><span class="annot"><span class="annottext">ByteString
 </span><span class="hs-string">&quot;compact_bytes&quot;</span></span><span> </span><span class="annot"><span class="annottext">Word64
-</span><a href="#local-6989586621679204074"><span class="hs-identifier hs-var">gcdetails_compact_bytes</span></a></span><span>
-</span><span id="line-27"></span><span>  </span><span class="annot"><span class="annottext">forall {a}. Show a =&gt; ByteString -&gt; a -&gt; m ()
-</span><a href="#local-6989586621679204081"><span class="hs-identifier hs-var">pub</span></a></span><span> </span><span class="annot"><span class="annottext">ByteString
+</span><a href="#local-6989586621679208549"><span class="hs-identifier hs-var">gcdetails_compact_bytes</span></a></span><span>
+</span><span id="line-27"></span><span>  </span><span class="annot"><span class="annottext">ByteString -&gt; Word64 -&gt; m ()
+forall {a}. Show a =&gt; ByteString -&gt; a -&gt; m ()
+</span><a href="#local-6989586621679208542"><span class="hs-identifier hs-var">pub</span></a></span><span> </span><span class="annot"><span class="annottext">ByteString
 </span><span class="hs-string">&quot;mem_in_use&quot;</span></span><span> </span><span class="annot"><span class="annottext">Word64
-</span><a href="#local-6989586621679204072"><span class="hs-identifier hs-var">gcdetails_mem_in_use_bytes</span></a></span><span>
+</span><a href="#local-6989586621679208551"><span class="hs-identifier hs-var">gcdetails_mem_in_use_bytes</span></a></span><span>
 </span><span id="line-28"></span><span>
 </span><span id="line-29"></span><span>  </span><span class="hs-keyword">where</span><span>
-</span><span id="line-30"></span><span>    </span><span id="local-6989586621679204044"><span class="annot"><span class="annottext">pre :: ByteString -&gt; ByteString
-</span><a href="#local-6989586621679204044"><span class="hs-identifier hs-var hs-var">pre</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">ByteString
-</span><span class="hs-string">&quot;$SYS/broker/runtime/&quot;</span></span><span> </span><span class="annot"><span class="annottext">forall a. Semigroup a =&gt; a -&gt; a -&gt; a
+</span><span id="line-30"></span><span>    </span><span id="local-6989586621679208579"><span class="annot"><span class="annottext">pre :: ByteString -&gt; ByteString
+</span><a href="#local-6989586621679208579"><span class="hs-identifier hs-var hs-var">pre</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">ByteString
+</span><span class="hs-string">&quot;$SYS/broker/runtime/&quot;</span></span><span> </span><span class="annot"><span class="annottext">ByteString -&gt; ByteString -&gt; ByteString
+forall a. Semigroup a =&gt; a -&gt; a -&gt; a
 </span><span class="hs-operator hs-var">&lt;&gt;</span></span><span class="hs-special">)</span><span>
-</span><span id="line-31"></span><span>    </span><span id="local-6989586621679204081"><span class="annot"><span class="annottext">pub :: ByteString -&gt; a -&gt; m ()
-</span><a href="#local-6989586621679204081"><span class="hs-identifier hs-var hs-var">pub</span></a></span></span><span> </span><span id="local-6989586621679204041"><span class="annot"><span class="annottext">ByteString
-</span><a href="#local-6989586621679204041"><span class="hs-identifier hs-var">k</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ByteString -&gt; ByteString -&gt; m ()
-</span><a href="#local-6989586621679204140"><span class="hs-identifier hs-var">pubBS</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">ByteString -&gt; ByteString
-</span><a href="#local-6989586621679204044"><span class="hs-identifier hs-var">pre</span></a></span><span> </span><span class="annot"><span class="annottext">ByteString
-</span><a href="#local-6989586621679204041"><span class="hs-identifier hs-var">k</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span id="line-31"></span><span>    </span><span id="local-6989586621679208542"><span class="annot"><span class="annottext">pub :: ByteString -&gt; a -&gt; m ()
+</span><a href="#local-6989586621679208542"><span class="hs-identifier hs-var hs-var">pub</span></a></span></span><span> </span><span id="local-6989586621679208582"><span class="annot"><span class="annottext">ByteString
+</span><a href="#local-6989586621679208582"><span class="hs-identifier hs-var">k</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ByteString -&gt; ByteString -&gt; m ()
+</span><a href="#local-6989586621679208483"><span class="hs-identifier hs-var">pubBS</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">ByteString -&gt; ByteString
+</span><a href="#local-6989586621679208579"><span class="hs-identifier hs-var">pre</span></a></span><span> </span><span class="annot"><span class="annottext">ByteString
+</span><a href="#local-6989586621679208582"><span class="hs-identifier hs-var">k</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(ByteString -&gt; m ()) -&gt; (a -&gt; ByteString) -&gt; a -&gt; m ()
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
 </span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Text -&gt; ByteString
-</span><a href="MQTTD.Util.html#textToBL"><span class="hs-identifier hs-var">textToBL</span></a></span><span> </span><span class="annot"><span class="annottext">forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
-</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">forall a. Show a =&gt; a -&gt; Text
+</span><a href="MQTTD.Util.html#textToBL"><span class="hs-identifier hs-var">textToBL</span></a></span><span> </span><span class="annot"><span class="annottext">(Text -&gt; ByteString) -&gt; (a -&gt; Text) -&gt; a -&gt; ByteString
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; Text
+forall a. Show a =&gt; a -&gt; Text
 </span><a href="MQTTD.Util.html#tshow"><span class="hs-identifier hs-var">tshow</span></a></span><span>
 </span><span id="line-32"></span></pre></body></html>
