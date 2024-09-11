@@ -1,18 +1,18 @@
-{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE RankNTypes          #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module MQTTD.GCStats where
 
-import           Control.Monad.IO.Class (MonadIO (..))
-import qualified Data.ByteString.Lazy   as BL
+import           Cleff
+import qualified Data.ByteString.Lazy as BL
 import           GHC.Stats
 
-import           MQTTD.Types
 import           MQTTD.Util
 
 hasGCStats :: MonadIO m => m Bool
 hasGCStats = liftIO getRTSStatsEnabled
 
-pubGCStats :: forall m. PublishConstraint m => (BL.ByteString -> BL.ByteString -> m ()) -> m ()
+pubGCStats :: forall es. IOE :> es => (BL.ByteString -> BL.ByteString -> Eff es ()) -> Eff es ()
 pubGCStats pubBS = do
   RTSStats{..} <- liftIO getRTSStats
 
@@ -28,4 +28,5 @@ pubGCStats pubBS = do
 
   where
     pre = ("$SYS/broker/runtime/" <>)
+    pub :: Show a => BL.ByteString -> a -> Eff es ()
     pub k = pubBS (pre k) . textToBL . tshow

@@ -2,27 +2,25 @@
 
 module SchedulerSpec where
 
-
+import           Cleff
 import           Control.Concurrent.Async (withAsync)
 import           Control.Concurrent.STM   (modifyTVar', newTVarIO, readTVar, readTVarIO, registerDelay)
-import           Control.Monad.IO.Class   (MonadIO (..))
-import           Control.Monad.Logger     (LogLine, WriterLoggingT, execWriterLoggingT)
-import           Control.Monad.Reader     (MonadReader (..), ReaderT (..))
+import           Control.Monad.Logger     (LogLine)
 import           Data.Foldable            (traverse_)
 import           Data.List                (sort)
 import           Data.Maybe               (listToMaybe)
+import qualified Data.Set                 as Set
 import           Data.String              (IsString (..))
 import           Data.Time
 import           UnliftIO                 (atomically, writeTVar)
-
 
 import           Hedgehog
 import qualified Hedgehog.Gen             as Gen
 import qualified Hedgehog.Range           as Range
 
+import           MQTTD.Logging
 import           MQTTD.Stats
 import           Scheduler
-import qualified Data.Set as Set
 
 -- https://github.com/hedgehogqa/haskell-hedgehog/issues/215
 genUTCTime :: MonadGen m => m UTCTime
@@ -89,8 +87,8 @@ hprop_queueNextIsLowest = property $ do
     dates <- forAll genDates
     next (populate dates) === listToMaybe (sort dates)
 
-runTestOnce :: ReaderT StatStore (WriterLoggingT IO) b -> IO [LogLine]
-runTestOnce a = newStatStore >>= \ss -> withAsync (applyStats ss) (\_ -> execWriterLoggingT $ runReaderT a ss)
+runTestOnce ::  Eff [Stats, LogFX, IOE] a -> IO [LogLine]
+runTestOnce a = newStatStore >>= \ss -> withAsync (applyStats ss) (\_ -> (fmap snd . runIOE . runLogWriter . runStats ss) a)
 
 nr :: MonadIO m => m (QueueRunner Int)
 nr = newRunner
@@ -136,7 +134,7 @@ hprop_runnerCancels = property $ do
     nvar <- liftIO $ newTVarIO 0
     logs <- liftIO $ runTestOnce $ do
         ids <- traverse (\(n,t) -> enqueue t n runner) ndates
-        ss <- ask
+        ss <- getStatStore
         traverse_ (\i -> atomically $ cancelSTM ss i runner) ids
         _ <- enqueue zeroDate 0 runner
         runOnce clock (\x -> atomically $ modifyTVar' nvar (+ x)) runner

@@ -32,8 +32,8 @@ dependencies:
 - lens
 - time
 - mtl
-- transformers
 - async
+- cleff
 - stm
 - monad-logger
 - conduit
@@ -59,6 +59,16 @@ default-extensions:
   - OverloadedStrings
   - RecordWildCards
   - NamedFieldPuns
+  - UndecidableInstances
+  - GADTs
+  - KindSignatures
+  - LambdaCase
+  - BlockArguments
+  - TypeOperators
+  - RankNTypes
+  - FlexibleContexts
+  - DataKinds
+  - ConstraintKinds
 
 executables:
   mqttd:

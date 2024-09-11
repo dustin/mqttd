@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: ae0862a10b8f885af405dcfe9d316fbaf045948b85c65b2e76e155f4372533db
+-- hash: de84f9077d24af8d2002a0bec87b6787fe0c875b20f73607a8d2747135af95bc
 
 name:           mqttd
 version:        0.9.2.1
@@ -48,6 +48,16 @@ library
       OverloadedStrings
       RecordWildCards
       NamedFieldPuns
+      UndecidableInstances
+      GADTs
+      KindSignatures
+      LambdaCase
+      BlockArguments
+      TypeOperators
+      RankNTypes
+      FlexibleContexts
+      DataKinds
+      ConstraintKinds
   ghc-options: -Wall
   build-depends:
       async
@@ -55,6 +65,7 @@ library
     , base >=4.7 && <5
     , bytestring
     , checkers
+    , cleff
     , conduit
     , conduit-extra
     , containers
@@ -74,7 +85,6 @@ library
     , stm
     , text
     , time
-    , transformers
     , unliftio
     , uuid
     , vector
@@ -91,6 +101,16 @@ executable mqttd
       OverloadedStrings
       RecordWildCards
       NamedFieldPuns
+      UndecidableInstances
+      GADTs
+      KindSignatures
+      LambdaCase
+      BlockArguments
+      TypeOperators
+      RankNTypes
+      FlexibleContexts
+      DataKinds
+      ConstraintKinds
   ghc-options: -threaded -rtsopts -with-rtsopts "-N -T" -Wall
   build-depends:
       async
@@ -98,6 +118,7 @@ executable mqttd
     , base >=4.7 && <5
     , bytestring
     , checkers
+    , cleff
     , conduit
     , conduit-extra
     , containers
@@ -118,7 +139,6 @@ executable mqttd
     , stm
     , text
     , time
-    , transformers
     , unliftio
     , uuid
     , vector
@@ -135,6 +155,16 @@ executable mqttdpass
       OverloadedStrings
       RecordWildCards
       NamedFieldPuns
+      UndecidableInstances
+      GADTs
+      KindSignatures
+      LambdaCase
+      BlockArguments
+      TypeOperators
+      RankNTypes
+      FlexibleContexts
+      DataKinds
+      ConstraintKinds
   ghc-options: -threaded -rtsopts -with-rtsopts "-N -T" -Wall
   build-depends:
       async
@@ -142,6 +172,7 @@ executable mqttdpass
     , base >=4.7 && <5
     , bytestring
     , checkers
+    , cleff
     , conduit
     , conduit-extra
     , containers
@@ -161,7 +192,6 @@ executable mqttdpass
     , stm
     , text
     , time
-    , transformers
     , unliftio
     , uuid
     , vector
@@ -183,6 +213,16 @@ test-suite mqttd-test
       OverloadedStrings
       RecordWildCards
       NamedFieldPuns
+      UndecidableInstances
+      GADTs
+      KindSignatures
+      LambdaCase
+      BlockArguments
+      TypeOperators
+      RankNTypes
+      FlexibleContexts
+      DataKinds
+      ConstraintKinds
   ghc-options: -Wall -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       HUnit
@@ -192,6 +232,7 @@ test-suite mqttd-test
     , base >=4.7 && <5
     , bytestring
     , checkers
+    , cleff
     , conduit
     , conduit-extra
     , containers
@@ -220,7 +261,6 @@ test-suite mqttd-test
     , tasty-quickcheck
     , text
     , time
-    , transformers
     , unliftio
     , uuid
     , vector

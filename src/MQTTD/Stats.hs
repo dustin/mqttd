@@ -1,11 +1,10 @@
-{-# LANGUAGE FlexibleInstances #-}
-
+{-# LANGUAGE TemplateHaskell #-}
 module MQTTD.Stats where
 
+import           Cleff
+import           Cleff.Reader
 import           Control.Concurrent.STM (STM, TBQueue, TVar, check, flushTBQueue, isEmptyTBQueue, modifyTVar')
 import           Control.Monad          (forever)
-import           Control.Monad.IO.Class (MonadIO (..))
-import           Control.Monad.Reader   (ReaderT (..), ask)
 import qualified Data.ByteString.Lazy   as BL
 import           Data.Map.Strict        (Map)
 import qualified Data.Map.Strict        as Map
@@ -40,11 +39,17 @@ data StatStore = StatStore {
   _stats_map   :: TVar (Map StatKey Int)
   }
 
-class HasStats m where
-  statStore :: m StatStore
+data Stats :: Effect where
+  GetStatStore :: Stats m StatStore
 
-instance Monad m => HasStats (ReaderT StatStore m) where
-  statStore = ask
+makeEffect ''Stats
+
+runStats :: (IOE :> es) => StatStore -> Eff (Stats : es) a -> Eff es a
+runStats statStore = runReader statStore . reinterpret \case
+  GetStatStore -> ask
+
+runNewStats :: IOE :> es => Eff (Stats : es) a -> Eff es a
+runNewStats a = flip runStats a =<< newStatStore
 
 newStatStore :: MonadIO m => m StatStore
 newStatStore = StatStore <$> newTBQueueIO 100 <*> newTVarIO mempty
@@ -58,8 +63,8 @@ applyStats StatStore{..} = forever . atomically $ do
 incrementStatSTM :: StatKey -> Int -> StatStore -> STM ()
 incrementStatSTM k i StatStore{..} = writeTBQueue _stats_queue (k, i)
 
-incrementStat :: (MonadIO m, HasStats m) => StatKey -> Int -> m ()
-incrementStat k i = statStore >>= atomically . incrementStatSTM k i
+incrementStat :: [IOE, Stats] :>> es => StatKey -> Int -> Eff es ()
+incrementStat k i = getStatStore >>= atomically . incrementStatSTM k i
 
-retrieveStats :: (MonadIO m, HasStats m) => m (Map StatKey Int)
-retrieveStats = statStore >>= \StatStore{..} -> readTVarIO _stats_map
+retrieveStats :: [IOE, Stats] :>> es => Eff es (Map StatKey Int)
+retrieveStats = getStatStore >>= \StatStore{..} -> readTVarIO _stats_map

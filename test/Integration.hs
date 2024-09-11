@@ -4,12 +4,13 @@ module Integration where
 
 import           Test.Tasty.HUnit
 
-import           Control.Concurrent     (newChan, threadDelay)
+import           Cleff
+import           Cleff.Fail
+import           Control.Concurrent     (threadDelay)
 import           Control.Concurrent.STM (TChan, check, modifyTVar', newTChanIO, newTVarIO, orElse, readTChan, readTVar,
                                          readTVarIO, registerDelay, writeTChan)
 import           Control.Exception      (catch)
 import           Control.Monad          (replicateM)
-import           Control.Monad.Logger   (runChanLoggingT)
 import qualified Data.ByteString.Lazy   as BL
 import           Data.List              (sort)
 import qualified Data.Map.Strict        as Map
@@ -24,7 +25,9 @@ import           UnliftIO               (Concurrently (..), atomically, bracket,
 
 import           MQTTD
 import           MQTTD.Config
+import           MQTTD.Logging
 import           MQTTD.Main
+import           MQTTD.Stats
 
 type TestServer = URI
 
@@ -42,9 +45,7 @@ withTestServiceConfig conf f = do
   port <- getFreePort
   let uri = fromJust $ parseURI $ "mqtt://127.0.0.1:" <> show port <> "/"
       cf = conf{_confListeners = [MQTTListener "127.0.0.1" port mempty]}
-  ch <- newChan
-  -- async (mapM_ (\(_,_,_,x) -> print x) =<< getChanContents ch)
-  bracket (runChanLoggingT ch $ runServerLogging cf) (mapM_ cancel) (const $ f uri)
+  bracket (runIOE . runFailIO . runNoLogFX . runNewStats $ runServerLogging cf) (mapM_ cancel) (const $ f uri)
 
 withTestService :: (TestServer -> Assertion) -> Assertion
 withTestService = withTestServiceConfig testConfig

@@ -3,23 +3,21 @@
 {-# LANGUAGE FlexibleContexts           #-}
 {-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE GeneralisedNewtypeDeriving #-}
-{-# LANGUAGE LambdaCase                 #-}
 {-# LANGUAGE ScopedTypeVariables        #-}
+{-# LANGUAGE TemplateHaskell            #-}
 {-# LANGUAGE TupleSections              #-}
 {-# LANGUAGE UndecidableInstances       #-}
 
 module MQTTD where
 
-import           Control.Applicative    (liftA2)
+import           Cleff
+import           Cleff.Fail
+import           Cleff.State
 import           Control.Concurrent     (ThreadId, threadDelay, throwTo)
 import           Control.Concurrent.STM (STM, TBQueue, TVar, isFullTBQueue, modifyTVar', newTBQueue, newTBQueueIO,
                                          newTVar, newTVarIO, readTVar, tryReadTBQueue, writeTBQueue, writeTVar)
 import           Control.Lens
 import           Control.Monad          (forever, unless, void, when)
-import           Control.Monad.Catch    (MonadCatch (..), MonadMask (..), MonadThrow (..))
-import           Control.Monad.IO.Class (MonadIO (..))
-import           Control.Monad.Logger   (MonadLogger (..))
-import           Control.Monad.Reader   (MonadReader (..), ReaderT (..), asks, local)
 import           Data.Bifunctor         (first, second)
 import           Data.Either            (rights)
 import           Data.Foldable          (fold, foldl')
@@ -36,7 +34,7 @@ import           Network.MQTT.Lens
 import qualified Network.MQTT.Topic     as T
 import qualified Network.MQTT.Types     as T
 import           System.Random          (getStdGen, newStdGen, randomR)
-import           UnliftIO               (MonadUnliftIO (..), atomically, readTVarIO)
+import           UnliftIO               (atomically, readTVarIO)
 
 import           MQTTD.Config           (ACL (..), ACLAction (..), User (..))
 import           MQTTD.DB
@@ -65,24 +63,13 @@ data Env = Env {
   stats        :: StatStore
   }
 
-newtype MQTTD m a = MQTTD
-  { runMQTTD :: ReaderT Env m a
-  } deriving (Applicative, Functor, Monad, MonadIO, MonadLogger,
-              MonadCatch, MonadThrow, MonadMask, MonadReader Env, MonadFail)
+data MQTTD :: Effect where
+  GetEnv :: MQTTD m Env
+  ModifyEnv :: (Env -> Env) -> MQTTD m ()
 
-instance MonadUnliftIO m => MonadUnliftIO (MQTTD m) where
-  withRunInIO inner = MQTTD $ withRunInIO $ \run -> inner (run . runMQTTD)
-
-instance Monad m => HasDBConnection (MQTTD m) where
-  dbConn = asks dbConnection
-  dbQueue = asks dbQ
-
-instance Monad m => HasStats (MQTTD m) where statStore = asks stats
+makeEffect ''MQTTD
 
 data Intention = IntentPublish | IntentSubscribe deriving (Eq, Show)
-
-runIO :: (MonadIO m, MonadLogger m) => Env -> MQTTD m a -> m a
-runIO e m = runReaderT (runMQTTD m) e
 
 newEnv :: MonadIO m => Authorizer -> Connection -> m Env
 newEnv a d = liftIO $ Env
@@ -98,25 +85,38 @@ newEnv a d = liftIO $ Env
          <*> newTBQueueIO 100
          <*> newStatStore
 
-modifyAuthorizer :: Monad m => (Authorizer -> Authorizer) -> MQTTD m a -> MQTTD m a
-modifyAuthorizer f = local (\e@Env{..} -> e{authorizer=f authorizer})
+runMQTTD :: forall es a. Env -> Eff (MQTTD : es) a -> Eff es (a, Env)
+runMQTTD initialEnv = runState initialEnv . reinterpret \case
+    GetEnv      -> get
+    ModifyEnv f -> modify f
+
+modifyAuthorizer :: MQTTD :> es => (Authorizer -> Authorizer) -> Eff es a -> Eff es a
+modifyAuthorizer f action = do
+  auth <- asks authorizer
+  modifyEnv (\e -> e{authorizer=f auth})
+  result <- action
+  modifyEnv (\e -> e{authorizer=auth}) -- restore the original
+  pure result
 
 seconds :: Num p => p -> p
 seconds = (1000000 *)
 
-nextID :: MonadIO m => MQTTD m Int
+asks :: MQTTD :> es => (Env -> a) -> Eff es a
+asks f = f <$> getEnv
+
+nextID :: [IOE, MQTTD] :>> es => Eff es Int
 nextID = asks clientIDGen >>= \ig -> atomically $ modifyTVarRet ig (+1)
 
-sessionCleanup :: PublishConstraint m => MQTTD m ()
+sessionCleanup :: [IOE, MQTTD, Stats, DB, LogFX] :>> es => Eff es ()
 sessionCleanup = asks queueRunner >>= Scheduler.run expireSession
 
-retainerCleanup :: (MonadUnliftIO m, MonadLogger m) => MQTTD m ()
+retainerCleanup :: [IOE, LogFX, MQTTD, Stats, DB] :>> es => Eff es ()
 retainerCleanup = asks retainer >>= cleanRetainer
 
-isClientConnected :: SessionID -> TVar (Map SessionID Session) ->  STM Bool
+isClientConnected :: SessionID -> TVar (Map SessionID Session) -> STM Bool
 isClientConnected sid sidsv = readTVar sidsv >>= \sids -> pure $ isJust (_sessionClient =<< Map.lookup sid sids)
 
-publishStats :: PublishConstraint m => MQTTD m ()
+publishStats :: [IOE, MQTTD, Stats, DB, LogFX] :>> es => Eff es ()
 publishStats = forever (pubStats >> sleep 15)
   where
     sleep = liftIO . threadDelay . seconds
@@ -176,7 +176,7 @@ resolveAliasIn Session{_sessionClient=Just ConnectedClient{_clientAliasIn}} r =
                             (T.PropTopicAlias _) -> False
                             _                    -> True)
 
-findSubs :: MonadIO m => T.Topic -> MQTTD m [(Session, T.SubOptions)]
+findSubs :: [IOE, MQTTD] :>> es => T.Topic -> Eff es [(Session, T.SubOptions)]
 findSubs t = liftA2 (<>) getRegularSubs getSharedSubs
   where
     getRegularSubs = do
@@ -200,7 +200,7 @@ findSubs t = liftA2 (<>) getRegularSubs getSharedSubs
                             (o, _) = randomR (0, length els' - 1) r
                         in [els' !! o]
 
-restoreSessions :: PublishConstraint m => MQTTD m ()
+restoreSessions :: [IOE, MQTTD, Stats, LogFX, DB] :>> es => Eff es ()
 restoreSessions = do
   ss <- loadSessions
   subs <- SubTree.fromList . fold <$> traverse flatSubs ss
@@ -215,10 +215,10 @@ restoreSessions = do
     flatSubs :: MonadIO m => Session -> m [(T.Filter, Map SessionID T.SubOptions)]
     flatSubs Session{..} = Map.foldMapWithKey (\k v -> [(k, Map.singleton _sessionID v)]) <$> readTVarIO _sessionSubs
 
-restoreRetained :: MonadIO m => MQTTD m ()
+restoreRetained :: [IOE, MQTTD, Stats, LogFX, DB] :>> es => Eff es ()
 restoreRetained = asks retainer >>= MQTTD.Retention.restoreRetained
 
-subscribe :: PublishConstraint m => Session -> T.SubscribeRequest -> MQTTD m ()
+subscribe :: [IOE, MQTTD, Stats, LogFX, DB] :>> es => Session -> T.SubscribeRequest -> Eff es ()
 subscribe sess@Session{..} (T.SubscribeRequest pid topics props) = do
   subs <- asks allSubs
   subsShared <- asks sharedSubs
@@ -277,7 +277,7 @@ removeSubs sharedt subt sid ts = do
       where
         cleanShared = (fmap . fmap) (filter ((== sid) . fst))
 
-unsubscribe :: MonadIO m => Session -> [BLFilter] -> MQTTD m [T.UnsubStatus]
+unsubscribe :: [IOE, MQTTD] :>> es => Session -> [BLFilter] -> Eff es [T.UnsubStatus]
 unsubscribe Session{..} topics = asks allSubs >>= \subs -> asks sharedSubs >>= \ssubs ->
   atomically $ do
     m <- readTVar _sessionSubs
@@ -292,11 +292,11 @@ unsubscribe Session{..} topics = asks allSubs >>= \subs -> asks sharedSubs >>= \
       up Nothing  = (Nothing,)
       up (Just t) = Map.updateLookupWithKey (const.const $ Nothing) t
 
-modifySession :: MonadIO m => SessionID -> (Session -> Maybe Session) -> MQTTD m ()
+modifySession :: [IOE, MQTTD] :>> es => SessionID -> (Session -> Maybe Session) -> Eff es ()
 modifySession k f = asks sessions >>= \s -> atomically $ modifyTVar' s (Map.update f k)
 
-registerClient :: (MonadFail m, MonadIO m)
-               => T.ConnectRequest -> ClientID -> ThreadId -> MQTTD m (Session, T.SessionReuse)
+registerClient :: [IOE, Fail, MQTTD] :>> es
+               => T.ConnectRequest -> ClientID -> ThreadId -> Eff es (Session, T.SessionReuse)
 registerClient req@T.ConnectRequest{..} i o = do
   c <- asks sessions
   ai <- liftIO $ newTVarIO mempty
@@ -335,7 +335,7 @@ registerClient req@T.ConnectRequest{..} i o = do
                          _sessionFlight=_sessionFlight ns,
                          _sessionWill=_lastWill}, T.ExistingSession)
 
-expireSession :: PublishConstraint m => SessionID -> MQTTD m ()
+expireSession :: [IOE, MQTTD, Stats, DB, LogFX] :>> es => SessionID -> Eff es ()
 expireSession k = do
   ss <- asks sessions
   possiblyCleanup =<< atomically (Map.lookup k <$> readTVar ss)
@@ -394,7 +394,7 @@ expireSession k = do
                             T._pubBody=_willMsg,
                             T._pubProps=_willProps})
 
-unregisterClient :: PublishConstraint m => SessionID -> ClientID -> MQTTD m ()
+unregisterClient :: [IOE, MQTTD, LogFX, Stats, DB] :>> es => SessionID -> ClientID -> Eff es ()
 unregisterClient k mid = do
   now <- liftIO getCurrentTime
   modifySession k (up now)
@@ -435,7 +435,7 @@ sendPacketIO_ ch = void . atomically . sendPacket ch
 nextPktID :: (Enum a, Bounded a, Eq a, Num a) => TVar a -> STM a
 nextPktID x = modifyTVarRet x $ \pid -> if pid == maxBound then 1 else succ pid
 
-broadcast :: PublishConstraint m => Maybe SessionID -> T.PublishRequest -> MQTTD m ()
+broadcast :: [IOE, MQTTD, Stats, DB, LogFX] :>> es => Maybe SessionID -> T.PublishRequest -> Eff es ()
 broadcast src req@T.PublishRequest{..} = do
   asks retainer >>= retain req
   subs <- maybe (pure []) findSubs ((T.mkTopic . blToText) _pubTopic)
@@ -454,11 +454,11 @@ broadcast src req@T.PublishRequest{..} = do
     mightRetain T.SubOptions{_retainAsPublished=False} = False
     mightRetain _                                      = _pubRetain
 
-publish :: PublishConstraint m => Session -> T.PublishRequest -> MQTTD m ()
+publish :: [IOE, MQTTD, Stats] :>> es => Session -> T.PublishRequest -> Eff es ()
 publish sess@Session{..} pkt@T.PublishRequest{..}
   -- QoS 0 is special-cased because it's fire-and-forget with no retries or anything.
-  | _pubQoS == T.QoS0 = statStore >>= \ss -> atomically $ deliver ss sess pkt
-  | otherwise = statStore >>= \ss -> atomically $ do
+  | _pubQoS == T.QoS0 = getStatStore >>= \ss -> atomically $ deliver ss sess pkt
+  | otherwise = getStatStore >>= \ss -> atomically $ do
       modifyTVar' _sessionQP $ Map.insert (pkt ^. pktID) pkt
       tokens <- readTVar _sessionFlight
       if tokens == 0
@@ -516,12 +516,12 @@ releasePubSlot ss sess@Session{..} = do
   modifyTVar' _sessionFlight succ
   justM (deliver ss sess) =<< tryReadTBQueue _sessionBacklog
 
-dispatch :: PublishConstraint m => Session -> T.MQTTPkt -> MQTTD m ()
+dispatch :: [IOE, Fail, MQTTD, DB, LogFX, Stats] :>> es => Session -> T.MQTTPkt -> Eff es ()
 
 dispatch Session{..} T.PingPkt = sendPacketIO_ _sessionChan T.PongPkt
 
 -- QoS 1 ACK (receiving client got our publish message)
-dispatch sess@Session{..} (T.PubACKPkt ack) = statStore >>= \st -> atomically $ do
+dispatch sess@Session{..} (T.PubACKPkt ack) = getStatStore >>= \st -> atomically $ do
   modifyTVar' _sessionQP (Map.delete (ack ^. pktID))
   releasePubSlot st sess
 
@@ -540,7 +540,7 @@ dispatch Session{..} (T.PubRELPkt rel) = do
   justM (broadcast (Just _sessionID)) pkt
 
 -- QoS 2 COMPlete (publishing client says publish is complete)
-dispatch sess (T.PubCOMPPkt _) = statStore >>= \st -> atomically $ releasePubSlot st sess
+dispatch sess (T.PubCOMPPkt _) = getStatStore >>= \st -> atomically $ releasePubSlot st sess
 
 -- Subscribe response is sent from the `subscribe` action because the
 -- interaction is a bit complicated.
@@ -568,7 +568,7 @@ dispatch sess@Session{..} (T.PublishPkt req) = do
         sendPacketIO_ _sessionChan (T.PubACKPkt (T.PubACK _pubPktID 0 mempty))
         broadcast (Just _sessionID) r
         countIn
-      satisfyQoS T.QoS2 r@T.PublishRequest{..} = statStore >>= \ss -> atomically $ do
+      satisfyQoS T.QoS2 r@T.PublishRequest{..} = getStatStore >>= \ss -> atomically $ do
         sendPacket_ _sessionChan (T.PubRECPkt (T.PubREC _pubPktID 0 mempty))
         modifyTVar' _sessionQP (Map.insert _pubPktID r)
         incrementStatSTM StatMsgRcvd 1 ss

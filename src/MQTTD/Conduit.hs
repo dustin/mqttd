@@ -7,14 +7,14 @@
 
 module MQTTD.Conduit where
 
+import           Cleff
+import           Cleff.Fail
 import           Control.Concurrent       (myThreadId, throwTo)
 import           Control.Concurrent.STM   (check, modifyTVar', newTChanIO, orElse, readTBQueue, readTChan, readTVar,
                                            registerDelay, writeTBQueue, writeTChan)
 import           Control.Lens
 import           Control.Monad            (forever, guard, unless, void, when)
 import qualified Control.Monad.Catch      as E
-import           Control.Monad.IO.Class   (MonadIO (..))
-import           Control.Monad.Reader     (asks)
 import           Control.Monad.Trans      (lift)
 import qualified Data.ByteString.Char8    as BCS
 import qualified Data.ByteString.Lazy     as BL
@@ -36,14 +36,15 @@ import           UnliftIO                 (async, atomically, waitAnyCancel)
 
 import           MQTTD
 import           MQTTD.Config
+import           MQTTD.DB                 (DB (..))
 import           MQTTD.Logging
 import           MQTTD.Stats
 import           MQTTD.Types
 import           MQTTD.Util
 
-type MQTTConduit m = (ConduitT () BCS.ByteString (MQTTD m) (), ConduitT BCS.ByteString Void (MQTTD m) (), Text)
+type MQTTConduit es = (ConduitT () BCS.ByteString (Eff es) (), ConduitT BCS.ByteString Void (Eff es) (), Text)
 
-authorize :: (MonadFail m, Monad m) => T.ConnectRequest -> MQTTD m (Either String ())
+authorize :: [IOE, Fail, MQTTD, DB, LogFX, Stats] :>> es => T.ConnectRequest -> Eff es (Either String ())
 authorize T.ConnectRequest{..} = do
   Authorizer{..} <- asks authorizer
   pure . unless _authAnon $ do
@@ -57,9 +58,9 @@ authorize T.ConnectRequest{..} = do
   where inv = Left "invalid username or password"
         topw = mkPassword . TE.decodeUtf8 . BL.toStrict
 
-runMQTTDConduit :: forall m. PublishConstraint m => MQTTConduit m -> MQTTD m ()
+runMQTTDConduit :: forall es. [IOE, Fail, LogFX, DB, Stats, MQTTD] :>> es => MQTTConduit es -> Eff es ()
 runMQTTDConduit (src, sink, addr) = runConduit $ do
-  (cpkt@(T.ConnPkt _ pl), genedID) <- ensureID =<< commonIn .| sinkParser T.parseConnect
+  (cpkt@(T.ConnPkt _ pl), genedID) <- lift . ensureID =<< commonIn .| sinkParser T.parseConnect
   cid <- lift nextID
 
   lift $ run pl cid cpkt genedID
@@ -67,7 +68,7 @@ runMQTTDConduit (src, sink, addr) = runConduit $ do
   where
     count s x = incrementStat s (fromIntegral $ BCS.length x) >> pure x
 
-    run :: T.ProtocolLevel -> ClientID -> T.MQTTPkt -> Maybe SessionID -> MQTTD m ()
+    run :: [IOE, Fail, DB, Stats, MQTTD] :>> es => T.ProtocolLevel -> ClientID -> T.MQTTPkt -> Maybe SessionID -> Eff es ()
     run pl cid (T.ConnPkt req _) nid = do
       r <- authorize req
       case r of
@@ -147,7 +148,7 @@ runMQTTDConduit (src, sink, addr) = runConduit $ do
     processOut pl ch = runConduit $
       C.repeatM (atomically $ readTBQueue ch) .| commonOut pl
 
-    teardown :: ClientID -> T.ConnectRequest -> MQTTD m ()
+    teardown :: [IOE, MQTTD] :>> es => ClientID -> T.ConnectRequest -> Eff es ()
     teardown cid c@T.ConnectRequest{..} = do
       logConn "disconnection" c
       unregisterClient _connID cid
@@ -185,7 +186,7 @@ runMQTTDConduit (src, sink, addr) = runConduit $ do
                 guard =<< isClientConnected _sessionID allSessions
                 writeTBQueue _sessionBacklog p{T._pubDup=True}
 
-webSocketsApp :: PublishConstraint m => WS.PendingConnection -> MQTTD m ()
+webSocketsApp :: [IOE, Fail, MQTTD, Stats, LogFX, DB] :>> es => WS.PendingConnection -> Eff es ()
 webSocketsApp pc = do
   conn <- liftIO $ WS.acceptRequest pc
   runMQTTDConduit (wsSource conn, wsSink conn, "<unknown>")
@@ -197,5 +198,5 @@ webSocketsApp pc = do
 
     wsSink ws = justM (\bs -> liftIO (WS.sendBinaryData ws bs) >> wsSink ws) =<< await
 
-tcpApp :: PublishConstraint m => AppData -> MQTTD m ()
+tcpApp :: [IOE, Fail, MQTTD, DB, Stats, LogFX] :>> es => AppData -> Eff es ()
 tcpApp ad = runMQTTDConduit (appSource ad, appSink ad, tshow (appSockAddr ad))

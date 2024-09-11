@@ -1,10 +1,9 @@
 module MQTTD.Retention where
 
+import           Cleff
 import           Control.Concurrent.STM (TVar, modifyTVar', newTVarIO, readTVar)
 import           Control.Lens
 import           Control.Monad          (unless, when, (<=<))
-import           Control.Monad.IO.Class (MonadIO (..))
-import           Control.Monad.Logger   (MonadLogger (..))
 import qualified Data.ByteString.Lazy   as BL
 import           Data.Map.Strict        (Map)
 import qualified Data.Map.Strict        as Map
@@ -12,7 +11,7 @@ import           Data.Time.Clock        (UTCTime (..), addUTCTime, diffUTCTime, 
 import           Network.MQTT.Lens
 import qualified Network.MQTT.Topic     as T
 import qualified Network.MQTT.Types     as T
-import           UnliftIO               (MonadUnliftIO (..), atomically, readTVarIO)
+import           UnliftIO               (atomically, readTVarIO)
 
 import           MQTTD.DB
 import           MQTTD.Logging
@@ -30,7 +29,7 @@ data Retainer = Retainer {
 newRetainer :: MonadIO m => m Retainer
 newRetainer = Retainer <$> liftIO (newTVarIO mempty) <*> Scheduler.newRunner
 
-cleanRetainer :: (HasStats m, MonadLogger m, HasDBConnection m, MonadUnliftIO m) => Retainer -> m ()
+cleanRetainer :: [IOE, Stats, DB, LogFX] :>> es => Retainer -> Eff es ()
 cleanRetainer Retainer{..} = Scheduler.run cleanup _qrunner
     where
       cleanup k = do
@@ -45,14 +44,14 @@ cleanRetainer Retainer{..} = Scheduler.run cleanup _qrunner
 isSys :: BLTopic -> Bool
 isSys = ("$SYS/" `BL.isPrefixOf`)
 
-retain :: (HasStats m, MonadLogger m, HasDBConnection m, MonadIO m) => T.PublishRequest -> Retainer -> m ()
+retain :: [IOE, Stats, DB, LogFX] :>> es => T.PublishRequest -> Retainer -> Eff es ()
 retain T.PublishRequest{_pubRetain=False} _ = pure ()
 retain T.PublishRequest{_pubTopic,_pubBody=""} Retainer{..} = do
   deleteRetained _pubTopic
   atomically $ modifyTVar' _store (Map.delete _pubTopic)
 retain pr@T.PublishRequest{..} Retainer{..} = do
   now <- liftIO getCurrentTime
-  ss <- statStore
+  ss <- getStatStore
   unless (isSys _pubTopic) $ logDbgL ["Persisting ", tshow _pubTopic]
   let e = pr ^? properties . folded . _PropMessageExpiryInterval . to (absExp now)
       ret = Retained now Nothing pr
@@ -65,9 +64,9 @@ retain pr@T.PublishRequest{..} Retainer{..} = do
     pure ret'
   unless (isSys _pubTopic) $ storeRetained ret'
 
-restoreRetained :: (HasStats m, MonadIO m, HasDBConnection m) => Retainer -> m ()
+restoreRetained :: [IOE, Stats, DB] :>> es => Retainer -> Eff es ()
 restoreRetained Retainer{..} = do
-  ss <- statStore
+  ss <- getStatStore
   mapM_ (keep ss) =<< loadRetained
   where
     keep ss r@Retained{..} = do

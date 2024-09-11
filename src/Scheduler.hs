@@ -1,10 +1,9 @@
 module Scheduler (QueueID(..), Clock(..), TimedQueue, add, ready, next, QueueRunner, newRunner, enqueue, enqueueSTM, cancelSTM, run, runOnce) where
 
+import           Cleff
 import           Control.Concurrent.STM (STM, TVar, check, modifyTVar', newTVarIO, orElse, readTVar, registerDelay,
                                          writeTVar)
 import           Control.Monad          (forever)
-import           Control.Monad.IO.Class (MonadIO (..))
-import           Control.Monad.Logger   (MonadLogger (..))
 import           Data.Map.Strict        (Map)
 import qualified Data.Map.Strict        as Map
 import           Data.Maybe             (fromMaybe)
@@ -44,8 +43,8 @@ data QueueRunner a = QueueRunner {
 newRunner :: MonadIO m => m (QueueRunner a)
 newRunner = QueueRunner <$> liftIO (newTVarIO mempty) <*> liftIO (newTVarIO 0)
 
-enqueue :: (HasStats m, Ord a, MonadIO m) => UTCTime -> a -> QueueRunner a -> m QueueID
-enqueue t a qr = statStore >>= \ss -> atomically $ enqueueSTM ss t a qr
+enqueue :: ([IOE, Stats] :>> es, Ord a) => UTCTime -> a -> QueueRunner a -> Eff es QueueID
+enqueue t a qr = getStatStore >>= \ss -> atomically $ enqueueSTM ss t a qr
 
 enqueueSTM :: Ord a => StatStore -> UTCTime -> a -> QueueRunner a -> STM QueueID
 enqueueSTM ss t a QueueRunner{..} = do
@@ -61,7 +60,7 @@ cancelSTM ss qid QueueRunner{..} = do
   modifyTVar' _tq (Map.delete qid)
 
 -- | Run forever.
-run :: (HasStats m, MonadLogger m, MonadIO m) => (a -> m ()) -> QueueRunner a -> m ()
+run ::  [IOE, Stats, LogFX] :>> es => (a -> Eff es ()) -> QueueRunner a -> Eff es ()
 run action = forever . runOnce sysClock action
 
 data Clock = Clock {
@@ -95,7 +94,7 @@ runReady Clock{..} action QueueRunner{..} = do
 -- ready items.  This will sometimes run 0 items.  It shouldn't ever
 -- run any items that are scheduled for the future, and it shouldn't
 -- forget any items that are ready.
-runOnce :: (HasStats m, MonadLogger m, MonadIO m) => Clock -> (a -> m ()) -> QueueRunner a -> m ()
+runOnce :: [IOE, Stats, LogFX] :>> es => Clock -> (a -> Eff es ()) -> QueueRunner a -> Eff es ()
 runOnce c action qr = do
   blockUntilReady c qr
   done <- runReady c action qr
