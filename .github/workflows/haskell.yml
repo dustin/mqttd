@@ -14,7 +14,7 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
 
     - name: Cache Key
       id: cache_key
@@ -22,7 +22,7 @@ jobs:
 
     - name: Cache Dependencies
       id: cache
-      uses: actions/cache@v1
+      uses: actions/cache@v3
       with:
         path: ~/.stack
         key: ${{ matrix.os }}-${{ steps.cache_key.outputs.key }}
@@ -41,7 +41,7 @@ jobs:
         cp $HOME/.local/bin/mqttdpass dist
 
     - name: Store Artifact
-      uses: actions/upload-artifact@v1
+      uses: actions/upload-artifact@v3
       with:
         name: mqttd-${{ matrix.os }}
         path: dist
@@ -53,11 +53,3 @@ jobs:
         stack install
         PKG_NAME=$(cat *.cabal | grep "name:" | sed "s/name:\s*\(.*\)/\1/")
         mkdir -p docs && mv $(stack path --local-install-root)/doc/$PKG_NAME-*/* docs/
-
-    - name: Publish Docs
-      if: matrix.os == 'ubuntu-latest' && github.event_name == 'push'
-      uses: peaceiris/actions-gh-pages@v3
-      with:
-        github_token: ${{ secrets.GITHUB_TOKEN }}
-        publish_dir: docs
-        enable_jekyll: false
