@@ -1,5 +1,9 @@
 # Changelog for mqttd
 
+## 0.9.5.0
+
+Using cleff for effect management.
+
 ## 0.9.0.0
 
 I've been running in production for over a year with no issues to
