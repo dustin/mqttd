@@ -18,12 +18,12 @@ data LogFX :: Effect where
 
 makeEffect ''LogFX
 
-genericLog :: LogLevel -> [IOE, LogFX] :>> es => T.Text -> Eff es ()
+genericLog :: LogLevel -> LogFX :> es => T.Text -> Eff es ()
 genericLog lvl = logFX defaultLoc "" lvl . fromString . T.unpack
 
-logError, logInfo, logDbg :: [IOE, LogFX] :>> es => T.Text -> Eff es ()
+logError, logInfo, logDbg :: LogFX :> es => T.Text -> Eff es ()
 
-logErrorL, logInfoL, logDbgL :: (Foldable f, [IOE, LogFX] :>> es) => f T.Text -> Eff es ()
+logErrorL, logInfoL, logDbgL :: (Foldable f, LogFX :> es) => f T.Text -> Eff es ()
 
 logErrorL = logError . fold
 logInfoL = logInfo . fold
@@ -56,6 +56,6 @@ runNoLogFX :: Eff (LogFX : es) a -> Eff es a
 runNoLogFX = interpret \case
   LogFX _ _ _ _ -> pure ()
 
-runLogWriter :: (IOE :> es) => Eff (LogFX : es) a -> Eff es (a, [LogLine])
+runLogWriter :: Eff (LogFX : es) a -> Eff es (a, [LogLine])
 runLogWriter = runWriter . reinterpret \case
   LogFX a b c d -> tell [(a,b,c,d)]
