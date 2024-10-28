@@ -9,7 +9,6 @@ import           Test.Tasty
 import           Test.Tasty.HUnit
 import           Test.Tasty.QuickCheck    as QC
 
-import           Control.Applicative      (liftA2)
 import           Control.Concurrent.STM   (atomically, newTVarIO)
 import           Data.Either              (isLeft, isRight)
 import           Data.Foldable            (for_)

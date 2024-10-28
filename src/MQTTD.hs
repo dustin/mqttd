@@ -59,8 +59,7 @@ data Env = Env {
   retainer     :: Retainer,
   authorizer   :: Authorizer,
   dbConnection :: Connection,
-  dbQ          :: TBQueue DBOperation,
-  stats        :: StatStore
+  dbQ          :: TBQueue DBOperation
   }
 
 data MQTTD :: Effect where
@@ -83,7 +82,6 @@ newEnv a d = liftIO $ Env
          <*> pure a
          <*> pure d
          <*> newTBQueueIO 100
-         <*> newStatStore
 
 runMQTTD :: forall es a. Env -> Eff (MQTTD : es) a -> Eff es (a, Env)
 runMQTTD initialEnv = runState initialEnv . reinterpret \case

@@ -1,13 +1,13 @@
 cabal-version: 1.12
 
--- This file has been generated from package.yaml by hpack version 0.35.2.
+-- This file has been generated from package.yaml by hpack version 0.36.0.
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: de84f9077d24af8d2002a0bec87b6787fe0c875b20f73607a8d2747135af95bc
+-- hash: f396a67368cd75d8d6d883fadbe23d9bc354d2ea4ece07b19108ec149870313b
 
 name:           mqttd
-version:        0.9.2.1
+version:        0.9.5.0
 description:    Please see the README on GitHub at <https://github.com/dustin/mqttd#readme>
 homepage:       https://github.com/dustin/mqttd#readme
 bug-reports:    https://github.com/dustin/mqttd/issues

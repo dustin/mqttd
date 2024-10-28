@@ -56,12 +56,13 @@ runServerLogging Config{..} = do
   dbc <- async $ finally pause (logDbg "Closing DB connection" >> liftIO (close db))
 
   e <- newEnv baseAuth db
+  ss <- getStatStore
   fmap fst . runMQTTD e . runDB db (dbQ e) $ do
     sc <- async sessionCleanup
     pc <- async retainerCleanup
     dba <- async runOperations
     st <- async publishStats
-    as <- async (applyStats $ stats e)
+    as <- async (applyStats ss)
     restoreSessions
     restoreRetained
 
