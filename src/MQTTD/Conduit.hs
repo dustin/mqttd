@@ -38,6 +38,7 @@ import           MQTTD
 import           MQTTD.Config
 import           MQTTD.DB                 (DB (..))
 import           MQTTD.Logging
+import           MQTTD.ScheduleFX
 import           MQTTD.Stats
 import           MQTTD.Types
 import           MQTTD.Util
@@ -58,7 +59,7 @@ authorize T.ConnectRequest{..} = do
   where inv = Left "invalid username or password"
         topw = mkPassword . TE.decodeUtf8 . BL.toStrict
 
-runMQTTDConduit :: forall es. [IOE, Fail, LogFX, DB, Stats, MQTTD] :>> es => MQTTConduit es -> Eff es ()
+runMQTTDConduit :: forall es. [IOE, ScheduleFX SessionID, Fail, LogFX, DB, Stats, MQTTD] :>> es => MQTTConduit es -> Eff es ()
 runMQTTDConduit (src, sink, addr) = runConduit $ do
   (cpkt@(T.ConnPkt _ pl), genedID) <- lift . ensureID =<< commonIn .| sinkParser T.parseConnect
   cid <- lift nextID
@@ -68,7 +69,7 @@ runMQTTDConduit (src, sink, addr) = runConduit $ do
   where
     count s x = incrementStat s (fromIntegral $ BCS.length x) >> pure x
 
-    run :: [IOE, Fail, DB, Stats, MQTTD] :>> es => T.ProtocolLevel -> ClientID -> T.MQTTPkt -> Maybe SessionID -> Eff es ()
+    run :: [IOE, ScheduleFX SessionID, Fail, DB, Stats, MQTTD] :>> es => T.ProtocolLevel -> ClientID -> T.MQTTPkt -> Maybe SessionID -> Eff es ()
     run pl cid (T.ConnPkt req _) nid = do
       r <- authorize req
       case r of
@@ -186,7 +187,7 @@ runMQTTDConduit (src, sink, addr) = runConduit $ do
                 guard =<< isClientConnected _sessionID allSessions
                 writeTBQueue _sessionBacklog p{T._pubDup=True}
 
-webSocketsApp :: [IOE, Fail, MQTTD, Stats, LogFX, DB] :>> es => WS.PendingConnection -> Eff es ()
+webSocketsApp :: [IOE, ScheduleFX SessionID, Fail, MQTTD, Stats, LogFX, DB] :>> es => WS.PendingConnection -> Eff es ()
 webSocketsApp pc = do
   conn <- liftIO $ WS.acceptRequest pc
   runMQTTDConduit (wsSource conn, wsSink conn, "<unknown>")
@@ -198,5 +199,5 @@ webSocketsApp pc = do
 
     wsSink ws = justM (\bs -> liftIO (WS.sendBinaryData ws bs) >> wsSink ws) =<< await
 
-tcpApp :: [IOE, Fail, MQTTD, DB, Stats, LogFX] :>> es => AppData -> Eff es ()
+tcpApp :: [IOE, Fail, ScheduleFX SessionID, MQTTD, DB, Stats, LogFX] :>> es => AppData -> Eff es ()
 tcpApp ad = runMQTTDConduit (appSource ad, appSink ad, tshow (appSockAddr ad))

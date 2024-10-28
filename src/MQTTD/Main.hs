@@ -16,11 +16,13 @@ import           MQTTD.Conduit
 import           MQTTD.Config
 import           MQTTD.DB
 import           MQTTD.Logging
+import           MQTTD.ScheduleFX
 import           MQTTD.Stats
 import           MQTTD.Types
 import           MQTTD.Util
+import qualified Scheduler
 
-runListener :: [IOE, Fail, LogFX, MQTTD, Stats, DB] :>> es => Listener -> Eff es (Async ())
+runListener :: [IOE, Fail, LogFX, MQTTD, ScheduleFX SessionID, Stats, DB] :>> es => Listener -> Eff es (Async ())
 runListener (MQTTListener a p _) = do
   logInfoL ["Starting mqtt service on ", tshow a, ":", tshow p]
   -- The generic TCP listener is featureful enough to allow us to
@@ -57,8 +59,9 @@ runServerLogging Config{..} = do
 
   e <- newEnv baseAuth db
   ss <- getStatStore
-  fmap fst . runMQTTD e . runDB db (dbQ e) $ do
-    sc <- async sessionCleanup
+  expirer <- Scheduler.newRunner
+  fmap fst . runMQTTD e . runSchedule expirer . runDB db (dbQ e) $ do
+    sc <- async (Scheduler.run expireSession expirer)
     pc <- async retainerCleanup
     dba <- async runOperations
     st <- async publishStats

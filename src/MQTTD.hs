@@ -47,7 +47,7 @@ import qualified MQTTD.SubTree          as SubTree
 import           MQTTD.Types
 import           MQTTD.Util
 
-import qualified Scheduler
+import           MQTTD.ScheduleFX
 
 data Env = Env {
   sessions     :: TVar (Map SessionID Session),
@@ -55,7 +55,6 @@ data Env = Env {
   clientIDGen  :: TVar ClientID,
   allSubs      :: TVar (SubTree (Map SessionID T.SubOptions)),
   sharedSubs   :: TVar (SubTree (Map SubscriberName [(SessionID, T.SubOptions)])),
-  queueRunner  :: Scheduler.QueueRunner SessionID,
   retainer     :: Retainer,
   authorizer   :: Authorizer,
   dbConnection :: Connection,
@@ -77,7 +76,6 @@ newEnv a d = liftIO $ Env
          <*> newTVarIO 0
          <*> newTVarIO mempty -- all subs
          <*> newTVarIO mempty -- shared subs
-         <*> Scheduler.newRunner
          <*> newRetainer
          <*> pure a
          <*> pure d
@@ -104,9 +102,6 @@ asks f = f <$> getEnv
 
 nextID :: [IOE, MQTTD] :>> es => Eff es Int
 nextID = asks clientIDGen >>= \ig -> atomically $ modifyTVarRet ig (+1)
-
-sessionCleanup :: [IOE, MQTTD, Stats, DB, LogFX] :>> es => Eff es ()
-sessionCleanup = asks queueRunner >>= Scheduler.run expireSession
 
 retainerCleanup :: [IOE, LogFX, MQTTD, Stats, DB] :>> es => Eff es ()
 retainerCleanup = asks retainer >>= cleanRetainer
@@ -198,7 +193,7 @@ findSubs t = liftA2 (<>) getRegularSubs getSharedSubs
                             (o, _) = randomR (0, length els' - 1) r
                         in [els' !! o]
 
-restoreSessions :: [IOE, MQTTD, Stats, LogFX, DB] :>> es => Eff es ()
+restoreSessions :: [IOE, ScheduleFX SessionID, MQTTD, Stats, LogFX, DB] :>> es => Eff es ()
 restoreSessions = do
   ss <- loadSessions
   subs <- SubTree.fromList . fold <$> traverse flatSubs ss
@@ -333,7 +328,7 @@ registerClient req@T.ConnectRequest{..} i o = do
                          _sessionFlight=_sessionFlight ns,
                          _sessionWill=_lastWill}, T.ExistingSession)
 
-expireSession :: [IOE, MQTTD, Stats, DB, LogFX] :>> es => SessionID -> Eff es ()
+expireSession :: [IOE, ScheduleFX SessionID, MQTTD, Stats, DB, LogFX] :>> es => SessionID -> Eff es ()
 expireSession k = do
   ss <- asks sessions
   possiblyCleanup =<< atomically (Map.lookup k <$> readTVar ss)
@@ -349,7 +344,7 @@ expireSession k = do
       now <- liftIO getCurrentTime
       subs <- readTVarIO subsv
       if hasHighQoS subs && ex > now
-        then void . Scheduler.enqueue ex k =<< asks queueRunner
+        then void $ enqueue ex k
         else expireNow
 
     hasHighQoS = isJust . preview (folded . subQoS . filtered (> T.QoS0))
@@ -392,7 +387,7 @@ expireSession k = do
                             T._pubBody=_willMsg,
                             T._pubProps=_willProps})
 
-unregisterClient :: [IOE, MQTTD, LogFX, Stats, DB] :>> es => SessionID -> ClientID -> Eff es ()
+unregisterClient :: [IOE, MQTTD, ScheduleFX SessionID, LogFX, Stats, DB] :>> es => SessionID -> ClientID -> Eff es ()
 unregisterClient k mid = do
   now <- liftIO getCurrentTime
   modifySession k (up now)
