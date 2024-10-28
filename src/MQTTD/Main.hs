@@ -53,7 +53,7 @@ runServerLogging Config{..} = do
   liftIO $ initDB db
   dbc <- async $ finally pause (logDbg "Closing DB connection" >> liftIO (close db))
 
-  e <- newEnv db
+  e <- newEnv
   ss <- getStatStore
   expirer <- Scheduler.newRunner
   fmap fst . runMQTTD e . runSchedule expirer . runDB db (dbQ e) $ do

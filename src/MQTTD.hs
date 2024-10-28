@@ -57,7 +57,6 @@ data Env = Env {
   allSubs      :: TVar (SubTree (Map SessionID T.SubOptions)),
   sharedSubs   :: TVar (SubTree (Map SubscriberName [(SessionID, T.SubOptions)])),
   retainer     :: Retainer,
-  dbConnection :: Connection,
   dbQ          :: TBQueue DBOperation
   }
 
@@ -69,15 +68,14 @@ makeEffect ''MQTTD
 
 data Intention = IntentPublish | IntentSubscribe deriving (Eq, Show)
 
-newEnv :: MonadIO m => Connection -> m Env
-newEnv d = liftIO $ Env
+newEnv :: MonadIO m => m Env
+newEnv = liftIO $ Env
          <$> newTVarIO mempty
          <*> newTVarIO 1
          <*> newTVarIO 0
          <*> newTVarIO mempty -- all subs
          <*> newTVarIO mempty -- shared subs
          <*> newRetainer
-         <*> pure d
          <*> newTBQueueIO 100
 
 runMQTTD :: forall es a. Env -> Eff (MQTTD : es) a -> Eff es (a, Env)
