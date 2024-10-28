@@ -3,6 +3,7 @@ module MQTTD.Main where
 import           Cleff
 import           Cleff.Fail
 import           Control.Concurrent       (newChan, newEmptyMVar, putMVar, readChan, takeMVar)
+import           Control.Concurrent.STM   (newTBQueueIO)
 import           Control.Lens
 import           Data.Conduit.Network     (runGeneralTCPServer, serverSettings, setAfterBind)
 import           Data.Conduit.Network.TLS (runGeneralTCPServerTLS, tlsConfig)
@@ -56,7 +57,8 @@ runServerLogging Config{..} = do
   e <- newEnv
   ss <- getStatStore
   expirer <- Scheduler.newRunner
-  fmap fst . runMQTTD e . runSchedule expirer . runDB db (dbQ e) $ do
+  dbq <- liftIO $ newTBQueueIO 100
+  fmap fst . runMQTTD e . runSchedule expirer . runDB db dbq $ do
     sc <- async (Scheduler.run expireSession expirer)
     pc <- async retainerCleanup
     dba <- async runOperations

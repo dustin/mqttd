@@ -14,8 +14,8 @@ import           Cleff
 import           Cleff.Fail
 import           Cleff.State
 import           Control.Concurrent     (ThreadId, threadDelay, throwTo)
-import           Control.Concurrent.STM (STM, TBQueue, TVar, isFullTBQueue, modifyTVar', newTBQueue, newTBQueueIO,
-                                         newTVar, newTVarIO, readTVar, tryReadTBQueue, writeTBQueue, writeTVar)
+import           Control.Concurrent.STM (STM, TBQueue, TVar, isFullTBQueue, modifyTVar', newTBQueue, newTVar, newTVarIO,
+                                         readTVar, tryReadTBQueue, writeTBQueue, writeTVar)
 import           Control.Lens
 import           Control.Monad          (forever, unless, void, when)
 import           Data.Bifunctor         (first, second)
@@ -29,7 +29,6 @@ import           Data.String            (IsString (..))
 import qualified Data.Text              as Txt
 import           Data.Time.Clock        (addUTCTime, getCurrentTime)
 import           Data.Word              (Word16)
-import           Database.SQLite.Simple (Connection)
 import           Network.MQTT.Lens
 import qualified Network.MQTT.Topic     as T
 import qualified Network.MQTT.Types     as T
@@ -51,13 +50,12 @@ import           MQTTD.Util
 import           MQTTD.ScheduleFX
 
 data Env = Env {
-  sessions     :: TVar (Map SessionID Session),
-  lastPktID    :: TVar Word16,
-  clientIDGen  :: TVar ClientID,
-  allSubs      :: TVar (SubTree (Map SessionID T.SubOptions)),
-  sharedSubs   :: TVar (SubTree (Map SubscriberName [(SessionID, T.SubOptions)])),
-  retainer     :: Retainer,
-  dbQ          :: TBQueue DBOperation
+  sessions    :: TVar (Map SessionID Session),
+  lastPktID   :: TVar Word16,
+  clientIDGen :: TVar ClientID,
+  allSubs     :: TVar (SubTree (Map SessionID T.SubOptions)),
+  sharedSubs  :: TVar (SubTree (Map SubscriberName [(SessionID, T.SubOptions)])),
+  retainer    :: Retainer
   }
 
 data MQTTD :: Effect where
@@ -76,7 +74,6 @@ newEnv = liftIO $ Env
          <*> newTVarIO mempty -- all subs
          <*> newTVarIO mempty -- shared subs
          <*> newRetainer
-         <*> newTBQueueIO 100
 
 runMQTTD :: forall es a. Env -> Eff (MQTTD : es) a -> Eff es (a, Env)
 runMQTTD initialEnv = runState initialEnv . reinterpret \case
