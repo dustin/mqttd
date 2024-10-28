@@ -12,6 +12,7 @@ import qualified Network.WebSockets       as WS
 import           UnliftIO                 (Async (..), async, finally)
 
 import           MQTTD
+import           MQTTD.Authorizer
 import           MQTTD.Conduit
 import           MQTTD.Config
 import           MQTTD.DB
@@ -22,7 +23,7 @@ import           MQTTD.Types
 import           MQTTD.Util
 import qualified Scheduler
 
-runListener :: [IOE, Fail, LogFX, MQTTD, ScheduleFX SessionID, Stats, DB] :>> es => Listener -> Eff es (Async ())
+runListener :: [IOE, Fail, AuthFX, LogFX, MQTTD, ScheduleFX SessionID, Stats, DB] :>> es => Listener -> Eff es (Async ())
 runListener (MQTTListener a p _) = do
   logInfoL ["Starting mqtt service on ", tshow a, ":", tshow p]
   -- The generic TCP listener is featureful enough to allow us to
@@ -44,11 +45,6 @@ pause = liftIO (newChan >>= readChan)
 
 runServerLogging :: [IOE, Fail, LogFX, Stats] :>> es => Config -> Eff es [Async ()]
 runServerLogging Config{..} = do
-  let baseAuth = _confDefaults `applyListenerOptions` Authorizer{
-        _authAnon = False,
-        _authUsers = _confUsers
-        }
-
   -- withConnection is not used here because this action spawns a
   -- bunch of Asyncs and returns a list of them.  withConnection would
   -- close the connection before it returns.  Instead, I hold the
@@ -57,7 +53,7 @@ runServerLogging Config{..} = do
   liftIO $ initDB db
   dbc <- async $ finally pause (logDbg "Closing DB connection" >> liftIO (close db))
 
-  e <- newEnv baseAuth db
+  e <- newEnv db
   ss <- getStatStore
   expirer <- Scheduler.newRunner
   fmap fst . runMQTTD e . runSchedule expirer . runDB db (dbQ e) $ do
@@ -69,12 +65,17 @@ runServerLogging Config{..} = do
     restoreSessions
     restoreRetained
 
-    ls <- traverse runModified _confListeners
+    ls <- traverse runSubListener _confListeners
 
     pure (sc:pc:dba:st:as:dbc:ls)
 
         where
-          runModified = modifyAuthorizer . applyListenerOptions . view listenerOpts <*> runListener
+          runSubListener = runAuth . flip applyListenerOptions baseAuth . view listenerOpts <*> runListener
+
+          baseAuth = _confDefaults `applyListenerOptions` Authorizer{
+            _authAnon = False,
+            _authUsers = _confUsers
+          }
 
           applyListenerOptions ListenerOptions{..} a@Authorizer{..} =
             a{_authAnon=fromMaybe _authAnon _optAllowAnonymous}

@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: b4190804b3a74cc2d8063ee7b0c0c0bd28413cdb675e28ca564e854361eac750
+-- hash: 1c1518d1b5560ab4e32bb5b144b51eedb2375a33ef251091c0d1b9a23a940e71
 
 name:           mqttd
 version:        0.9.5.0
@@ -28,6 +28,7 @@ source-repository head
 library
   exposed-modules:
       MQTTD
+      MQTTD.Authorizer
       MQTTD.Conduit
       MQTTD.Config
       MQTTD.DB

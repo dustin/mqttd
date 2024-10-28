@@ -23,10 +23,8 @@ import           Data.Conduit.Attoparsec  (conduitParser, sinkParser)
 import qualified Data.Conduit.Combinators as C
 import           Data.Conduit.Network     (AppData, appSink, appSockAddr, appSource)
 import qualified Data.Map.Strict          as Map
-import           Data.Password.Bcrypt     (PasswordCheck (..), checkPassword, mkPassword)
 import           Data.String              (IsString (..))
 import           Data.Text                (Text, intercalate, pack, unpack)
-import qualified Data.Text.Encoding       as TE
 import qualified Data.UUID                as UUID
 import qualified Network.MQTT.Lens        as T
 import qualified Network.MQTT.Types       as T
@@ -35,7 +33,7 @@ import           System.Random            (randomIO)
 import           UnliftIO                 (async, atomically, waitAnyCancel)
 
 import           MQTTD
-import           MQTTD.Config
+import           MQTTD.Authorizer
 import           MQTTD.DB                 (DB (..))
 import           MQTTD.Logging
 import           MQTTD.ScheduleFX
@@ -45,21 +43,7 @@ import           MQTTD.Util
 
 type MQTTConduit es = (ConduitT () BCS.ByteString (Eff es) (), ConduitT BCS.ByteString Void (Eff es) (), Text)
 
-authorize :: [IOE, Fail, MQTTD, DB, LogFX, Stats] :>> es => T.ConnectRequest -> Eff es (Either String ())
-authorize T.ConnectRequest{..} = do
-  Authorizer{..} <- asks authorizer
-  pure . unless _authAnon $ do
-    uname <- maybe (Left "anonymous clients are not allowed") Right _username
-    (User _ want _) <- maybe inv Right (Map.lookup uname _authUsers)
-    pass <- maybe (Right "") Right _password
-    case want of
-      Plaintext p   -> when (pass /= p) inv
-      HashedPass hp -> when (checkPassword (topw pass) hp == PasswordCheckFail) inv
-
-  where inv = Left "invalid username or password"
-        topw = mkPassword . TE.decodeUtf8 . BL.toStrict
-
-runMQTTDConduit :: forall es. [IOE, ScheduleFX SessionID, Fail, LogFX, DB, Stats, MQTTD] :>> es => MQTTConduit es -> Eff es ()
+runMQTTDConduit :: forall es. [IOE, ScheduleFX SessionID, AuthFX, Fail, LogFX, DB, Stats, MQTTD] :>> es => MQTTConduit es -> Eff es ()
 runMQTTDConduit (src, sink, addr) = runConduit $ do
   (cpkt@(T.ConnPkt _ pl), genedID) <- lift . ensureID =<< commonIn .| sinkParser T.parseConnect
   cid <- lift nextID
@@ -69,7 +53,7 @@ runMQTTDConduit (src, sink, addr) = runConduit $ do
   where
     count s x = incrementStat s (fromIntegral $ BCS.length x) >> pure x
 
-    run :: [IOE, ScheduleFX SessionID, Fail, DB, Stats, MQTTD] :>> es => T.ProtocolLevel -> ClientID -> T.MQTTPkt -> Maybe SessionID -> Eff es ()
+    run :: [IOE, ScheduleFX SessionID, AuthFX, Fail, DB, Stats, MQTTD] :>> es => T.ProtocolLevel -> ClientID -> T.MQTTPkt -> Maybe SessionID -> Eff es ()
     run pl cid (T.ConnPkt req _) nid = do
       r <- authorize req
       case r of
@@ -187,7 +171,7 @@ runMQTTDConduit (src, sink, addr) = runConduit $ do
                 guard =<< isClientConnected _sessionID allSessions
                 writeTBQueue _sessionBacklog p{T._pubDup=True}
 
-webSocketsApp :: [IOE, ScheduleFX SessionID, Fail, MQTTD, Stats, LogFX, DB] :>> es => WS.PendingConnection -> Eff es ()
+webSocketsApp :: [IOE, ScheduleFX SessionID, AuthFX, Fail, MQTTD, Stats, LogFX, DB] :>> es => WS.PendingConnection -> Eff es ()
 webSocketsApp pc = do
   conn <- liftIO $ WS.acceptRequest pc
   runMQTTDConduit (wsSource conn, wsSink conn, "<unknown>")
@@ -199,5 +183,5 @@ webSocketsApp pc = do
 
     wsSink ws = justM (\bs -> liftIO (WS.sendBinaryData ws bs) >> wsSink ws) =<< await
 
-tcpApp :: [IOE, Fail, ScheduleFX SessionID, MQTTD, DB, Stats, LogFX] :>> es => AppData -> Eff es ()
+tcpApp :: [IOE, Fail, ScheduleFX SessionID, AuthFX, MQTTD, DB, Stats, LogFX] :>> es => AppData -> Eff es ()
 tcpApp ad = runMQTTDConduit (appSource ad, appSink ad, tshow (appSockAddr ad))

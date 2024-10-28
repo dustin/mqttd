@@ -36,7 +36,8 @@ import qualified Network.MQTT.Types     as T
 import           System.Random          (getStdGen, newStdGen, randomR)
 import           UnliftIO               (atomically, readTVarIO)
 
-import           MQTTD.Config           (ACL (..), ACLAction (..), User (..))
+import           MQTTD.Authorizer
+import           MQTTD.Config           (ACL (..), ACLAction (..))
 import           MQTTD.DB
 import           MQTTD.GCStats
 import           MQTTD.Logging
@@ -56,7 +57,6 @@ data Env = Env {
   allSubs      :: TVar (SubTree (Map SessionID T.SubOptions)),
   sharedSubs   :: TVar (SubTree (Map SubscriberName [(SessionID, T.SubOptions)])),
   retainer     :: Retainer,
-  authorizer   :: Authorizer,
   dbConnection :: Connection,
   dbQ          :: TBQueue DBOperation
   }
@@ -69,15 +69,14 @@ makeEffect ''MQTTD
 
 data Intention = IntentPublish | IntentSubscribe deriving (Eq, Show)
 
-newEnv :: MonadIO m => Authorizer -> Connection -> m Env
-newEnv a d = liftIO $ Env
+newEnv :: MonadIO m => Connection -> m Env
+newEnv d = liftIO $ Env
          <$> newTVarIO mempty
          <*> newTVarIO 1
          <*> newTVarIO 0
          <*> newTVarIO mempty -- all subs
          <*> newTVarIO mempty -- shared subs
          <*> newRetainer
-         <*> pure a
          <*> pure d
          <*> newTBQueueIO 100
 
@@ -85,14 +84,6 @@ runMQTTD :: forall es a. Env -> Eff (MQTTD : es) a -> Eff es (a, Env)
 runMQTTD initialEnv = runState initialEnv . reinterpret \case
     GetEnv      -> get
     ModifyEnv f -> modify f
-
-modifyAuthorizer :: MQTTD :> es => (Authorizer -> Authorizer) -> Eff es a -> Eff es a
-modifyAuthorizer f action = do
-  auth <- asks authorizer
-  modifyEnv (\e -> e{authorizer=f auth})
-  result <- action
-  modifyEnv (\e -> e{authorizer=auth}) -- restore the original
-  pure result
 
 seconds :: Num p => p -> p
 seconds = (1000000 *)
@@ -288,17 +279,16 @@ unsubscribe Session{..} topics = asks allSubs >>= \subs -> asks sharedSubs >>= \
 modifySession :: [IOE, MQTTD] :>> es => SessionID -> (Session -> Maybe Session) -> Eff es ()
 modifySession k f = asks sessions >>= \s -> atomically $ modifyTVar' s (Map.update f k)
 
-registerClient :: [IOE, Fail, MQTTD] :>> es
+registerClient :: [IOE, AuthFX, Fail, MQTTD] :>> es
                => T.ConnectRequest -> ClientID -> ThreadId -> Eff es (Session, T.SessionReuse)
 registerClient req@T.ConnectRequest{..} i o = do
   c <- asks sessions
   ai <- liftIO $ newTVarIO mempty
   ao <- liftIO $ newTVarIO mempty
   l <- liftIO $ newTVarIO (fromMaybe 0 (req ^? properties . folded . _PropTopicAliasMaximum))
-  authr <- asks (_authUsers . authorizer)
+  acl <- getACL _username
   let k = _connID
       nc = ConnectedClient req o i ai ao l
-      acl = fromMaybe [] (fmap (\(User _ _ a) -> a) . (`Map.lookup` authr) =<< _username)
       maxInFlight = fromMaybe maxBound (req ^? properties . folded . _PropReceiveMaximum)
   when (maxInFlight == 0) $ fail "max in flight must be greater than zero"
   (o', x, ns) <- atomically $ do
