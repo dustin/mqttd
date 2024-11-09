@@ -21,4 +21,10 @@ WORKDIR /usr/local/bin
 # Copy the built executable from the builder stage
 COPY --from=builder /root/.local/bin/mqttd .
 
-ENTRYPOINT ["/usr/local/bin/mqttd"]
+VOLUME /etc/mqttd
+WORKDIR /etc/mqttd
+
+COPY mqttd.conf .
+RUN sed -i 's/:memory:/mqttd.db/' /etc/mqttd/mqttd.conf
+
+CMD ["/usr/local/bin/mqttd"]
