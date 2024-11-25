@@ -23,8 +23,9 @@ import           Control.Monad.Logger   (MonadLogger (..))
 import qualified Data.ByteString.Lazy   as BL
 import           Data.Map.Strict        (Map)
 import qualified Data.Text              as Txt
-import           Data.Time.Clock        (NominalDiffTime, UTCTime (..))
+import           Data.Time.Clock        (NominalDiffTime, UTCTime (..), addUTCTime, diffUTCTime)
 import           Data.Word              (Word16)
+import           Network.MQTT.Lens
 import qualified Network.MQTT.Topic     as T
 import qualified Network.MQTT.Types     as T
 import           UnliftIO               (MonadUnliftIO (..))
@@ -67,7 +68,7 @@ data Session = Session {
   _sessionClient  :: Maybe ConnectedClient,
   _sessionChan    :: PktQueue,
   _sessionFlight  :: TVar Word16,
-  _sessionBacklog :: TBQueue T.PublishRequest,
+  _sessionBacklog :: TBQueue (Maybe UTCTime, T.PublishRequest),
   _sessionQP      :: TVar (Map T.PktID T.PublishRequest),
   _sessionSubs    :: TVar (Map T.Filter T.SubOptions),
   _sessionExpires :: Maybe UTCTime,
@@ -116,3 +117,12 @@ partitionShared = foldr (\x@(t,o) (s,n) -> case classifyTopic t of
                                              Normal _                 -> (s, x:n)
                                              SharedSubscription sn sf -> ((sn, sf, o):s, n)
                                              _                        -> (s, n)) ([], [])
+
+deadline :: UTCTime -> T.PublishRequest -> Maybe UTCTime
+deadline now req = req ^? properties . folded . _PropMessageExpiryInterval . to (absExp now)
+
+absExp :: Integral a => UTCTime -> a -> UTCTime
+absExp now secs = addUTCTime (fromIntegral secs) now
+
+relExp :: Integral p => UTCTime -> UTCTime -> p
+relExp now e = fst . properFraction $ diffUTCTime e now

@@ -1,5 +1,5 @@
-{-# LANGUAGE DerivingVia        #-}
-{-# LANGUAGE StrictData         #-}
+{-# LANGUAGE DerivingVia #-}
+{-# LANGUAGE StrictData  #-}
 
 module MQTTD.Config (Config(..), Creds(..), User(..), ACLAction(..), ACL(..), PersistenceConfig(..),
                      Listener(..), ListenerOptions(..), listenerOpts,

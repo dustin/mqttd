@@ -25,6 +25,7 @@ import           Data.Conduit.Network     (AppData, appSink, appSockAddr, appSou
 import qualified Data.Map.Strict          as Map
 import           Data.String              (IsString (..))
 import           Data.Text                (Text, intercalate, pack, unpack)
+import           Data.Time.Clock          (getCurrentTime)
 import qualified Data.UUID                as UUID
 import qualified Network.MQTT.Lens        as T
 import qualified Network.MQTT.Types       as T
@@ -158,18 +159,23 @@ runMQTTDConduit (src, sink, addr) = runConduit $ do
       -- drop them into an outbound queue that does not exceed the
       -- maximum amount allowable by either the client or our own
       -- queue size.  The rest is returned for async processing.
-      bl <- atomically $ do
+      now <- liftIO getCurrentTime
+      bl <- atomically do
         tokens <- readTVar _sessionFlight
+        modifyTVar' _sessionQP (Map.filter (stillValid now))
         (t, bl) <- splitAt (min defaultQueueSize (fromIntegral tokens)) . Map.elems <$> readTVar _sessionQP
         modifyTVar' _sessionFlight (subtract . fromIntegral . length $ t)
         mapM_ (sendPacket _sessionChan . T.PublishPkt . set T.pubDup True) t
         pure bl
       -- The backlog is processed as space frees up in its queue.
       allSessions <- asks sessions
-      mapM_ (atomically . art allSessions) bl
-        where art allSessions p = do
-                guard =<< isClientConnected _sessionID allSessions
-                writeTBQueue _sessionBacklog p{T._pubDup=True}
+      mapM_ (atomically . art now allSessions) bl
+        where
+          art now allSessions p = do
+              guard =<< isClientConnected _sessionID allSessions
+              writeTBQueue _sessionBacklog (deadline now p, p{T._pubDup=True})
+
+          stillValid now p = maybe True (now <) (deadline now p)
 
 webSocketsApp :: [IOE, ScheduleFX SessionID, AuthFX, Fail, MQTTD, Stats, LogFX, DB] :>> es => WS.PendingConnection -> Eff es ()
 webSocketsApp pc = do

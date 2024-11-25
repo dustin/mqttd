@@ -24,3 +24,7 @@ justM = traverse_
 
 modifyTVarRet :: TVar a -> (a -> a) -> STM a
 modifyTVarRet v f = modifyTVar' v f *> readTVar v
+
+{-# INLINE whenM #-}
+whenM :: Monad m => m Bool -> m () -> m ()
+whenM mb m = mb >>= \b -> if b then m else pure ()

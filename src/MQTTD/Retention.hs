@@ -7,7 +7,7 @@ import           Control.Monad          (unless, when, (<=<))
 import qualified Data.ByteString.Lazy   as BL
 import           Data.Map.Strict        (Map)
 import qualified Data.Map.Strict        as Map
-import           Data.Time.Clock        (UTCTime (..), addUTCTime, diffUTCTime, getCurrentTime)
+import           Data.Time.Clock        (getCurrentTime)
 import           Network.MQTT.Lens
 import qualified Network.MQTT.Topic     as T
 import qualified Network.MQTT.Types     as T
@@ -53,7 +53,7 @@ retain pr@T.PublishRequest{..} Retainer{..} = do
   now <- liftIO getCurrentTime
   ss <- getStatStore
   unless (isSys _pubTopic) $ logDbgL ["Persisting ", tshow _pubTopic]
-  let e = pr ^? properties . folded . _PropMessageExpiryInterval . to (absExp now)
+  let e = deadline now pr
       ret = Retained now Nothing pr
   ret' <- atomically $ do
     qid <- traverse (\t -> Scheduler.enqueueSTM ss t _pubTopic _qrunner) e
@@ -85,9 +85,3 @@ matchRetained Retainer{..} f = do
     adj _ Retained{_retainExp=Nothing, _retainMsg} = _retainMsg
     adj now Retained{_retainExp=Just (QueueID e _), _retainMsg} =
       _retainMsg & properties . traversed . _PropMessageExpiryInterval .~ relExp now e
-
-absExp :: Integral a => UTCTime -> a -> UTCTime
-absExp now secs = addUTCTime (fromIntegral secs) now
-
-relExp :: Integral p => UTCTime -> UTCTime -> p
-relExp now e = fst . properFraction $ diffUTCTime e now

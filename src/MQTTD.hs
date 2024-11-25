@@ -27,7 +27,7 @@ import           Data.Maybe             (catMaybes, fromMaybe, isJust)
 import           Data.Monoid            (Sum (..))
 import           Data.String            (IsString (..))
 import qualified Data.Text              as Txt
-import           Data.Time.Clock        (addUTCTime, getCurrentTime)
+import           Data.Time.Clock        (UTCTime, addUTCTime, getCurrentTime)
 import           Data.Word              (Word16)
 import           Network.MQTT.Lens
 import qualified Network.MQTT.Topic     as T
@@ -232,9 +232,10 @@ subscribe sess@Session{..} (T.SubscribeRequest pid topics props) = do
 
     sendOne opts@T.SubOptions{..} ir@T.PublishRequest{..} = do
       pid' <- atomically . nextPktID =<< asks lastPktID
+      now <- liftIO getCurrentTime
       let r = ir{T._pubPktID=pid', T._pubRetain=mightRetain opts,
                  T._pubQoS = if _pubQoS > _subQoS then _subQoS else _pubQoS}
-      publish sess r
+      publish (deadline now r) sess r
 
         where
           mightRetain T.SubOptions{_retainAsPublished=False} = False
@@ -418,7 +419,8 @@ broadcast src req@T.PublishRequest{..} = do
   asks retainer >>= retain req
   subs <- maybe (pure []) findSubs ((T.mkTopic . blToText) _pubTopic)
   pid <- atomically . nextPktID =<< asks lastPktID
-  mapM_ (\(s@Session{..}, o) -> justM (publish s) (pkt _sessionID o pid)) subs
+  beforeF <- deadline <$> liftIO getCurrentTime
+  mapM_ (\(s@Session{..}, o) -> justM (\p -> publish (beforeF p) s p) (pkt _sessionID o pid)) subs
   where
     pkt sid T.SubOptions{T._noLocal=True} _
       | Just sid == src = Nothing
@@ -432,16 +434,19 @@ broadcast src req@T.PublishRequest{..} = do
     mightRetain T.SubOptions{_retainAsPublished=False} = False
     mightRetain _                                      = _pubRetain
 
-publish :: [IOE, MQTTD, Stats] :>> es => Session -> T.PublishRequest -> Eff es ()
-publish sess@Session{..} pkt@T.PublishRequest{..}
-  -- QoS 0 is special-cased because it's fire-and-forget with no retries or anything.
-  | _pubQoS == T.QoS0 = getStatStore >>= \ss -> atomically $ deliver ss sess pkt
-  | otherwise = getStatStore >>= \ss -> atomically $ do
-      modifyTVar' _sessionQP $ Map.insert (pkt ^. pktID) pkt
-      tokens <- readTVar _sessionFlight
-      if tokens == 0
-        then void $ tryWriteQ _sessionBacklog pkt
-        else deliver ss sess pkt
+publish :: [IOE, MQTTD, Stats] :>> es => Maybe UTCTime -> Session -> T.PublishRequest -> Eff es ()
+publish before sess@Session{..} pkt@T.PublishRequest{..} = whenM deliverable publish'
+  where
+    deliverable = maybe (pure True) (\t -> liftIO getCurrentTime >>= \now -> pure (now < t)) before
+    publish'
+      -- QoS 0 is special-cased because it's fire-and-forget with no retries or anything.
+      | _pubQoS == T.QoS0 = getStatStore >>= \ss -> atomically $ deliver ss sess pkt
+      | otherwise = getStatStore >>= \ss -> atomically $ do
+          modifyTVar' _sessionQP $ Map.insert (pkt ^. pktID) pkt
+          tokens <- readTVar _sessionFlight
+          if tokens == 0
+            then void $ tryWriteQ _sessionBacklog (before, pkt)
+            else deliver ss sess pkt
 
 deliver :: StatStore -> Session -> T.PublishRequest -> STM ()
 deliver ss Session{..} pkt@T.PublishRequest{..} = do
@@ -489,19 +494,25 @@ authTopic tt action = foldr check (Right ())
 
     ftot = fromString . Txt.unpack . T.unFilter
 
-releasePubSlot :: StatStore -> Session -> STM ()
-releasePubSlot ss sess@Session{..} = do
+releasePubSlot :: UTCTime -> StatStore -> Session -> STM ()
+releasePubSlot now ss sess@Session{..} = do
   modifyTVar' _sessionFlight succ
-  justM (deliver ss sess) =<< tryReadTBQueue _sessionBacklog
+  getOne
+  where
+    getOne = tryReadTBQueue _sessionBacklog >>= \case
+      Nothing -> pure () -- Nothing to do
+      Just (Nothing, p) -> deliver ss sess p -- No deadline
+      Just (Just t, p) | t < now -> deliver ss sess p -- Deadline not yet reached
+      Just (Just _, _) -> getOne -- This one's expired, see if there's another one
 
 dispatch :: [IOE, Fail, MQTTD, DB, LogFX, Stats] :>> es => Session -> T.MQTTPkt -> Eff es ()
 
 dispatch Session{..} T.PingPkt = sendPacketIO_ _sessionChan T.PongPkt
 
 -- QoS 1 ACK (receiving client got our publish message)
-dispatch sess@Session{..} (T.PubACKPkt ack) = getStatStore >>= \st -> atomically $ do
+dispatch sess@Session{..} (T.PubACKPkt ack) = liftIO getCurrentTime >>= \now -> getStatStore >>= \st -> atomically $ do
   modifyTVar' _sessionQP (Map.delete (ack ^. pktID))
-  releasePubSlot st sess
+  releasePubSlot now st sess
 
 -- QoS 2 ACK (receiving client received our message)
 dispatch Session{..} (T.PubRECPkt ack) = atomically $ do
@@ -518,7 +529,7 @@ dispatch Session{..} (T.PubRELPkt rel) = do
   justM (broadcast (Just _sessionID)) pkt
 
 -- QoS 2 COMPlete (publishing client says publish is complete)
-dispatch sess (T.PubCOMPPkt _) = getStatStore >>= \st -> atomically $ releasePubSlot st sess
+dispatch sess (T.PubCOMPPkt _) = liftIO getCurrentTime >>= \now -> getStatStore >>= \st -> atomically $ releasePubSlot now st sess
 
 -- Subscribe response is sent from the `subscribe` action because the
 -- interaction is a bit complicated.
