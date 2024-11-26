@@ -89,7 +89,7 @@ runMQTTDConduit (src, sink, addr) = runConduit $ do
       wdch <- liftIO newTChanIO
       w <- async $ watchdog (3 * seconds (ka _keepAlive)) wdch _sessionID tid
       o <- async $ processOut pl _sessionChan
-      i <- async $ E.finally (processIn wdch sess pl) (teardown cid req)
+      i <- async $ E.finally (processIn wdch sess pl `E.onException` logConn "process exception" req) (teardown cid req)
       retransmit sess
       void $ waitAnyCancel [i, o, w]
 
