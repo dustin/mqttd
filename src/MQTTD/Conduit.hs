@@ -165,17 +165,21 @@ runMQTTDConduit (src, sink, addr) = runConduit $ do
         modifyTVar' _sessionQP (Map.filter (stillValid now))
         (t, bl) <- splitAt (min defaultQueueSize (fromIntegral tokens)) . Map.elems <$> readTVar _sessionQP
         modifyTVar' _sessionFlight (subtract . fromIntegral . length $ t)
-        mapM_ (sendPacket _sessionChan . T.PublishPkt . set T.pubDup True) t
+        mapM_ (sendPacket _sessionChan . T.PublishPkt . set T.pubDup True . uncurry (adjExpiry now)) t
         pure bl
       -- The backlog is processed as space frees up in its queue.
       allSessions <- asks sessions
       mapM_ (atomically . art now allSessions) bl
         where
-          art now allSessions p = do
+          art now allSessions (_, p) = do
               guard =<< isClientConnected _sessionID allSessions
               writeTBQueue _sessionBacklog (deadline now p, p{T._pubDup=True})
 
-          stillValid now p = maybe True (now <) (deadline now p)
+          stillValid now (Just t, _) = now < t
+          stillValid _ _             = True
+
+          adjExpiry _ Nothing p    = p
+          adjExpiry now (Just t) p = p & T.properties . traversed . T._PropMessageExpiryInterval .~ relExp now t
 
 webSocketsApp :: [IOE, ScheduleFX SessionID, AuthFX, Fail, MQTTD, Stats, LogFX, DB] :>> es => WS.PendingConnection -> Eff es ()
 webSocketsApp pc = do

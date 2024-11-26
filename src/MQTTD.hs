@@ -442,7 +442,7 @@ publish before sess@Session{..} pkt@T.PublishRequest{..} = whenM deliverable pub
       -- QoS 0 is special-cased because it's fire-and-forget with no retries or anything.
       | _pubQoS == T.QoS0 = getStatStore >>= \ss -> atomically $ deliver ss sess pkt
       | otherwise = getStatStore >>= \ss -> atomically $ do
-          modifyTVar' _sessionQP $ Map.insert (pkt ^. pktID) pkt
+          modifyTVar' _sessionQP $ Map.insert (pkt ^. pktID) (before, pkt)
           tokens <- readTVar _sessionFlight
           if tokens == 0
             then void $ tryWriteQ _sessionBacklog (before, pkt)
@@ -526,7 +526,7 @@ dispatch Session{..} (T.PubRELPkt rel) = do
     writeTVar _sessionQP m
     _ <- sendPacket _sessionChan (T.PubCOMPPkt (T.PubCOMP (rel ^. pktID) (maybe 0x92 (const 0) r) mempty))
     pure r
-  justM (broadcast (Just _sessionID)) pkt
+  justM (broadcast (Just _sessionID) . snd) pkt
 
 -- QoS 2 COMPlete (publishing client says publish is complete)
 dispatch sess (T.PubCOMPPkt _) = liftIO getCurrentTime >>= \now -> getStatStore >>= \st -> atomically $ releasePubSlot now st sess
@@ -557,9 +557,9 @@ dispatch sess@Session{..} (T.PublishPkt req) = do
         sendPacketIO_ _sessionChan (T.PubACKPkt (T.PubACK _pubPktID 0 mempty))
         broadcast (Just _sessionID) r
         countIn
-      satisfyQoS T.QoS2 r@T.PublishRequest{..} = getStatStore >>= \ss -> atomically $ do
+      satisfyQoS T.QoS2 r@T.PublishRequest{..} = liftIO getCurrentTime >>= \now -> getStatStore >>= \ss -> atomically $ do
         sendPacket_ _sessionChan (T.PubRECPkt (T.PubREC _pubPktID 0 mempty))
-        modifyTVar' _sessionQP (Map.insert _pubPktID r)
+        modifyTVar' _sessionQP (Map.insert _pubPktID (deadline now r, r))
         incrementStatSTM StatMsgRcvd 1 ss
 
       countIn = incrementStat StatMsgRcvd 1

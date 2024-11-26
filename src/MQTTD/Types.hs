@@ -69,7 +69,7 @@ data Session = Session {
   _sessionChan    :: PktQueue,
   _sessionFlight  :: TVar Word16,
   _sessionBacklog :: TBQueue (Maybe UTCTime, T.PublishRequest),
-  _sessionQP      :: TVar (Map T.PktID T.PublishRequest),
+  _sessionQP      :: TVar (Map T.PktID (Maybe UTCTime, T.PublishRequest)),
   _sessionSubs    :: TVar (Map T.Filter T.SubOptions),
   _sessionExpires :: Maybe UTCTime,
   _sessionWill    :: Maybe T.LastWill
