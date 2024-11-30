@@ -22,6 +22,7 @@ import           Data.Conduit             (ConduitT, Void, await, runConduit, yi
 import           Data.Conduit.Attoparsec  (conduitParser, sinkParser)
 import qualified Data.Conduit.Combinators as C
 import           Data.Conduit.Network     (AppData, appSink, appSockAddr, appSource)
+import           Data.Functor             (($>))
 import qualified Data.Map.Strict          as Map
 import           Data.String              (IsString (..))
 import           Data.Text                (Text, intercalate, pack, unpack)
@@ -55,11 +56,7 @@ runMQTTDConduit (src, sink, addr) = runConduit $ do
     count s x = incrementStat s (fromIntegral $ BCS.length x) >> pure x
 
     run :: [IOE, ScheduleFX SessionID, AuthFX, Fail, DB, Stats, MQTTD] :>> es => T.ProtocolLevel -> ClientID -> T.MQTTPkt -> Maybe SessionID -> Eff es ()
-    run pl cid (T.ConnPkt req _) nid = do
-      r <- authorize req
-      case r of
-        Left x  -> notAuthorized pl req x
-        Right _ -> authorized pl cid req nid
+    run pl cid (T.ConnPkt req _) nid = either (notAuthorized pl req) (const $ authorized pl cid req nid) =<< authorize req
 
     run _ _ pkt _ = fail ("Unhandled start packet from " <> unpack addr <> ": " <> show pkt)
 
@@ -149,7 +146,7 @@ runMQTTDConduit (src, sink, addr) = runConduit $ do
 
     watchdog pp wdch sid t = forever $ do
       toch <- liftIO $ registerDelay pp
-      timedOut <- atomically $ ((check =<< readTVar toch) >> pure True) `orElse` (readTChan wdch >> pure False)
+      timedOut <- atomically $ ((check =<< readTVar toch) $> True) `orElse` (readTChan wdch $> False)
       when timedOut $ do
         logInfoL ["Client with session ", tshow sid, " timed out"]
         liftIO $ throwTo t MQTTPingTimeout
