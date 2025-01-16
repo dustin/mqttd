@@ -5,3 +5,4 @@
 .direnv/
 .DS_Store
 result
+dist-newstyle/
