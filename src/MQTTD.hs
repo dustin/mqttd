@@ -234,7 +234,7 @@ subscribe sess@Session{..} (T.SubscribeRequest pid topics props) = do
       pid' <- atomically . nextPktID =<< asks lastPktID
       now <- liftIO getCurrentTime
       let r = ir{T._pubPktID=pid', T._pubRetain=mightRetain opts,
-                 T._pubQoS = if _pubQoS > _subQoS then _subQoS else _pubQoS}
+                 T._pubQoS = min _pubQoS _subQoS}
       publish (deadline now r) sess r
 
         where
@@ -430,7 +430,7 @@ broadcast src req@T.PublishRequest{..} = do
       T._pubQoS=maxQoS opts,
       T._pubPktID=pid}
 
-    maxQoS T.SubOptions{_subQoS} = if _pubQoS > _subQoS then _subQoS else _pubQoS
+    maxQoS T.SubOptions{_subQoS} = min _pubQoS _subQoS
     mightRetain T.SubOptions{_retainAsPublished=False} = False
     mightRetain _                                      = _pubRetain
 

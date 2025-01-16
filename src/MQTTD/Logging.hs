@@ -54,7 +54,7 @@ runLogFX verbose = interpretIO \case
 
 runNoLogFX :: Eff (LogFX : es) a -> Eff es a
 runNoLogFX = interpret \case
-  LogFX _ _ _ _ -> pure ()
+  LogFX{} -> pure ()
 
 runLogWriter :: Eff (LogFX : es) a -> Eff es (a, [LogLine])
 runLogWriter = runWriter . reinterpret \case

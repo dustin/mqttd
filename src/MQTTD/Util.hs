@@ -1,6 +1,7 @@
 module MQTTD.Util where
 
 import           Control.Concurrent.STM (STM, TVar, modifyTVar', readTVar)
+import           Control.Monad          (when)
 import qualified Data.ByteString.Lazy   as BL
 import           Data.Foldable          (traverse_)
 import           Data.Text              (Text, pack)
@@ -27,4 +28,4 @@ modifyTVarRet v f = modifyTVar' v f *> readTVar v
 
 {-# INLINE whenM #-}
 whenM :: Monad m => m Bool -> m () -> m ()
-whenM mb m = mb >>= \b -> if b then m else pure ()
+whenM mb m = mb >>= \b -> when b m
