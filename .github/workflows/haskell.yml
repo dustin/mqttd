@@ -41,7 +41,7 @@ jobs:
         cp $HOME/.local/bin/mqttdpass dist
 
     - name: Store Artifact
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: mqttd-${{ matrix.os }}
         path: dist
