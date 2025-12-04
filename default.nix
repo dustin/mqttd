@@ -1,21 +1,20 @@
+{ system ? builtins.currentSystem }:
 let
   sources = import ./nix/sources.nix {};
 
-  haskellNix = import sources.haskellNix {};
+  haskellNix = import sources.haskellNix { inherit system; };
 
-  # Import nixpkgs and pass the haskell.nix provided nixpkgsArgs
   pkgs = import
-    # haskell.nix provides access to the nixpkgs pins which are used by our CI,
-    # hence you will be more likely to get cache hits when using these.
-    # But you can also just use your own, e.g. '<nixpkgs>'.
     haskellNix.sources.nixpkgs-2405
-    # These arguments passed to nixpkgs, include some patches and also
-    # the haskell.nix functionality itself as an overlay.
-    haskellNix.nixpkgsArgs;
+    (haskellNix.nixpkgsArgs // { inherit system; });
 in pkgs.haskell-nix.project {
-  # 'cleanGit' cleans a source directory based on the files known by git
-  src = pkgs.haskell-nix.haskellLib.cleanGit {
-    name = "haskell-nix-project";
-    src = ./.;
-  };
+  # 'cleanGit' often fails in Flakes because .git is hidden.
+  # We use ./ . directly instead.
+  src = ./.;
+  
+  # If you prefer to keep cleanGit, you must use '--impure'
+  # src = pkgs.haskell-nix.haskellLib.cleanGit {
+  #   name = "haskell-nix-project";
+  #   src = ./.;
+  # };
 }
