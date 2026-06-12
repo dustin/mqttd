@@ -218,7 +218,7 @@ subscribe sess@Session{..} (T.SubscribeRequest pid topics props) = do
     -- shared subscriptions
     modifyTVar' subsShared (upShared shared)
     let r = map (second (T._subQoS . snd)) topics'
-    sendPacket_ _sessionChan (T.SubACKPkt (T.SubscribeResponse pid r props))
+    sendPacket_ _sessionChan (T.SubACKPkt (T.SubscribeResponse pid r props'))
   p <- asks retainer
   mapM_ (doRetained p) (Map.assocs new)
   storeSession sess
@@ -229,6 +229,12 @@ subscribe sess@Session{..} (T.SubscribeRequest pid topics props) = do
 
     doRetained _ (_, T.SubOptions{T._retainHandling=T.DoNotSendOnSubscribe}) = pure ()
     doRetained p (t, ops)                                                    = mapM_ (sendOne ops) =<< matchRetained p t
+
+    props' = filter isSubAckProp props
+        where
+        isSubAckProp (T.PropUserProperty _ _) = True
+        isSubAckProp (T.PropReasonString _)   = True
+        isSubAckProp _                        = False
 
     sendOne opts@T.SubOptions{..} ir@T.PublishRequest{..} = do
       pid' <- atomically . nextPktID =<< asks lastPktID

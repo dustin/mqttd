@@ -1,14 +1,14 @@
-name:                mqttd
-version:             0.9.5.0
-github:              "dustin/mqttd"
-license:             BSD3
-author:              "Dustin Sallings"
-maintainer:          "dustin@spy.net"
-copyright:           "MIT"
+name: mqttd
+version: 0.9.5.1
+github: 'dustin/mqttd'
+license: BSD3
+author: 'Dustin Sallings'
+maintainer: 'dustin@spy.net'
+copyright: 'MIT'
 
 extra-source-files:
-- README.md
-- ChangeLog.md
+  - README.md
+  - ChangeLog.md
 
 # Metadata used when publishing your package
 # synopsis:            Short description of your package
@@ -17,38 +17,38 @@ extra-source-files:
 # To avoid duplicated efforts in documentation and dealing with the
 # complications of embedding Haddock markup inside cabal files, it is
 # common to point users to the README.md file.
-description:         Please see the README on GitHub at <https://github.com/dustin/mqttd#readme>
+description: Please see the README on GitHub at <https://github.com/dustin/mqttd#readme>
 
 dependencies:
-- base >= 4.7 && < 5
-- net-mqtt >= 0.8.5.0 && < 0.9
-- net-mqtt-lens
-- optparse-applicative
-- sqlite-simple
-- bytestring
-- containers
-- vector
-- text
-- lens
-- time
-- mtl
-- async
-- cleff
-- stm
-- monad-logger
-- conduit
-- conduit-extra
-- network-conduit-tls
-- websockets
-- exceptions
-- unliftio
-- random
-- uuid
-- megaparsec
-- checkers
-- raw-strings-qq
-- attoparsec
-- password
+  - base >= 4.7 && < 5
+  - net-mqtt >= 0.8.5.0 && < 0.9
+  - net-mqtt-lens
+  - optparse-applicative
+  - sqlite-simple
+  - bytestring
+  - containers
+  - vector
+  - text
+  - lens
+  - time
+  - mtl
+  - async
+  - cleff
+  - stm
+  - monad-logger
+  - conduit
+  - conduit-extra
+  - network-conduit-tls
+  - websockets
+  - exceptions
+  - unliftio
+  - random
+  - uuid
+  - megaparsec
+  - checkers
+  - raw-strings-qq
+  - attoparsec
+  - password
 
 library:
   source-dirs: src
@@ -72,19 +72,19 @@ default-extensions:
 
 executables:
   mqttd:
-    main:                Main.hs
-    source-dirs:         app
+    main: Main.hs
+    source-dirs: app
     ghc-options:
       - -threaded
       - -rtsopts
       - -with-rtsopts "-N -T"
       - -Wall
     dependencies:
-    - mqttd
+      - mqttd
 
   mqttdpass:
-    main:                Main.hs
-    source-dirs:         app/mqttdpass
+    main: Main.hs
+    source-dirs: app/mqttdpass
     ghc-options:
       - -threaded
       - -rtsopts
@@ -93,22 +93,22 @@ executables:
 
 tests:
   mqttd-test:
-    main:                Main.hs
-    source-dirs:         test
+    main: Main.hs
+    source-dirs: test
     ghc-options:
-    - -Wall
-    - -threaded
-    - -rtsopts
-    - -with-rtsopts=-N
+      - -Wall
+      - -threaded
+      - -rtsopts
+      - -with-rtsopts=-N
     dependencies:
-    - mqttd
-    - HUnit
-    - tasty
-    - tasty-hunit
-    - tasty-discover
-    - tasty-quickcheck
-    - tasty-hedgehog
-    - hedgehog
-    - QuickCheck
-    - port-utils
-    - network-uri
+      - mqttd
+      - HUnit
+      - tasty
+      - tasty-hunit
+      - tasty-discover
+      - tasty-quickcheck
+      - tasty-hedgehog
+      - hedgehog
+      - QuickCheck
+      - port-utils
+      - network-uri
