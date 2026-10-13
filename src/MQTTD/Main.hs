@@ -1,7 +1,5 @@
 module MQTTD.Main where
 
-import           Cleff
-import           Cleff.Fail
 import           Control.Concurrent       (newChan, newEmptyMVar, putMVar, readChan, takeMVar)
 import           Control.Concurrent.STM   (newTBQueueIO)
 import           Control.Lens
@@ -9,6 +7,8 @@ import           Data.Conduit.Network     (runGeneralTCPServer, serverSettings, 
 import           Data.Conduit.Network.TLS (runGeneralTCPServerTLS, tlsConfig)
 import           Data.Maybe               (fromMaybe)
 import           Database.SQLite.Simple   hiding (bind)
+import           Effectful
+import           Effectful.Fail           (Fail)
 import qualified Network.WebSockets       as WS
 import           UnliftIO                 (Async (..), async, finally)
 
@@ -24,7 +24,7 @@ import           MQTTD.Types
 import           MQTTD.Util
 import qualified Scheduler
 
-runListener :: [IOE, Fail, AuthFX, LogFX, MQTTD, ScheduleFX SessionID, Stats, DB] :>> es => Listener -> Eff es (Async ())
+runListener :: (IOE :> es, Fail :> es, AuthFX :> es, LogFX :> es, MQTTD :> es, ScheduleFX SessionID :> es, Stats :> es, DB :> es) => Listener -> Eff es (Async ())
 runListener (MQTTListener a p _) = do
   logInfoL ["Starting mqtt service on ", tshow a, ":", tshow p]
   -- The generic TCP listener is featureful enough to allow us to
@@ -44,7 +44,7 @@ runListener (MQTTSListener a p c k _) = do
 pause :: MonadIO m => m ()
 pause = liftIO (newChan >>= readChan)
 
-runServerLogging :: [IOE, Fail, LogFX, Stats] :>> es => Config -> Eff es [Async ()]
+runServerLogging :: (IOE :> es, Fail :> es, LogFX :> es, Stats :> es) => Config -> Eff es [Async ()]
 runServerLogging Config{..} = do
   -- withConnection is not used here because this action spawns a
   -- bunch of Asyncs and returns a list of them.  withConnection would
@@ -83,6 +83,6 @@ runServerLogging Config{..} = do
             a{_authAnon=fromMaybe _authAnon _optAllowAnonymous}
 
 runServer :: Config -> IO [Async ()]
-runServer conf = runIOE . runFailIO . runLogFX (verbose conf) . runNewStats . runServerLogging $ conf
+runServer conf = runEff . withUnliftStrategy (ConcUnlift Persistent Unlimited) . runFailIO . runLogFX (verbose conf) . runNewStats . runServerLogging $ conf
   where
     verbose Config{..} = _confDebug

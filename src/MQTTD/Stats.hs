@@ -1,14 +1,18 @@
-{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TemplateHaskell     #-}
+{-# LANGUAGE TypeApplications    #-}
+{-# LANGUAGE TypeFamilies        #-}
 module MQTTD.Stats where
 
-import           Cleff
-import           Cleff.Reader
-import           Control.Concurrent.STM (STM, TBQueue, TVar, check, flushTBQueue, isEmptyTBQueue, modifyTVar')
-import           Control.Monad          (forever)
-import qualified Data.ByteString.Lazy   as BL
-import           Data.Map.Strict        (Map)
-import qualified Data.Map.Strict        as Map
-import           UnliftIO               (atomically, newTBQueueIO, newTVarIO, readTVarIO, writeTBQueue)
+import           Control.Concurrent.STM     (STM, TBQueue, TVar, check, flushTBQueue, isEmptyTBQueue, modifyTVar')
+import           Control.Monad              (forever)
+import qualified Data.ByteString.Lazy       as BL
+import           Data.Map.Strict            (Map)
+import qualified Data.Map.Strict            as Map
+import           Effectful
+import           Effectful.Dispatch.Dynamic (interpret)
+import           Effectful.TH
+import           UnliftIO                   (atomically, newTBQueueIO, newTVarIO, readTVarIO, writeTBQueue)
 
 data StatKey = StatMsgSent
              | StatMsgRcvd
@@ -45,8 +49,8 @@ data Stats :: Effect where
 makeEffect ''Stats
 
 runStats :: (IOE :> es) => StatStore -> Eff (Stats : es) a -> Eff es a
-runStats statStore = runReader statStore . reinterpret \case
-  GetStatStore -> ask
+runStats statStore = interpret \_ -> \case
+  GetStatStore -> pure statStore
 
 runNewStats :: IOE :> es => Eff (Stats : es) a -> Eff es a
 runNewStats a = flip runStats a =<< newStatStore
@@ -63,8 +67,8 @@ applyStats StatStore{..} = forever . atomically $ do
 incrementStatSTM :: StatKey -> Int -> StatStore -> STM ()
 incrementStatSTM k i StatStore{..} = writeTBQueue _stats_queue (k, i)
 
-incrementStat :: [IOE, Stats] :>> es => StatKey -> Int -> Eff es ()
+incrementStat :: (IOE :> es, Stats :> es) => StatKey -> Int -> Eff es ()
 incrementStat k i = getStatStore >>= atomically . incrementStatSTM k i
 
-retrieveStats :: [IOE, Stats] :>> es => Eff es (Map StatKey Int)
+retrieveStats :: (IOE :> es, Stats :> es) => Eff es (Map StatKey Int)
 retrieveStats = getStatStore >>= \StatStore{..} -> readTVarIO _stats_map

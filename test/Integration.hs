@@ -4,8 +4,6 @@ module Integration where
 
 import           Test.Tasty.HUnit
 
-import           Cleff
-import           Cleff.Fail
 import           Control.Concurrent     (threadDelay)
 import           Control.Concurrent.STM (TChan, check, modifyTVar', newTChanIO, newTVarIO, orElse, readTChan, readTVar,
                                          readTVarIO, registerDelay, writeTChan)
@@ -16,6 +14,7 @@ import           Data.List              (sort)
 import qualified Data.Map.Strict        as Map
 import           Data.Maybe             (fromJust, fromMaybe)
 import           Data.Password.Bcrypt   (PasswordHash (..))
+import           Effectful
 import           Network.MQTT.Client    as MC
 import qualified Network.MQTT.Types     as T
 import           Network.Socket.Free    (getFreePort)
@@ -28,6 +27,7 @@ import           MQTTD.Config
 import           MQTTD.Logging
 import           MQTTD.Main
 import           MQTTD.Stats
+import           MQTTD.Util             (runFailIO)
 
 type TestServer = URI
 
@@ -45,7 +45,7 @@ withTestServiceConfig conf f = do
   port <- getFreePort
   let uri = fromJust $ parseURI $ "mqtt://127.0.0.1:" <> show port <> "/"
       cf = conf{_confListeners = [MQTTListener "127.0.0.1" port mempty]}
-  bracket (runIOE . runFailIO . runNoLogFX . runNewStats $ runServerLogging cf) (mapM_ cancel) (const $ f uri)
+  bracket (runEff . withUnliftStrategy (ConcUnlift Persistent Unlimited) . runFailIO . runNoLogFX . runNewStats $ runServerLogging cf) (mapM_ cancel) (const $ f uri)
 
 withTestService :: (TestServer -> Assertion) -> Assertion
 withTestService = withTestServiceConfig testConfig

@@ -3,8 +3,8 @@
 
 module MQTTD.GCStats where
 
-import           Cleff
 import qualified Data.ByteString.Lazy as BL
+import           Effectful
 import           GHC.Stats
 
 import           MQTTD.Util

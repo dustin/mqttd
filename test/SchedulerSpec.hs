@@ -2,7 +2,6 @@
 
 module SchedulerSpec where
 
-import           Cleff
 import           Control.Concurrent.Async (withAsync)
 import           Control.Concurrent.STM   (modifyTVar', newTVarIO, readTVar, readTVarIO, registerDelay)
 import           Control.Monad.Logger     (LogLine)
@@ -12,6 +11,7 @@ import           Data.Maybe               (listToMaybe)
 import qualified Data.Set                 as Set
 import           Data.String              (IsString (..))
 import           Data.Time
+import           Effectful
 import           UnliftIO                 (atomically, writeTVar)
 
 import           Hedgehog
@@ -88,7 +88,7 @@ hprop_queueNextIsLowest = property $ do
     next (populate dates) === listToMaybe (sort dates)
 
 runTestOnce ::  Eff [Stats, LogFX, IOE] a -> IO [LogLine]
-runTestOnce a = newStatStore >>= \ss -> withAsync (applyStats ss) (\_ -> (fmap snd . runIOE . runLogWriter . runStats ss) a)
+runTestOnce a = newStatStore >>= \ss -> withAsync (applyStats ss) (\_ -> (fmap snd . runEff . runLogWriter . runStats ss) a)
 
 nr :: MonadIO m => m (QueueRunner Int)
 nr = newRunner

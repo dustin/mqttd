@@ -1,13 +1,13 @@
 cabal-version: 1.12
 
--- This file has been generated from package.yaml by hpack version 0.37.0.
+-- This file has been generated from package.yaml by hpack version 0.38.3.
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 1c1518d1b5560ab4e32bb5b144b51eedb2375a33ef251091c0d1b9a23a940e71
+-- hash: 43b9ed37ec6cafb7d8e13b0aa9c0e641d3e4f0a5746e350ce47e1cd7ba7f220f
 
 name:           mqttd
-version:        0.9.5.0
+version:        0.9.5.1
 description:    Please see the README on GitHub at <https://github.com/dustin/mqttd#readme>
 homepage:       https://github.com/dustin/mqttd#readme
 bug-reports:    https://github.com/dustin/mqttd/issues
@@ -67,10 +67,11 @@ library
     , base >=4.7 && <5
     , bytestring
     , checkers
-    , cleff
     , conduit
     , conduit-extra
     , containers
+    , effectful-core
+    , effectful-th
     , exceptions
     , lens
     , megaparsec
@@ -120,10 +121,11 @@ executable mqttd
     , base >=4.7 && <5
     , bytestring
     , checkers
-    , cleff
     , conduit
     , conduit-extra
     , containers
+    , effectful-core
+    , effectful-th
     , exceptions
     , lens
     , megaparsec
@@ -174,10 +176,11 @@ executable mqttdpass
     , base >=4.7 && <5
     , bytestring
     , checkers
-    , cleff
     , conduit
     , conduit-extra
     , containers
+    , effectful-core
+    , effectful-th
     , exceptions
     , lens
     , megaparsec
@@ -234,10 +237,11 @@ test-suite mqttd-test
     , base >=4.7 && <5
     , bytestring
     , checkers
-    , cleff
     , conduit
     , conduit-extra
     , containers
+    , effectful-core
+    , effectful-th
     , exceptions
     , hedgehog
     , lens

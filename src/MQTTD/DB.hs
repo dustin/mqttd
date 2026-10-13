@@ -1,16 +1,16 @@
-{-# LANGUAGE BlockArguments    #-}
-{-# LANGUAGE FlexibleContexts  #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE QuasiQuotes       #-}
-{-# LANGUAGE RecordWildCards   #-}
-{-# LANGUAGE TemplateHaskell   #-}
-{-# LANGUAGE TypeApplications  #-}
+{-# LANGUAGE BlockArguments      #-}
+{-# LANGUAGE FlexibleContexts    #-}
+{-# LANGUAGE OverloadedStrings   #-}
+{-# LANGUAGE QuasiQuotes         #-}
+{-# LANGUAGE RecordWildCards     #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TemplateHaskell     #-}
+{-# LANGUAGE TypeApplications    #-}
+{-# LANGUAGE TypeFamilies        #-}
 {-# OPTIONS_GHC -Wno-orphans #-}
 
 module MQTTD.DB where
 
-import           Cleff
-import           Cleff.Reader
 import           Control.Concurrent.STM           (TBQueue, check, flushTBQueue, isEmptyTBQueue, newTBQueueIO,
                                                    newTVarIO, readTVarIO)
 import           Control.Lens
@@ -25,6 +25,9 @@ import           Database.SQLite.Simple           hiding (bind, close)
 import           Database.SQLite.Simple.FromField
 import           Database.SQLite.Simple.Ok
 import           Database.SQLite.Simple.ToField
+import           Effectful
+import           Effectful.Dispatch.Dynamic       (interpret)
+import           Effectful.TH
 import           Text.RawString.QQ                (r)
 import           UnliftIO                         (atomically, writeTBQueue)
 
@@ -50,15 +53,10 @@ data DB :: Effect where
 
 makeEffect ''DB
 
-data DBEnv = DBEnv {
-  _dbConn  :: Connection,
-  _dbQueue :: TBQueue DBOperation
-  }
-
 runDB :: (IOE :> es) => Connection -> TBQueue DBOperation -> Eff (DB : es) a -> Eff es a
-runDB conn q = runReader (DBEnv conn q) . reinterpret \case
-  DbConn  -> asks _dbConn
-  DbQueue -> asks _dbQueue
+runDB conn q = interpret \_ -> \case
+  DbConn  -> pure conn
+  DbQueue -> pure q
 
 initQueries :: [(Int, Query)]
 initQueries = [
@@ -96,7 +94,7 @@ initDB db = do
   mapM_ (execute_ db) ["pragma foreign_keys = ON"]
   initTables db
 
-runOperations :: [IOE, DB, Stats, LogFX] :>> es => Eff es ()
+runOperations :: (IOE :> es, DB :> es, Stats :> es, LogFX :> es) => Eff es ()
 runOperations = do
   db <- dbConn
   q <- dbQueue
@@ -119,7 +117,7 @@ runOperations = do
             store1 (StoreSession i)   = storeSessionL db i
             store1 (StoreRetained i)  = storeRetainedL db i
 
-writeDBQueue :: [IOE, DB] :>> es => DBOperation -> Eff es ()
+writeDBQueue :: (IOE :> es, DB :> es) => DBOperation -> Eff es ()
 writeDBQueue o = dbQueue >>= \q -> writeTBQueueIO q o
   where
     writeTBQueueIO q = liftIO . atomically . writeTBQueue q
@@ -127,16 +125,16 @@ writeDBQueue o = dbQueue >>= \q -> writeTBQueueIO q o
 deleteSessionL :: MonadIO m => Connection -> SessionID -> m ()
 deleteSessionL db sid = liftIO $ execute db "delete from sessions where session_id = ?" (Only sid)
 
-deleteSession :: [IOE, DB] :>> es => SessionID -> Eff es ()
+deleteSession :: (IOE :> es, DB :> es) => SessionID -> Eff es ()
 deleteSession = writeDBQueue . DeleteSession
 
-deleteRetained :: [IOE, DB] :>> es => BLTopic -> Eff es ()
+deleteRetained :: (IOE :> es, DB :> es) => BLTopic -> Eff es ()
 deleteRetained = writeDBQueue . DeleteRetained
 
 deleteRetainedL :: MonadIO m => Connection -> BLTopic -> m ()
 deleteRetainedL db k = liftIO $ execute db "delete from persisted where topic = ?" (Only k)
 
-storeSession :: [IOE, DB] :>> es => Session -> Eff es ()
+storeSession :: (IOE :> es, DB :> es) => Session -> Eff es ()
 storeSession = writeDBQueue . StoreSession
 
 instance ToRow Session where
@@ -228,7 +226,7 @@ instance FromRow StoredSession where
                             A.Fail{}     -> []
                             (A.Done _ p) -> p
 
-loadSessions :: [IOE, DB] :>> es => Eff es [Session]
+loadSessions :: (IOE :> es, DB :> es) => Eff es [Session]
 loadSessions = liftIO . fetch =<< dbConn
   where fetch db = withTransaction db do
           now <- getCurrentTime
@@ -294,7 +292,7 @@ instance FromRow Retained where
                             A.Fail{}     -> []
                             (A.Done _ p) -> p
 
-storeRetained :: [IOE, DB] :>> es => Retained -> Eff es ()
+storeRetained :: (IOE :> es, DB :> es) => Retained -> Eff es ()
 storeRetained = writeDBQueue . StoreRetained
 
 storeRetainedL :: MonadIO m => Connection -> Retained -> m ()
@@ -309,7 +307,7 @@ storeRetainedL db p = liftIO $ up (T._pubBody . _retainMsg $ p)
                                      stored = excluded.stored,
                                      expires = excluded.expires|] p
 
-loadRetained :: [IOE, DB] :>> es => Eff es [Retained]
+loadRetained :: (IOE :> es, DB :> es) => Eff es [Retained]
 loadRetained = liftIO . fetch =<< dbConn
   where
     fetch db = query_ db "select topic, qos, value, properties, stored, expires from persisted"

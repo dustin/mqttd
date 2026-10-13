@@ -6,34 +6,38 @@
 {-# LANGUAGE ScopedTypeVariables        #-}
 {-# LANGUAGE TemplateHaskell            #-}
 {-# LANGUAGE TupleSections              #-}
+{-# LANGUAGE TypeApplications           #-}
+{-# LANGUAGE TypeFamilies               #-}
 {-# LANGUAGE UndecidableInstances       #-}
 
 module MQTTD where
 
-import           Cleff
-import           Cleff.Fail
-import           Cleff.State
-import           Control.Concurrent     (ThreadId, threadDelay, throwTo)
-import           Control.Concurrent.STM (STM, TBQueue, TVar, isFullTBQueue, modifyTVar', newTBQueue, newTVar, newTVarIO,
-                                         readTVar, tryReadTBQueue, writeTBQueue, writeTVar)
+import           Control.Concurrent            (ThreadId, threadDelay, throwTo)
+import           Control.Concurrent.STM        (STM, TBQueue, TVar, isFullTBQueue, modifyTVar', newTBQueue, newTVar, newTVarIO,
+                                                readTVar, tryReadTBQueue, writeTBQueue, writeTVar)
 import           Control.Lens
-import           Control.Monad          (forever, unless, void, when)
-import           Data.Bifunctor         (first, second)
-import           Data.Either            (rights)
-import           Data.Foldable          (fold, foldl')
-import           Data.Map.Strict        (Map)
-import qualified Data.Map.Strict        as Map
-import           Data.Maybe             (catMaybes, fromMaybe, isJust)
-import           Data.Monoid            (Sum (..))
-import           Data.String            (IsString (..))
-import qualified Data.Text              as Txt
-import           Data.Time.Clock        (UTCTime, addUTCTime, getCurrentTime)
-import           Data.Word              (Word16)
+import           Control.Monad                 (forever, unless, void, when)
+import           Data.Bifunctor                (first, second)
+import           Data.Either                   (rights)
+import           Data.Foldable                 (fold, foldl')
+import           Data.Map.Strict               (Map)
+import qualified Data.Map.Strict               as Map
+import           Data.Maybe                    (catMaybes, fromMaybe, isJust)
+import           Data.Monoid                   (Sum (..))
+import           Data.String                   (IsString (..))
+import qualified Data.Text                     as Txt
+import           Data.Time.Clock               (UTCTime, addUTCTime, getCurrentTime)
+import           Data.Word                     (Word16)
+import           Effectful
+import           Effectful.Dispatch.Dynamic    (reinterpret)
+import           Effectful.Fail
+import           Effectful.State.Static.Shared
+import           Effectful.TH
 import           Network.MQTT.Lens
-import qualified Network.MQTT.Topic     as T
-import qualified Network.MQTT.Types     as T
-import           System.Random          (getStdGen, newStdGen, randomR)
-import           UnliftIO               (atomically, readTVarIO)
+import qualified Network.MQTT.Topic            as T
+import qualified Network.MQTT.Types            as T
+import           System.Random                 (getStdGen, newStdGen, randomR)
+import           UnliftIO                      (atomically, readTVarIO)
 
 import           MQTTD.Authorizer
 import           MQTTD.Config           (ACL (..), ACLAction (..))
@@ -76,7 +80,7 @@ newEnv = liftIO $ Env
          <*> newRetainer
 
 runMQTTD :: forall es a. Env -> Eff (MQTTD : es) a -> Eff es (a, Env)
-runMQTTD initialEnv = runState initialEnv . reinterpret \case
+runMQTTD initialEnv = reinterpret (runState initialEnv) \_ -> \case
     GetEnv      -> get
     ModifyEnv f -> modify f
 
@@ -86,16 +90,16 @@ seconds = (1000000 *)
 asks :: MQTTD :> es => (Env -> a) -> Eff es a
 asks f = f <$> getEnv
 
-nextID :: [IOE, MQTTD] :>> es => Eff es Int
+nextID :: (IOE :> es, MQTTD :> es) => Eff es Int
 nextID = asks clientIDGen >>= \ig -> atomically $ modifyTVarRet ig (+1)
 
-retainerCleanup :: [IOE, LogFX, MQTTD, Stats, DB] :>> es => Eff es ()
+retainerCleanup :: (IOE :> es, LogFX :> es, MQTTD :> es, Stats :> es, DB :> es) => Eff es ()
 retainerCleanup = asks retainer >>= cleanRetainer
 
 isClientConnected :: SessionID -> TVar (Map SessionID Session) -> STM Bool
 isClientConnected sid sidsv = readTVar sidsv >>= \sids -> pure $ isJust (_sessionClient =<< Map.lookup sid sids)
 
-publishStats :: [IOE, MQTTD, Stats, DB, LogFX] :>> es => Eff es ()
+publishStats :: (IOE :> es, MQTTD :> es, Stats :> es, DB :> es, LogFX :> es) => Eff es ()
 publishStats = forever (pubStats >> sleep 15)
   where
     sleep = liftIO . threadDelay . seconds
@@ -155,7 +159,7 @@ resolveAliasIn Session{_sessionClient=Just ConnectedClient{_clientAliasIn}} r =
                             (T.PropTopicAlias _) -> False
                             _                    -> True)
 
-findSubs :: [IOE, MQTTD] :>> es => T.Topic -> Eff es [(Session, T.SubOptions)]
+findSubs :: (IOE :> es, MQTTD :> es) => T.Topic -> Eff es [(Session, T.SubOptions)]
 findSubs t = liftA2 (<>) getRegularSubs getSharedSubs
   where
     getRegularSubs = do
@@ -179,7 +183,7 @@ findSubs t = liftA2 (<>) getRegularSubs getSharedSubs
                             (o, _) = randomR (0, length els' - 1) r
                         in [els' !! o]
 
-restoreSessions :: [IOE, ScheduleFX SessionID, MQTTD, Stats, LogFX, DB] :>> es => Eff es ()
+restoreSessions :: (IOE :> es, ScheduleFX SessionID :> es, MQTTD :> es, Stats :> es, LogFX :> es, DB :> es) => Eff es ()
 restoreSessions = do
   ss <- loadSessions
   subs <- SubTree.fromList . fold <$> traverse flatSubs ss
@@ -194,10 +198,10 @@ restoreSessions = do
     flatSubs :: MonadIO m => Session -> m [(T.Filter, Map SessionID T.SubOptions)]
     flatSubs Session{..} = Map.foldMapWithKey (\k v -> [(k, Map.singleton _sessionID v)]) <$> readTVarIO _sessionSubs
 
-restoreRetained :: [IOE, MQTTD, Stats, LogFX, DB] :>> es => Eff es ()
+restoreRetained :: (IOE :> es, MQTTD :> es, Stats :> es, LogFX :> es, DB :> es) => Eff es ()
 restoreRetained = asks retainer >>= MQTTD.Retention.restoreRetained
 
-subscribe :: [IOE, MQTTD, Stats, LogFX, DB] :>> es => Session -> T.SubscribeRequest -> Eff es ()
+subscribe :: (IOE :> es, MQTTD :> es, Stats :> es, LogFX :> es, DB :> es) => Session -> T.SubscribeRequest -> Eff es ()
 subscribe sess@Session{..} (T.SubscribeRequest pid topics props) = do
   subs <- asks allSubs
   subsShared <- asks sharedSubs
@@ -263,7 +267,7 @@ removeSubs sharedt subt sid ts = do
       where
         cleanShared = (fmap . fmap) (filter ((== sid) . fst))
 
-unsubscribe :: [IOE, MQTTD] :>> es => Session -> [BLFilter] -> Eff es [T.UnsubStatus]
+unsubscribe :: (IOE :> es, MQTTD :> es) => Session -> [BLFilter] -> Eff es [T.UnsubStatus]
 unsubscribe Session{..} topics = asks allSubs >>= \subs -> asks sharedSubs >>= \ssubs ->
   atomically $ do
     m <- readTVar _sessionSubs
@@ -278,10 +282,10 @@ unsubscribe Session{..} topics = asks allSubs >>= \subs -> asks sharedSubs >>= \
       up Nothing  = (Nothing,)
       up (Just t) = Map.updateLookupWithKey (const.const $ Nothing) t
 
-modifySession :: [IOE, MQTTD] :>> es => SessionID -> (Session -> Maybe Session) -> Eff es ()
+modifySession :: (IOE :> es, MQTTD :> es) => SessionID -> (Session -> Maybe Session) -> Eff es ()
 modifySession k f = asks sessions >>= \s -> atomically $ modifyTVar' s (Map.update f k)
 
-registerClient :: [IOE, AuthFX, Fail, MQTTD] :>> es
+registerClient :: (IOE :> es, AuthFX :> es, Fail :> es, MQTTD :> es)
                => T.ConnectRequest -> ClientID -> ThreadId -> Eff es (Session, T.SessionReuse)
 registerClient req@T.ConnectRequest{..} i o = do
   c <- asks sessions
@@ -320,7 +324,7 @@ registerClient req@T.ConnectRequest{..} i o = do
                          _sessionFlight=_sessionFlight ns,
                          _sessionWill=_lastWill}, T.ExistingSession)
 
-expireSession :: [IOE, ScheduleFX SessionID, MQTTD, Stats, DB, LogFX] :>> es => SessionID -> Eff es ()
+expireSession :: (IOE :> es, ScheduleFX SessionID :> es, MQTTD :> es, Stats :> es, DB :> es, LogFX :> es) => SessionID -> Eff es ()
 expireSession k = do
   ss <- asks sessions
   possiblyCleanup =<< atomically (Map.lookup k <$> readTVar ss)
@@ -379,7 +383,7 @@ expireSession k = do
                             T._pubBody=_willMsg,
                             T._pubProps=_willProps})
 
-unregisterClient :: [IOE, MQTTD, ScheduleFX SessionID, LogFX, Stats, DB] :>> es => SessionID -> ClientID -> Eff es ()
+unregisterClient :: (IOE :> es, MQTTD :> es, ScheduleFX SessionID :> es, LogFX :> es, Stats :> es, DB :> es) => SessionID -> ClientID -> Eff es ()
 unregisterClient k mid = do
   now <- liftIO getCurrentTime
   modifySession k (up now)
@@ -420,7 +424,7 @@ sendPacketIO_ ch = void . atomically . sendPacket ch
 nextPktID :: (Enum a, Bounded a, Eq a, Num a) => TVar a -> STM a
 nextPktID x = modifyTVarRet x $ \pid -> if pid == maxBound then 1 else succ pid
 
-broadcast :: [IOE, MQTTD, Stats, DB, LogFX] :>> es => Maybe SessionID -> T.PublishRequest -> Eff es ()
+broadcast :: (IOE :> es, MQTTD :> es, Stats :> es, DB :> es, LogFX :> es) => Maybe SessionID -> T.PublishRequest -> Eff es ()
 broadcast src req@T.PublishRequest{..} = do
   asks retainer >>= retain req
   subs <- maybe (pure []) findSubs ((T.mkTopic . blToText) _pubTopic)
@@ -440,7 +444,7 @@ broadcast src req@T.PublishRequest{..} = do
     mightRetain T.SubOptions{_retainAsPublished=False} = False
     mightRetain _                                      = _pubRetain
 
-publish :: [IOE, MQTTD, Stats] :>> es => Maybe UTCTime -> Session -> T.PublishRequest -> Eff es ()
+publish :: (IOE :> es, MQTTD :> es, Stats :> es) => Maybe UTCTime -> Session -> T.PublishRequest -> Eff es ()
 publish before sess@Session{..} pkt@T.PublishRequest{..} = whenM deliverable publish'
   where
     deliverable = maybe (pure True) (\t -> liftIO getCurrentTime >>= \now -> pure (now < t)) before
@@ -511,7 +515,7 @@ releasePubSlot now ss sess@Session{..} = do
       Just (Just t, p) | t < now -> deliver ss sess p -- Deadline not yet reached
       Just (Just _, _) -> getOne -- This one's expired, see if there's another one
 
-dispatch :: [IOE, Fail, MQTTD, DB, LogFX, Stats] :>> es => Session -> T.MQTTPkt -> Eff es ()
+dispatch :: (IOE :> es, Fail :> es, MQTTD :> es, DB :> es, LogFX :> es, Stats :> es) => Session -> T.MQTTPkt -> Eff es ()
 
 dispatch Session{..} T.PingPkt = sendPacketIO_ _sessionChan T.PongPkt
 
