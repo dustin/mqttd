@@ -33,7 +33,8 @@ dependencies:
   - time
   - mtl
   - async
-  - cleff
+  - effectful-core
+  - effectful-th
   - stm
   - monad-logger
   - conduit

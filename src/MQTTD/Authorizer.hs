@@ -1,14 +1,19 @@
-{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TemplateHaskell     #-}
+{-# LANGUAGE TypeApplications    #-}
+{-# LANGUAGE TypeFamilies        #-}
 
 module MQTTD.Authorizer where
 
-import           Cleff
-import           Control.Monad        (unless, when)
-import qualified Data.ByteString.Lazy as BL
-import qualified Data.Map.Strict      as Map
-import           Data.Maybe           (fromMaybe)
-import           Data.Password.Bcrypt (PasswordCheck (..), checkPassword, mkPassword)
-import qualified Data.Text.Encoding   as TE
+import           Control.Monad              (unless, when)
+import qualified Data.ByteString.Lazy       as BL
+import qualified Data.Map.Strict            as Map
+import           Data.Maybe                 (fromMaybe)
+import           Data.Password.Bcrypt       (PasswordCheck (..), checkPassword, mkPassword)
+import qualified Data.Text.Encoding         as TE
+import           Effectful
+import           Effectful.Dispatch.Dynamic (interpret)
+import           Effectful.TH
 import           Network.MQTT.Types
 
 import           MQTTD.Config
@@ -21,7 +26,7 @@ data AuthFX :: Effect where
 makeEffect ''AuthFX
 
 runAuth :: Authorizer -> Eff (AuthFX : es) a -> Eff es a
-runAuth Authorizer{..} = interpret \case
+runAuth Authorizer{..} = interpret \_ -> \case
     Authorize ConnectRequest{..} ->
       pure . unless _authAnon $ do
         uname <- maybe (Left "anonymous clients are not allowed") Right _username

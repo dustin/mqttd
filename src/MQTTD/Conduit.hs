@@ -7,8 +7,6 @@
 
 module MQTTD.Conduit where
 
-import           Cleff
-import           Cleff.Fail
 import           Control.Concurrent       (myThreadId, throwTo)
 import           Control.Concurrent.STM   (check, modifyTVar', newTChanIO, orElse, readTBQueue, readTChan, readTVar,
                                            registerDelay, writeTBQueue, writeTChan)
@@ -28,6 +26,8 @@ import           Data.String              (IsString (..))
 import           Data.Text                (Text, intercalate, pack, unpack)
 import           Data.Time.Clock          (getCurrentTime)
 import qualified Data.UUID                as UUID
+import           Effectful
+import           Effectful.Fail
 import qualified Network.MQTT.Lens        as T
 import qualified Network.MQTT.Types       as T
 import qualified Network.WebSockets       as WS
@@ -45,7 +45,7 @@ import           MQTTD.Util
 
 type MQTTConduit es = (ConduitT () BCS.ByteString (Eff es) (), ConduitT BCS.ByteString Void (Eff es) (), Text)
 
-runMQTTDConduit :: forall es. [IOE, ScheduleFX SessionID, AuthFX, Fail, LogFX, DB, Stats, MQTTD] :>> es => MQTTConduit es -> Eff es ()
+runMQTTDConduit :: forall es. (IOE :> es, ScheduleFX SessionID :> es, AuthFX :> es, Fail :> es, LogFX :> es, DB :> es, Stats :> es, MQTTD :> es) => MQTTConduit es -> Eff es ()
 runMQTTDConduit (src, sink, addr) = runConduit $ do
   (cpkt@(T.ConnPkt _ pl), genedID) <- lift . ensureID =<< commonIn .| sinkParser T.parseConnect
   cid <- lift nextID
@@ -55,7 +55,7 @@ runMQTTDConduit (src, sink, addr) = runConduit $ do
   where
     count s x = incrementStat s (fromIntegral $ BCS.length x) >> pure x
 
-    run :: [IOE, ScheduleFX SessionID, AuthFX, Fail, DB, Stats, MQTTD] :>> es => T.ProtocolLevel -> ClientID -> T.MQTTPkt -> Maybe SessionID -> Eff es ()
+    run :: (IOE :> es, ScheduleFX SessionID :> es, AuthFX :> es, Fail :> es, DB :> es, Stats :> es, MQTTD :> es) => T.ProtocolLevel -> ClientID -> T.MQTTPkt -> Maybe SessionID -> Eff es ()
     run pl cid (T.ConnPkt req _) nid = either (notAuthorized pl req) (const $ authorized pl cid req nid) =<< authorize req
 
     run _ _ pkt _ = fail ("Unhandled start packet from " <> unpack addr <> ": " <> show pkt)
@@ -131,7 +131,7 @@ runMQTTDConduit (src, sink, addr) = runConduit $ do
     processOut pl ch = runConduit $
       C.repeatM (atomically $ readTBQueue ch) .| commonOut pl
 
-    teardown :: [IOE, MQTTD] :>> es => ClientID -> T.ConnectRequest -> Eff es ()
+    teardown :: (IOE :> es, MQTTD :> es) => ClientID -> T.ConnectRequest -> Eff es ()
     teardown cid c@T.ConnectRequest{..} = do
       logConn "disconnection" c
       unregisterClient _connID cid
@@ -178,7 +178,7 @@ runMQTTDConduit (src, sink, addr) = runConduit $ do
           adjExpiry _ Nothing p    = p
           adjExpiry now (Just t) p = p & T.properties . traversed . T._PropMessageExpiryInterval .~ relExp now t
 
-webSocketsApp :: [IOE, ScheduleFX SessionID, AuthFX, Fail, MQTTD, Stats, LogFX, DB] :>> es => WS.PendingConnection -> Eff es ()
+webSocketsApp :: (IOE :> es, ScheduleFX SessionID :> es, AuthFX :> es, Fail :> es, MQTTD :> es, Stats :> es, LogFX :> es, DB :> es) => WS.PendingConnection -> Eff es ()
 webSocketsApp pc = do
   conn <- liftIO $ WS.acceptRequest pc
   runMQTTDConduit (wsSource conn, wsSink conn, "<unknown>")
@@ -190,5 +190,5 @@ webSocketsApp pc = do
 
     wsSink ws = justM (\bs -> liftIO (WS.sendBinaryData ws bs) >> wsSink ws) =<< await
 
-tcpApp :: [IOE, Fail, ScheduleFX SessionID, AuthFX, MQTTD, DB, Stats, LogFX] :>> es => AppData -> Eff es ()
+tcpApp :: (IOE :> es, Fail :> es, ScheduleFX SessionID :> es, AuthFX :> es, MQTTD :> es, DB :> es, Stats :> es, LogFX :> es) => AppData -> Eff es ()
 tcpApp ad = runMQTTDConduit (appSource ad, appSink ad, tshow (appSockAddr ad))
