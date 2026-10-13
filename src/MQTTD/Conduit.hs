@@ -86,7 +86,7 @@ runMQTTDConduit (src, sink, addr) = runConduit $ do
       wdch <- liftIO newTChanIO
       w <- async $ watchdog (3 * seconds (ka _keepAlive)) wdch _sessionID tid
       o <- async $ processOut pl _sessionChan
-      i <- async $ E.finally (processIn wdch sess pl `E.onException` logConn "process exception" req) (teardown cid req)
+      i <- async $ E.finally (processIn wdch sess pl `E.onException` logConn "process exception" req) (teardown pl cid req)
       retransmit sess
       void $ waitAnyCancel [i, o, w]
 
@@ -131,10 +131,10 @@ runMQTTDConduit (src, sink, addr) = runConduit $ do
     processOut pl ch = runConduit $
       C.repeatM (atomically $ readTBQueue ch) .| commonOut pl
 
-    teardown :: (IOE :> es, MQTTD :> es) => ClientID -> T.ConnectRequest -> Eff es ()
-    teardown cid c@T.ConnectRequest{..} = do
+    teardown :: (IOE :> es, MQTTD :> es) => T.ProtocolLevel -> ClientID -> T.ConnectRequest -> Eff es ()
+    teardown pl cid c@T.ConnectRequest{..} = do
       logConn "disconnection" c
-      unregisterClient _connID cid
+      unregisterClient pl _connID cid
 
     ensureID (T.ConnPkt c@T.ConnectRequest{_connID=""} pl) = do
       nid <- BL.fromStrict . UUID.toASCIIBytes <$> liftIO randomIO

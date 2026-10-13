@@ -5,7 +5,7 @@
 module MQTTD.Stats where
 
 import           Control.Concurrent.STM     (STM, TBQueue, TVar, check, flushTBQueue, isEmptyTBQueue, modifyTVar')
-import           Control.Monad              (forever)
+import           Control.Monad              (forever, unless)
 import qualified Data.ByteString.Lazy       as BL
 import           Data.Map.Strict            (Map)
 import qualified Data.Map.Strict            as Map
@@ -23,6 +23,8 @@ data StatKey = StatMsgSent
              | StatsActionQueued
              | StatsActionCanceled
              | StatsActionExecuted
+             -- | Currently tracks regular (non-shared) subscriptions only.
+             | StatSubscriptions
   deriving (Eq, Show, Ord, Enum)
 
 statKeyName :: StatKey -> BL.ByteString
@@ -35,6 +37,7 @@ statKeyName StatStoreOperations   = "$SYS/broker/store/operations"
 statKeyName StatsActionQueued     = "$SYS/broker/actions/queued"
 statKeyName StatsActionCanceled   = "$SYS/broker/actions/canceled"
 statKeyName StatsActionExecuted   = "$SYS/broker/actions/executed"
+statKeyName StatSubscriptions    = "$SYS/broker/subscriptions/count"
 
 type Increment = (StatKey, Int)
 
@@ -63,6 +66,16 @@ applyStats StatStore{..} = forever . atomically $ do
   check . not =<< isEmptyTBQueue _stats_queue
   todo <- flushTBQueue _stats_queue
   modifyTVar' _stats_map (Map.unionWith (+) (Map.fromListWith (+) todo))
+
+-- | Apply any queued stat increments synchronously.  Useful in tests.
+flushStats :: (IOE :> es, Stats :> es) => Eff es ()
+flushStats = do
+  StatStore{..} <- getStatStore
+  atomically $ do
+    empty <- isEmptyTBQueue _stats_queue
+    unless empty $ do
+      todo <- flushTBQueue _stats_queue
+      modifyTVar' _stats_map (Map.unionWith (+) (Map.fromListWith (+) todo))
 
 incrementStatSTM :: StatKey -> Int -> StatStore -> STM ()
 incrementStatSTM k i StatStore{..} = writeTBQueue _stats_queue (k, i)

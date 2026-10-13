@@ -9,7 +9,8 @@ import           Test.Tasty
 import           Test.Tasty.HUnit
 import           Test.Tasty.QuickCheck    as QC
 
-import           Control.Concurrent.STM   (atomically, newTVarIO)
+import           Control.Concurrent       (myThreadId)
+import           Control.Concurrent.STM   (atomically, newTBQueueIO, newTVarIO, readTVar)
 import           Data.Either              (isLeft, isRight)
 import           Data.Foldable            (for_)
 import qualified Data.Map.Strict          as Map
@@ -17,11 +18,25 @@ import           Data.Word                (Word16, Word8)
 
 import           Data.Password.Bcrypt     (PasswordHash (..))
 import           Network.MQTT.Arbitrary   (MatchingTopic (..))
+import qualified Network.MQTT.Types       as T
 import           Network.MQTT.Topic       (Topic, toFilter)
 
+import           Control.Lens             hiding (elements)
+import           Effectful
+import           MQTTD.ScheduleFX
+import           Scheduler
+
+import           Database.SQLite.Simple   (open)
+
 import           MQTTD
+import           MQTTD.Authorizer
 import           MQTTD.Config
+import           MQTTD.DB
+import           MQTTD.Logging
+import           MQTTD.Stats
+import qualified MQTTD.SubTree            as SubTree
 import           MQTTD.Types
+import           MQTTD.Util               (runFailIO)
 
 unit_configFiles :: Assertion
 unit_configFiles =
@@ -138,6 +153,44 @@ unit_listenerOptions = do
         ]
   for_ tbl $ \(a, b, want) ->
     assertEqual (show (a, b)) (ListenerOptions want) (ListenerOptions a <> ListenerOptions b)
+
+unit_ephemeralSessionCleanup :: Assertion
+unit_ephemeralSessionCleanup = do
+  env <- newEnv
+  db <- open ":memory:"
+  initDB db
+  dbq <- newTBQueueIO 100
+  expirer <- newRunner :: IO (QueueRunner SessionID)
+  tid <- myThreadId
+  let req = T.ConnectRequest { T._username = Nothing
+                             , T._password = Nothing
+                             , T._lastWill = Nothing
+                             , T._cleanSession = True
+                             , T._keepAlive = 60
+                             , T._connID = "client"
+                             , T._connProperties = [T.PropSessionExpiryInterval 0]
+                             }
+      runAction = runEff . withUnliftStrategy (ConcUnlift Persistent Unlimited) .
+                  runFailIO . runNoLogFX . runNewStats . runDB db dbq .
+                  runSchedule expirer . runAuth (Authorizer mempty True) .
+                  fmap fst . runMQTTD env
+  runAction $ do
+    (sess, _reuse) <- registerClient req 1 tid
+    subscribe sess (T.SubscribeRequest 1 [("test/#", T.subOptions{T._subQoS=T.QoS1})] [])
+    let sid = sess ^. sessionID
+    unregisterClient T.Protocol50 sid 1
+    e <- getEnv
+    (sids, as) <- liftIO . atomically $ do
+      sids <- readTVar (sessions e)
+      as <- readTVar (allSubs e)
+      pure (sids, as)
+    liftIO $ do
+      assertBool "session was not cleaned up after disconnect" (Map.null sids)
+      assertBool "subscriptions were not cleaned up after disconnect" (all (Map.null . snd) $ SubTree.flatten as)
+    flushStats
+    stats <- retrieveStats
+    let subCount = sum $ map (Map.size . snd) $ SubTree.flatten as
+    liftIO $ assertEqual "subscription stat mismatch" (Just subCount) (Map.lookup StatSubscriptions stats)
 
 test_Spec :: [TestTree]
 test_Spec = [

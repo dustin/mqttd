@@ -205,6 +205,7 @@ subscribe :: (IOE :> es, MQTTD :> es, Stats :> es, LogFX :> es, DB :> es) => Ses
 subscribe sess@Session{..} (T.SubscribeRequest pid topics props) = do
   subs <- asks allSubs
   subsShared <- asks sharedSubs
+  ss <- getStatStore
   let topics' = map (\(t,o) ->
                        case (T.mkFilter . blToText) t of
                          Nothing -> Left T.SubErrNotAuthorized
@@ -215,12 +216,15 @@ subscribe sess@Session{..} (T.SubscribeRequest pid topics props) = do
       (shared, normal) = partitionShared (rights topics')
       new = Map.fromList normal
   atomically $ do
-    -- session copy of subscriptions
+    oldSessionSubs <- readTVar _sessionSubs
+    -- session copy subscriptions
     modifyTVar' _sessionSubs . Map.union . Map.fromList . rights $ topics'
     -- regular subscriptions
     modifyTVar' subs (upSub new)
     -- shared subscriptions
     modifyTVar' subsShared (upShared shared)
+    let added = Map.size $ Map.difference new oldSessionSubs
+    incrementStatSTM StatSubscriptions added ss
     let r = map (second (T._subQoS . snd)) topics'
     sendPacket_ _sessionChan (T.SubACKPkt (T.SubscribeResponse pid r props'))
   p <- asks retainer
@@ -267,14 +271,16 @@ removeSubs sharedt subt sid ts = do
       where
         cleanShared = (fmap . fmap) (filter ((== sid) . fst))
 
-unsubscribe :: (IOE :> es, MQTTD :> es) => Session -> [BLFilter] -> Eff es [T.UnsubStatus]
-unsubscribe Session{..} topics = asks allSubs >>= \subs -> asks sharedSubs >>= \ssubs ->
+unsubscribe :: (IOE :> es, MQTTD :> es, Stats :> es) => Session -> [BLFilter] -> Eff es [T.UnsubStatus]
+unsubscribe Session{..} topics = asks allSubs >>= \subs -> asks sharedSubs >>= \ssubs -> getStatStore >>= \st ->
   atomically $ do
     m <- readTVar _sessionSubs
     let mtopics = T.mkFilter . blToText <$> topics
         (uns, n) = foldl' (\(r,m') t -> first ((:r) . unm) $ up t m') ([], m) mtopics
     writeTVar _sessionSubs n
     removeSubs ssubs subs _sessionID (catMaybes mtopics)
+    let removed = Map.size m - Map.size n
+    incrementStatSTM StatSubscriptions (-removed) st
     pure (reverse uns)
 
     where
@@ -350,23 +356,26 @@ expireSession k = do
       ss <- asks sessions
       kilt <- atomically $ do
         current <- Map.lookup k <$> readTVar ss
-        subs <- maybe (pure mempty) (readTVar . _sessionSubs) current
-        case current ^? _Just . sessionExpires . _Just of
+        case current of
           Nothing -> pure Nothing
-          Just x -> if not (hasHighQoS subs) || now >= x
-                    then
-                      modifyTVar' ss (Map.delete k) >> pure current
-                    else
-                      pure Nothing
+          Just Session{_sessionExpires=Nothing} ->
+            modifyTVar' ss (Map.delete k) >> pure current
+          Just Session{_sessionExpires=Just ex, _sessionSubs=subsv} -> do
+            subs <- readTVar subsv
+            if not (hasHighQoS subs) || now >= ex
+              then modifyTVar' ss (Map.delete k) >> pure current
+              else pure Nothing
       case kilt of
         Nothing -> logDbgL ["Nothing expired for ", tshow k]
         Just s@Session{..}  -> do
           logDbgL ["Expired session for ", tshow k]
           subt <- asks allSubs
           ssubst <- asks sharedSubs
+          st <- getStatStore
           atomically $ do
             subs <- readTVar _sessionSubs
             removeSubs ssubst subt _sessionID (Map.keys subs)
+            incrementStatSTM StatSubscriptions (-Map.size subs) st
           deleteSession _sessionID
           sessionDied s
 
@@ -383,24 +392,27 @@ expireSession k = do
                             T._pubBody=_willMsg,
                             T._pubProps=_willProps})
 
-unregisterClient :: (IOE :> es, MQTTD :> es, ScheduleFX SessionID :> es, LogFX :> es, Stats :> es, DB :> es) => SessionID -> ClientID -> Eff es ()
-unregisterClient k mid = do
+unregisterClient :: (IOE :> es, MQTTD :> es, ScheduleFX SessionID :> es, LogFX :> es, Stats :> es, DB :> es) => T.ProtocolLevel -> SessionID -> ClientID -> Eff es ()
+unregisterClient pl k mid = do
   now <- liftIO getCurrentTime
   modifySession k (up now)
   expireSession k
 
     where
-      up now sess@Session{_sessionClient=Just cc@ConnectedClient{_clientID=i}}
-        | mid == i =
-          case cc ^? clientConnReq . properties . folded . _PropSessionExpiryInterval of
-            -- Default expiry
-            Nothing -> Just $ sess{_sessionExpires=Just (addUTCTime defaultSessionExp now),
-                                   _sessionClient=Nothing}
-            -- Specifically destroy now
-            Just 0 -> Just $ sess{_sessionExpires=Nothing, _sessionClient=Nothing}
-            -- Hold on for maybe a bit.
-            Just x  -> Just $ sess{_sessionExpires=Just (addUTCTime (fromIntegral x) now),
-                                   _sessionClient=Nothing}
+      up now sess@Session{_sessionClient=Just cc@ConnectedClient{_clientID=i,
+                                                                 _clientConnReq=creq}}
+        | mid == i = Just $ sess{_sessionExpires=expiry, _sessionClient=Nothing}
+        where
+          expiry = case pl of
+            T.Protocol311
+              | T._cleanSession creq -> Nothing
+              | otherwise -> Just (addUTCTime defaultSessionExp now)
+            T.Protocol50
+              | Just 0 <- creq ^? properties . folded . _PropSessionExpiryInterval -> Nothing
+              | Just x <- creq ^? properties . folded . _PropSessionExpiryInterval ->
+                  Just (addUTCTime (fromIntegral x) now)
+              | otherwise -> Nothing
+            _ -> Just (addUTCTime defaultSessionExp now)
       up _ s = Just s
 
 tryWriteQ :: TBQueue a -> a -> STM Bool
