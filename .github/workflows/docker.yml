@@ -5,6 +5,13 @@ on:
     branches: [ "master" ]
   pull_request:
 
+permissions:
+  contents: read
+  packages: write
+
+env:
+  IMAGE: ghcr.io/${{ github.repository }}
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -16,12 +23,12 @@ jobs:
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v4
 
-    - name: Log in to Docker Hub
-      if: github.event_name == 'push'
+    - name: Log in to GitHub Container Registry
       uses: docker/login-action@v4
       with:
-        username: ${{ secrets.DOCKER_USERNAME }}
-        password: ${{ secrets.DOCKER_PASSWORD }}
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Build and push Docker image
       uses: docker/build-push-action@v7
@@ -29,6 +36,7 @@ jobs:
         context: .
         push: ${{ github.event_name == 'push' }}
         platforms: linux/amd64
-        tags: ${{ secrets.DOCKER_USERNAME }}/mqttd:latest
-        cache-from: type=registry,ref=${{ secrets.DOCKER_USERNAME }}/mqttd:cache
-        cache-to: ${{ github.event_name == 'push' && format('type=registry,ref={0}/mqttd:cache,mode=max', secrets.DOCKER_USERNAME) || '' }}
+        tags: ${{ env.IMAGE }}:latest
+        labels: org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+        cache-from: type=registry,ref=${{ env.IMAGE }}:cache
+        cache-to: ${{ github.event_name == 'push' && format('type=registry,ref={0}:cache,mode=max', env.IMAGE) || '' }}
