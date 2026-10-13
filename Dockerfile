@@ -1,7 +1,16 @@
 # Stage 1: Build the Haskell project
-FROM haskell:9.10-bookworm AS builder
+# The official haskell images have no GHC 9.6 on bookworm, and some
+# dependencies (cleff) don't support newer GHCs yet, so install 9.6 via ghcup.
+FROM debian:bookworm AS builder
 
-RUN apt-get update && apt-get install -y ffmpeg libpq5 libpq-dev zlib1g zlib1g-dev
+RUN apt-get update && apt-get install -y build-essential curl git libffi-dev libgmp-dev libncurses-dev \
+    ffmpeg libpq5 libpq-dev zlib1g zlib1g-dev
+
+ENV PATH=/root/.ghcup/bin:$PATH
+RUN curl -sSfL https://downloads.haskell.org/~ghcup/x86_64-linux-ghcup -o /usr/local/bin/ghcup \
+    && chmod +x /usr/local/bin/ghcup \
+    && ghcup install ghc 9.6.7 --set \
+    && ghcup install cabal 3.12.1.0 --set
 
 WORKDIR /usr/src/app
 
