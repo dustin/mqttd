@@ -6,92 +6,42 @@ on:
     branches: [ master ]
 
 jobs:
-  stack:
-    strategy:
-      matrix:
-        os: [ubuntu-latest]
-
-    runs-on: ${{ matrix.os }}
+  build:
+    runs-on: ubuntu-latest
 
     steps:
     - uses: actions/checkout@v7
 
-    - name: Cache Key
-      id: cache_key
-      run: echo ::set-output name=key::$(md5sum stack.yaml | awk '{print $1}')
+    - name: Install Nix
+      uses: cachix/install-nix-action@v31
+      with:
+        nix_path: nixpkgs=channel:nixos-unstable
+        extra_nix_config: |
+          experimental-features = nix-command flakes
 
-    - name: Cache Dependencies
-      id: cache
+    - name: Cache Nix store and cabal store
       uses: actions/cache@v6
       with:
-        path: ~/.stack
-        key: ${{ matrix.os }}-${{ steps.cache_key.outputs.key }}
-
-    - name: Build Snapshot
-      if: steps.cache.outputs.cache-hit != 'true'
-      run: |
-        stack --no-terminal test --bench --only-snapshot
+        path: |
+          /nix
+          ~/.cabal/packages
+          ~/.cabal/store
+          ~/.local/state/cabal
+          dist-newstyle
+        key: nix-cabal-${{ runner.os }}-${{ hashFiles('flake.lock', 'mqttd.cabal') }}
+        restore-keys: nix-cabal-${{ runner.os }}-
 
     - name: Build & Test
       run: |
-        stack --no-terminal test --bench --no-run-benchmarks
-        stack install
+        nix develop --command cabal update
+        nix develop --command cabal build all
+        nix develop --command cabal test --test-show-details=streaming
         mkdir dist
-        cp $HOME/.local/bin/mqttd dist
-        cp $HOME/.local/bin/mqttdpass dist
+        cp $(nix develop --command cabal list-bin exe:mqttd) dist
+        cp $(nix develop --command cabal list-bin exe:mqttdpass) dist
 
     - name: Store Artifact
       uses: actions/upload-artifact@v7
       with:
-        name: mqttd-${{ matrix.os }}
+        name: mqttd-ubuntu-latest
         path: dist
-
-    - name: Build Docs
-      if: matrix.os == 'ubuntu-latest' && github.event_name == 'push'
-      run: |
-        stack --no-terminal haddock --no-haddock-deps
-        stack install
-        PKG_NAME=$(cat *.cabal | grep "name:" | sed "s/name:\s*\(.*\)/\1/")
-        mkdir -p docs && mv $(stack path --local-install-root)/doc/$PKG_NAME-*/* docs/
-
-  cabal:
-    runs-on: 'ubuntu-latest'
-    steps:
-    - uses: actions/checkout@v7
-
-    - name: Set up Haskell
-      uses: haskell-actions/setup@v2
-      id: setup
-      with:
-        ghc-version: '9.6.4'
-        cabal-version: '3.10.2.1'
-
-    - name: Generate Cache Keys
-      id: cache_key
-      run: |
-        echo "ghc_ver=${{ steps.setup.outputs.ghc-version }}" >> $GITHUB_ENV
-        cabal freeze
-        echo "dep_hash=$(md5sum cabal.project.freeze | awk '{print $1}')" >> $GITHUB_ENV
-
-    - name: Cache Dependencies
-      id: cache
-      uses: actions/cache@v6
-      with:
-        path: |
-          ~/.cabal
-          dist-newstyle
-        key: ubuntu-latest-ghc-${{ env.ghc_ver }}-cabal-${{ env.dep_hash }}
-        restore-keys: |
-          ubuntu-latest-ghc-${{ env.ghc_ver }}-cabal-
-          ubuntu-latest-ghc-${{ env.ghc_ver }}-
-          ubuntu-latest-
-
-    - name: Install tasty-discover
-      if: steps.cache.outputs.cache-hit != 'true'
-      run: cabal install --overwrite-policy=always tasty-discover
-
-    - name: Build & Test
-      run: |
-        cabal build
-        cabal test --test-show-details=streaming
-        
