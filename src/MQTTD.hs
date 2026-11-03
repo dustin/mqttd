@@ -264,7 +264,8 @@ removeSubs sharedt subt sid ts = do
     up l s = foldr (\(t,_) -> SubTree.modify t (Map.delete sid <$>)) s l
     upShared l s = foldr (\(t,_,_) s' -> maybe s' (\t' -> SubTree.modify t' cleanShared s') (T.mkFilter t)) s l
       where
-        cleanShared = (fmap . fmap) (filter ((== sid) . fst))
+        -- Drop this session from each share group, and drop groups left empty.
+        cleanShared = fmap (Map.filter (not . null) . fmap (filter ((/= sid) . fst)))
 
 unsubscribe :: (IOE :> es, MQTTD :> es, Stats :> es) => Session -> [BLFilter] -> Eff es [T.UnsubStatus]
 unsubscribe Session{..} topics = asks allSubs >>= \subs -> asks sharedSubs >>= \ssubs -> getStatStore >>= \st ->
@@ -286,10 +287,13 @@ unsubscribe Session{..} topics = asks allSubs >>= \subs -> asks sharedSubs >>= \
 modifySession :: (IOE :> es, MQTTD :> es) => SessionID -> (Session -> Maybe Session) -> Eff es ()
 modifySession k f = asks sessions >>= \s -> atomically $ modifyTVar' s (Map.update f k)
 
-registerClient :: (IOE :> es, AuthFX :> es, Fail :> es, MQTTD :> es)
+registerClient :: (IOE :> es, AuthFX :> es, Fail :> es, MQTTD :> es, Stats :> es, DB :> es)
                => T.ConnectRequest -> ClientID -> ThreadId -> Eff es (Session, T.SessionReuse)
 registerClient req@T.ConnectRequest{..} i o = do
   c <- asks sessions
+  subt <- asks allSubs
+  ssubt <- asks sharedSubs
+  st <- getStatStore
   ai <- liftIO $ newTVarIO mempty
   ao <- liftIO $ newTVarIO mempty
   l <- liftIO $ newTVarIO (fromMaybe 0 (req ^? properties . folded . _PropTopicAliasMaximum))
@@ -297,8 +301,12 @@ registerClient req@T.ConnectRequest{..} i o = do
   let k = _connID
       nc = ConnectedClient req o i ai ao l
       maxInFlight = fromMaybe maxBound (req ^? properties . folded . _PropReceiveMaximum)
+      dropSubs subsv = do
+        subs <- readTVar subsv
+        removeSubs ssubt subt k (Map.keys subs)
+        incrementStatSTM StatSubscriptions (-Map.size subs) st
   when (maxInFlight == 0) $ fail "max in flight must be greater than zero"
-  (o', x, ns) <- atomically $ do
+  (o', x, ns, discarded) <- atomically $ do
     emptySession <- Session _connID acl (Just nc) <$> newTBQueue defaultQueueSize
                     <*> newTVar maxInFlight <*> newTBQueue defaultQueueSize
                     <*> newTVar mempty <*> newTVar mempty
@@ -307,8 +315,12 @@ registerClient req@T.ConnectRequest{..} i o = do
     let s = Map.lookup k m
         o' = _sessionClient =<< s
         (ns, ruse) = maybeClean emptySession s
+        discarded = if _cleanSession then s else Nothing
+    mapM_ (dropSubs . _sessionSubs) discarded
     writeTVar c (Map.insert k ns m)
-    pure (o', ruse, ns)
+    pure (o', ruse, ns, discarded)
+  -- The cascade removes the discarded session's persisted subscriptions.
+  when (isJust discarded) $ deleteSession k
   case o' of
     Nothing                  -> pure ()
     Just ConnectedClient{..} -> liftIO $ throwTo _clientThread (MQTTDuplicate _connID)

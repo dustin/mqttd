@@ -327,3 +327,34 @@ unit_retainedOnSubscribe = withTestService $ \u -> do
     _ <- MC.subscribe c [("t", MC.subOptions)] []
     req@T.PublishRequest{..} <- atomically $ readTVar got >>= maybe retry pure
     assertBool ("retained message delivered with RETAIN=0: " <> show req) _pubRetain
+
+-- H1: Connecting with CleanSession=1 / Clean Start must discard any
+-- existing session, including its subscriptions [MQTT-3.1.2-6] (3.1.1),
+-- [MQTT-3.1.2-4] (5.0).
+unit_cleanSessionDropsOldSubs :: Assertion
+unit_cleanSessionDropsOldSubs = withTestService $ \u -> do
+  -- net-mqtt's connectURI takes the client ID from the URI fragment.
+  let cu = u{uriFragment="#h1-clean-session"}
+  -- Persistent session with a QoS1 subscription.
+  old <- MC.connectURI MC.mqttConfig{_cleanSession=False} cu
+  _ <- MC.subscribe old [("h1/old", MC.subOptions{_subQoS=MC.QoS1})] []
+
+  -- Take over the session with the same client ID, but a clean session.
+  -- (Taking over rather than disconnecting first, since mqttd doesn't
+  -- close the connection on DISCONNECT and normalDisconnect waits 10s.)
+  got <- newTVarIO []
+  new <- MC.connectURI MC.mqttConfig{_cleanSession=True,
+                                     _msgCB=MC.OrderedCallback (\_ t _ _ -> atomically $ modifyTVar' got (t:))} cu
+  _ <- MC.subscribe new [("h1/canary", MC.subOptions{_subQoS=MC.QoS1})] []
+
+  pubber <- MC.connectURI MC.mqttConfig u
+  MC.publishq pubber "h1/old" "should not arrive" False MC.QoS1 []
+  MC.publishq pubber "h1/canary" "should arrive" False MC.QoS1 []
+
+  timedOut <- registerDelay 5000000
+  r <- atomically $ ((check =<< readTVar timedOut) >> (Left <$> readTVar got)) `orElse` do
+    ts <- readTVar got
+    check ("h1/canary" `elem` ts)
+    pure (Right ts)
+  ts <- either (\x -> assertFailure ("timed out waiting for canary, got " <> show x)) pure r
+  assertEqual "only the clean session's subscription delivered" ["h1/canary"] (reverse ts)
