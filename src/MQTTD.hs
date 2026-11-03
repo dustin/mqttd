@@ -244,16 +244,11 @@ subscribe sess@Session{..} (T.SubscribeRequest pid topics props) = do
         isSubAckProp (T.PropReasonString _)   = True
         isSubAckProp _                        = False
 
-    sendOne opts@T.SubOptions{..} ir@T.PublishRequest{..} = do
+    sendOne T.SubOptions{..} ir@T.PublishRequest{..} = do
       pid' <- atomically . nextPktID =<< asks lastPktID
       now <- liftIO getCurrentTime
-      let r = ir{T._pubPktID=pid', T._pubRetain=mightRetain opts,
-                 T._pubQoS = min _pubQoS _subQoS}
+      let r = ir{T._pubPktID=pid', T._pubRetain=True, T._pubQoS = min _pubQoS _subQoS}
       publish (deadline now r) sess r
-
-        where
-          mightRetain T.SubOptions{_retainAsPublished=False} = False
-          mightRetain _                                      = _pubRetain
 
 removeSubs :: TVar (SubTree (Map SubscriberName [(SessionID, T.SubOptions)]))
            -> TVar (SubTree (Map SessionID T.SubOptions))

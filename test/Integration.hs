@@ -5,8 +5,10 @@ module Integration where
 import           Test.Tasty.HUnit
 
 import           Control.Concurrent     (threadDelay)
-import           Control.Concurrent.STM (TChan, check, modifyTVar', newTChanIO, newTVarIO, orElse, readTChan, readTVar,
-                                         readTVarIO, registerDelay, writeTChan)
+import           Control.Concurrent.STM (TChan, check, modifyTVar', newTChanIO,
+                                         newTVarIO, orElse, readTChan, readTVar,
+                                         readTVarIO, registerDelay, retry,
+                                         writeTChan, writeTVar)
 import           Control.Exception      (catch)
 import           Control.Monad          (replicateM)
 import qualified Data.ByteString.Lazy   as BL
@@ -19,7 +21,8 @@ import           Network.MQTT.Client    as MC
 import qualified Network.MQTT.Types     as T
 import           Network.Socket.Free    (getFreePort)
 import           Network.URI
-import           UnliftIO               (Concurrently (..), atomically, bracket, cancel, concurrently, mapConcurrently_,
+import           UnliftIO               (Concurrently (..), atomically, bracket,
+                                         cancel, concurrently, mapConcurrently_,
                                          runConcurrently)
 
 import           MQTTD
@@ -315,3 +318,12 @@ unit_AAA step = let conf = testConfig{
 
   where
     withCreds url u p = let a = fromMaybe nullURIAuth (uriAuthority url) in url{uriAuthority=Just a{uriUserInfo = u <> ":" <> p <> "@"}}
+
+unit_retainedOnSubscribe :: Assertion
+unit_retainedOnSubscribe = withTestService $ \u -> do
+    got <- newTVarIO Nothing
+    c <- MC.connectURI MC.mqttConfig{_msgCB=MC.LowLevelCallback (\_ r -> atomically $ writeTVar got (Just r))} u
+    MC.publishq c "t" "x" True MC.QoS0 []
+    _ <- MC.subscribe c [("t", MC.subOptions)] []
+    req@T.PublishRequest{..} <- atomically $ readTVar got >>= maybe retry pure
+    assertBool ("retained message delivered with RETAIN=0: " <> show req) _pubRetain
