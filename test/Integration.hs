@@ -384,7 +384,8 @@ data RawConn = RawConn {
   rawRecv           :: IO T.MQTTPkt,
   -- | Receive a packet, or Nothing if the server closed the connection.
   rawRecvMaybe      :: IO (Maybe T.MQTTPkt),
-  rawSessionPresent :: T.SessionReuse
+  rawSessionPresent :: T.SessionReuse,
+  rawConnAckProps   :: [T.Property]
   }
 
 -- | Connect, wait for a successful CONNACK and run the action.  The
@@ -402,7 +403,7 @@ withRawConn u pl req f = runTCPClient (clientSettings port "127.0.0.1") $ \ad ->
       recv = recvMaybe >>= maybe (assertFailure "connection closed") pure
   send (T.ConnPkt req pl)
   recv >>= \case
-    T.ConnACKPkt (T.ConnACKFlags sp T.ConnAccepted _) -> f (RawConn send sendBytes recv recvMaybe sp)
+    T.ConnACKPkt (T.ConnACKFlags sp T.ConnAccepted props) -> f (RawConn send sendBytes recv recvMaybe sp props)
     x -> assertFailure ("unexpected connect response: " <> show x)
   where
     port = read . drop 1 . uriPort . fromJust . uriAuthority $ u
@@ -823,3 +824,25 @@ unit_maximumPacketSize = withTestService $ \u ->
     MC.publishq pubber "m8/small" "small" False MC.QoS1 []
     T.PublishRequest{_pubTopic} <- rawExpectPublish rc
     assertEqual "oversize message discarded" "m8/small" _pubTopic
+
+-- * Subscription Identifiers
+
+-- M9: mqttd doesn't support Subscription Identifiers, so it must say so
+-- in CONNACK [5.0 §3.2.2.3.12]...
+unit_subIdsNotAvailable :: Assertion
+unit_subIdsNotAvailable = withTestService $ \u ->
+  withRawConn u T.Protocol50 T.connectRequest{T._connID="m9-connack"} $ \rc ->
+    assertBool ("CONNACK properties: " <> show (rawConnAckProps rc))
+      (T.PropSubscriptionIdentifierAvailable 0 `elem` rawConnAckProps rc)
+
+-- M9: ...and a SUBSCRIBE with one anyway is a protocol error, answered
+-- with DISCONNECT 0xA1 [5.0 §3.8.2.1.2].
+unit_subIdRejected :: Assertion
+unit_subIdRejected = withTestService $ \u ->
+  withRawConn u T.Protocol50 T.connectRequest{T._connID="m9-sub"} $ \rc -> do
+    rawSend rc (T.SubscribePkt (T.SubscribeRequest 1 [("m9/t", T.subOptions)] [T.PropSubscriptionIdentifier 7]))
+    timeout 2000000 (rawRecvMaybe rc) >>= \case
+      Nothing -> assertFailure "connection wasn't closed"
+      Just Nothing -> pure () -- closed (the DISCONNECT is best effort)
+      Just (Just (T.DisconnectPkt (T.DisconnectRequest T.DiscoSubscriptionIdentifiersNotSupported _))) -> pure ()
+      Just (Just x) -> assertFailure ("expected DISCONNECT 0xA1, got " <> show x)

@@ -658,6 +658,12 @@ dispatch sess@Session{..} (T.PubCOMPPkt comp) = liftIO getCurrentTime >>= \now -
 
 -- Subscribe response is sent from the `subscribe` action because the
 -- interaction is a bit complicated.
+-- mqttd doesn't support Subscription Identifiers (and CONNACK says so),
+-- so one in a SUBSCRIBE is a protocol error [5.0 §3.8.2.1.2].
+dispatch Session{..} (T.SubscribePkt (T.SubscribeRequest _ _ props))
+  | any (has _PropSubscriptionIdentifier) props = do
+      sendPacketIO_ _sessionChan (T.DisconnectPkt (T.DisconnectRequest T.DiscoSubscriptionIdentifiersNotSupported []))
+      fail "subscription identifiers aren't supported"
 dispatch sess (T.SubscribePkt req) = subscribe sess req
 
 dispatch sess@Session{..} (T.UnsubscribePkt (T.UnsubscribeRequest pid subs props)) = do
