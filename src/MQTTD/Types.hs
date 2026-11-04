@@ -72,7 +72,10 @@ data Session = Session {
   _sessionQP      :: TVar (Map T.PktID (Maybe UTCTime, T.PublishRequest)),
   _sessionSubs    :: TVar (Map T.Filter T.SubOptions),
   _sessionExpires :: Maybe UTCTime,
-  _sessionWill    :: Maybe T.LastWill
+  _sessionWill    :: Maybe T.LastWill,
+  -- | When a disconnected session's will is due (after its Will Delay
+  -- Interval).  Nothing while connected, or when no will is pending.
+  _sessionWillAt  :: Maybe UTCTime
   }
 
 makeLenses ''Session

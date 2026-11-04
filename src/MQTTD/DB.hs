@@ -238,6 +238,9 @@ loadSessions = liftIO . fetch =<< dbConn
           let _sessionACL = mempty
               _sessionClient = Nothing
               _sessionWill = will
+              -- The stored will isn't cleared by DISCONNECT, so a restored
+              -- session's will is only sent if the session expires.
+              _sessionWillAt = Nothing
               _sessionExpires = Just (addUTCTime (fromIntegral _sts_expiry) now)
               _sessionID = _sts_sessionID
           _sessionChan <- newTBQueueIO defaultQueueSize

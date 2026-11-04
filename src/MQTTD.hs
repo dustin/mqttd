@@ -16,7 +16,7 @@ import           Control.Concurrent            (ThreadId, threadDelay, throwTo)
 import           Control.Concurrent.STM        (STM, TBQueue, TVar, isFullTBQueue, modifyTVar', newTBQueue, newTVar, newTVarIO,
                                                 readTVar, tryReadTBQueue, writeTBQueue, writeTVar)
 import           Control.Lens
-import           Control.Monad                 (forever, unless, void, when)
+import           Control.Monad                 (forever, guard, mfilter, unless, void, when)
 import           Data.Bifunctor                (first, second)
 import           Data.Either                   (rights)
 import           Data.Foldable                 (fold, foldl')
@@ -26,7 +26,8 @@ import           Data.Maybe                    (catMaybes, fromMaybe, isJust)
 import           Data.Monoid                   (Sum (..))
 import           Data.String                   (IsString (..))
 import qualified Data.Text                     as Txt
-import           Data.Time.Clock               (UTCTime, addUTCTime, getCurrentTime)
+import           Data.Time.Clock               (NominalDiffTime, UTCTime, addUTCTime,
+                                                getCurrentTime)
 import           Data.Word                     (Word16)
 import           Effectful
 import           Effectful.Dispatch.Dynamic    (reinterpret)
@@ -287,7 +288,7 @@ unsubscribe Session{..} topics = asks allSubs >>= \subs -> asks sharedSubs >>= \
 modifySession :: (IOE :> es, MQTTD :> es) => SessionID -> (Session -> Maybe Session) -> Eff es ()
 modifySession k f = asks sessions >>= \s -> atomically $ modifyTVar' s (Map.update f k)
 
-registerClient :: (IOE :> es, AuthFX :> es, Fail :> es, MQTTD :> es, Stats :> es, DB :> es)
+registerClient :: (IOE :> es, AuthFX :> es, Fail :> es, MQTTD :> es, Stats :> es, DB :> es, LogFX :> es)
                => T.ConnectRequest -> ClientID -> ThreadId -> Eff es (Session, T.SessionReuse)
 registerClient req@T.ConnectRequest{..} i o = do
   c <- asks sessions
@@ -306,11 +307,11 @@ registerClient req@T.ConnectRequest{..} i o = do
         removeSubs ssubt subt k (Map.keys subs)
         incrementStatSTM StatSubscriptions (-Map.size subs) st
   when (maxInFlight == 0) $ fail "max in flight must be greater than zero"
-  (o', x, ns, discarded) <- atomically $ do
+  (o', x, ns, discarded, oldWill) <- atomically $ do
     emptySession <- Session _connID acl (Just nc) <$> newTBQueue defaultQueueSize
                     <*> newTVar maxInFlight <*> newTBQueue defaultQueueSize
                     <*> newTVar mempty <*> newTVar mempty
-                    <*> pure Nothing <*> pure _lastWill
+                    <*> pure Nothing <*> pure _lastWill <*> pure Nothing
     m <- readTVar c
     let s = Map.lookup k m
         o' = _sessionClient =<< s
@@ -318,9 +319,10 @@ registerClient req@T.ConnectRequest{..} i o = do
         discarded = if _cleanSession then s else Nothing
     mapM_ (dropSubs . _sessionSubs) discarded
     writeTVar c (Map.insert k ns m)
-    pure (o', ruse, ns, discarded)
+    pure (o', ruse, ns, discarded, replacedWill =<< s)
   -- The cascade removes the discarded session's persisted subscriptions.
   when (isJust discarded) $ deleteSession k
+  mapM_ (publishWill k) oldWill
   case o' of
     Nothing                  -> pure ()
     Just ConnectedClient{..} -> liftIO $ throwTo _clientThread (MQTTDuplicate _connID)
@@ -335,25 +337,54 @@ registerClient req@T.ConnectRequest{..} i o = do
                          _sessionChan=_sessionChan ns,
                          _sessionBacklog=_sessionBacklog ns,
                          _sessionFlight=_sessionFlight ns,
-                         _sessionWill=_lastWill}, T.ExistingSession)
+                         _sessionWill=_lastWill,
+                         _sessionWillAt=Nothing}, T.ExistingSession)
+
+      -- The will of the connection being taken over, or a delayed will
+      -- still pending on a disconnected session.  A new connection to the
+      -- session cancels a delayed will [MQTT-3.1.3-9], but it's sent if
+      -- the session is ending (clean start) or a taken over connection had
+      -- no delay [MQTT-3.1.4-3].
+      replacedWill old = do
+        w <- _sessionWill old
+        let connected = isJust (_sessionClient old)
+        guard (connected || isJust (_sessionWillAt old))
+        guard (_cleanSession || (connected && willDelay w == 0))
+        pure w
 
 expireSession :: (IOE :> es, ScheduleFX SessionID :> es, MQTTD :> es, Stats :> es, DB :> es, LogFX :> es) => SessionID -> Eff es ()
 expireSession k = do
+  now <- liftIO getCurrentTime
   ss <- asks sessions
-  possiblyCleanup =<< atomically (Map.lookup k <$> readTVar ss)
+  -- Take a due will (atomically, so it's only sent once) and send it.
+  (due, current) <- atomically $ do
+    m <- readTVar ss
+    case Map.lookup k m of
+      Just sess@Session{_sessionClient=Nothing, _sessionWillAt=Just t, _sessionWill=Just w}
+        | t <= now -> do
+            let sess' = sess{_sessionWill=Nothing, _sessionWillAt=Nothing}
+            writeTVar ss (Map.insert k sess' m)
+            pure (Just w, Just sess')
+      current -> pure (Nothing, current)
+  mapM_ (publishWill k) due
+  possiblyCleanup now current
 
   where
-    possiblyCleanup Nothing = pure ()
-    possiblyCleanup (Just Session{_sessionClient=Just _}) = logDbgL [tshow k, " is in use"]
-    possiblyCleanup (Just Session{_sessionClient=Nothing,
-                                  _sessionExpires=Nothing}) = expireNow
-    possiblyCleanup (Just Session{_sessionClient=Nothing,
-                                  _sessionExpires=Just ex,
-                                  _sessionSubs=subsv}) = do
-      now <- liftIO getCurrentTime
+    possiblyCleanup _ Nothing = pure ()
+    possiblyCleanup _ (Just Session{_sessionClient=Just _}) = logDbgL [tshow k, " is in use"]
+    possiblyCleanup _ (Just Session{_sessionClient=Nothing,
+                                    _sessionExpires=Nothing}) = expireNow
+    possiblyCleanup now (Just Session{_sessionClient=Nothing,
+                                      _sessionExpires=Just ex,
+                                      _sessionWillAt=willAt,
+                                      _sessionSubs=subsv}) = do
       subs <- readTVarIO subsv
       if hasHighQoS subs && ex > now
-        then void $ enqueue ex k
+        then do
+          void $ enqueue ex k
+          -- Come back for a delayed will, unless the session ends first
+          -- (which sends it).
+          mapM_ (void . (`enqueue` k)) (mfilter (< ex) willAt)
         else expireNow
 
     hasHighQoS = isJust . preview (folded . subQoS . filtered (> T.QoS0))
@@ -388,16 +419,30 @@ expireSession k = do
 
     sessionDied Session{_sessionWill=Nothing} =
       logDbgL ["Session without will: ", tshow k, " has died"]
-    sessionDied Session{_sessionWill=Just T.LastWill{..}} = do
+    sessionDied Session{_sessionWill=Just w} = do
       logDbgL ["Session with will ", tshow k, " has died"]
-      broadcast Nothing (T.PublishRequest{
-                            T._pubDup=False,
-                            T._pubQoS=_willQoS,
-                            T._pubRetain=_willRetain,
-                            T._pubTopic=_willTopic,
-                            T._pubPktID=0,
-                            T._pubBody=_willMsg,
-                            T._pubProps=_willProps})
+      publishWill k w
+
+-- | The Will Delay Interval of a will (0 if absent, as always in 3.1.1).
+willDelay :: T.LastWill -> NominalDiffTime
+willDelay w = maybe 0 fromIntegral (T._willProps w ^? folded . _PropWillDelayInterval)
+
+-- | The PUBLISH a will is sent as.  Will Delay Interval is only a will
+-- property and isn't allowed on PUBLISH [5.0 §3.3.2.3].
+willPublish :: T.LastWill -> T.PublishRequest
+willPublish T.LastWill{..} = T.PublishRequest{
+  T._pubDup=False,
+  T._pubQoS=_willQoS,
+  T._pubRetain=_willRetain,
+  T._pubTopic=_willTopic,
+  T._pubPktID=0,
+  T._pubBody=_willMsg,
+  T._pubProps=filter (hasn't _PropWillDelayInterval) _willProps}
+
+publishWill :: (IOE :> es, MQTTD :> es, Stats :> es, DB :> es, LogFX :> es) => SessionID -> T.LastWill -> Eff es ()
+publishWill k w = do
+  logDbgL ["Publishing will for ", tshow k]
+  broadcast Nothing (willPublish w)
 
 unregisterClient :: (IOE :> es, MQTTD :> es, ScheduleFX SessionID :> es, LogFX :> es, Stats :> es, DB :> es) => T.ProtocolLevel -> SessionID -> ClientID -> Eff es ()
 unregisterClient pl k mid = do
@@ -408,7 +453,10 @@ unregisterClient pl k mid = do
     where
       up now sess@Session{_sessionClient=Just cc@ConnectedClient{_clientID=i,
                                                                  _clientConnReq=creq}}
-        | mid == i = Just $ sess{_sessionExpires=expiry, _sessionClient=Nothing}
+        -- A will left on the session (i.e. not discarded by DISCONNECT) is
+        -- due after its delay [MQTT-3.1.2-8], [5.0 §3.1.3.2.2].
+        | mid == i = Just $ sess{_sessionExpires=expiry, _sessionClient=Nothing,
+                                 _sessionWillAt=(\w -> addUTCTime (willDelay w) now) <$> _sessionWill sess}
         where
           expiry = case pl of
             T.Protocol311

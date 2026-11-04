@@ -10,6 +10,12 @@ import           Control.Concurrent.STM (TChan, check, modifyTVar', newTChanIO,
                                          readTVarIO, registerDelay, retry,
                                          writeTChan, writeTVar)
 import           Control.Exception      (catch)
+import qualified Data.Attoparsec.ByteString as A
+import qualified Data.ByteString        as BS
+import           Data.Conduit           (await, runConduit, yield, (.|))
+import           Data.Conduit.Network   (appSink, appSource, clientSettings,
+                                         runTCPClient)
+import           Data.IORef             (newIORef, readIORef, writeIORef)
 import           Control.Monad          (replicateM)
 import qualified Data.ByteString.Lazy   as BL
 import           Data.List              (sort)
@@ -358,3 +364,169 @@ unit_cleanSessionDropsOldSubs = withTestService $ \u -> do
     pure (Right ts)
   ts <- either (\x -> assertFailure ("timed out waiting for canary, got " <> show x)) pure r
   assertEqual "only the clean session's subscription delivered" ["h1/canary"] (reverse ts)
+
+-- * Will tests
+
+-- | A raw MQTT connection, for tests that need a client to misbehave
+-- (e.g. drop the connection without sending DISCONNECT), which
+-- net-mqtt's client won't do.
+data RawConn = RawConn {
+  rawSend      :: T.MQTTPkt -> IO (),
+  rawSendBytes :: BS.ByteString -> IO (),
+  rawRecv      :: IO T.MQTTPkt
+  }
+
+-- | Connect, wait for a successful CONNACK and run the action.  The
+-- connection is closed (without DISCONNECT) when the action returns.
+withRawConn :: TestServer -> T.ProtocolLevel -> T.ConnectRequest -> (RawConn -> IO a) -> IO a
+withRawConn u pl req f = runTCPClient (clientSettings port "127.0.0.1") $ \ad -> do
+  buf <- newIORef BS.empty
+  let sendBytes b = runConduit $ yield b .| appSink ad
+      send = sendBytes . BL.toStrict . T.toByteString pl
+      recv = readIORef buf >>= go . A.parse (T.parsePacket pl)
+        where
+          go (A.Done rest p) = writeIORef buf rest >> pure p
+          go (A.Fail _ _ e)  = assertFailure ("parse error: " <> e)
+          go (A.Partial k)   = runConduit (appSource ad .| await) >>=
+                               maybe (assertFailure "connection closed") (go . k)
+      rc = RawConn send sendBytes recv
+  send (T.ConnPkt req pl)
+  recv >>= \case
+    T.ConnACKPkt (T.ConnACKFlags _ T.ConnAccepted _) -> f rc
+    x -> assertFailure ("unexpected connect response: " <> show x)
+  where
+    port = read . drop 1 . uriPort . fromJust . uriAuthority $ u
+
+-- | Subscribe to a QoS1 topic on a raw connection so the session
+-- survives disconnection (sessions with only QoS0 subs don't; see H3).
+rawKeepSession :: RawConn -> IO ()
+rawKeepSession rc = do
+  rawSend rc (T.SubscribePkt (T.SubscribeRequest 1 [("keep/session", T.subOptions{T._subQoS=T.QoS1})] []))
+  rawRecv rc >>= \case
+    T.SubACKPkt _ -> pure ()
+    x -> assertFailure ("unexpected subscribe response: " <> show x)
+
+willReq :: BL.ByteString -> Bool -> [T.Property] -> [T.Property] -> T.ConnectRequest
+willReq cid clean cprops wprops = T.connectRequest{
+  T._connID=cid,
+  T._cleanSession=clean,
+  T._connProperties=cprops,
+  T._lastWill=Just T.LastWill{T._willRetain=False, T._willQoS=T.QoS0,
+                              T._willTopic="will/" <> cid, T._willMsg="gone",
+                              T._willProps=wprops}
+  }
+
+-- | Watch for will messages (and anything else on will/#).
+willWatcher :: TestServer -> IO (TChan T.PublishRequest)
+willWatcher u = do
+  ch <- newTChanIO
+  c <- MC.connectURI MC.mqttConfig{_protocol=MC.Protocol50,
+                                   _msgCB=MC.LowLevelCallback (\_ r -> atomically $ writeTChan ch r)} u
+  _ <- MC.subscribe c [("will/#", MC.subOptions)] []
+  pure ch
+
+-- | Wait up to the given number of microseconds for a message.
+nextWithin :: Int -> TChan a -> IO (Maybe a)
+nextWithin us ch = do
+  to <- registerDelay us
+  atomically $ (Just <$> readTChan ch) `orElse` (readTVar to >>= check >> pure Nothing)
+
+expectWill :: Int -> TChan T.PublishRequest -> IO T.PublishRequest
+expectWill us ch = nextWithin us ch >>= maybe (assertFailure "expected a will message, but none arrived") pure
+
+expectNoWill :: Int -> TChan T.PublishRequest -> Assertion
+expectNoWill us ch = nextWithin us ch >>= mapM_ (\r -> assertFailure ("unexpected will: " <> show r))
+
+-- Baseline: a dropped connection publishes its will [MQTT-3.1.2-8].
+unit_willOnDrop311 :: Assertion
+unit_willOnDrop311 = withTestService $ \u -> do
+  ch <- willWatcher u
+  withRawConn u T.Protocol311 (willReq "drop311" True [] []) (const $ pure ())
+  T.PublishRequest{..} <- expectWill 2000000 ch
+  assertEqual "will topic" "will/drop311" _pubTopic
+
+-- H2: The will is published when the connection drops, not when a
+-- persistent session eventually expires [MQTT-3.1.2-8].
+unit_willOnDropPersistent311 :: Assertion
+unit_willOnDropPersistent311 = withTestService $ \u -> do
+  ch <- willWatcher u
+  withRawConn u T.Protocol311 (willReq "persist311" False [] []) rawKeepSession
+  T.PublishRequest{..} <- expectWill 2000000 ch
+  assertEqual "will topic" "will/persist311" _pubTopic
+
+-- H2: The will is delayed by the Will Delay Interval when the session
+-- outlives it [5.0 §3.1.3.2.2].
+unit_willDelay50 :: Assertion
+unit_willDelay50 = withTestService $ \u -> do
+  ch <- willWatcher u
+  withRawConn u T.Protocol50 (willReq "delay50" False [T.PropSessionExpiryInterval 60]
+                                                      [T.PropWillDelayInterval 2]) rawKeepSession
+  expectNoWill 1000000 ch
+  T.PublishRequest{..} <- expectWill 3000000 ch
+  assertEqual "will topic" "will/delay50" _pubTopic
+
+-- H2: Reconnecting before the Will Delay Interval passes cancels the
+-- will [MQTT-3.1.3-9].
+unit_willDelayCancelledByReconnect50 :: Assertion
+unit_willDelayCancelledByReconnect50 = withTestService $ \u -> do
+  ch <- willWatcher u
+  let req = willReq "cancel50" False [T.PropSessionExpiryInterval 60] [T.PropWillDelayInterval 2]
+  withRawConn u T.Protocol50 req rawKeepSession
+  withRawConn u T.Protocol50 req{T._lastWill=Nothing} $ \_ -> expectNoWill 3000000 ch
+
+-- H2: When a new connection takes over a session, the old connection's
+-- will is published [MQTT-3.1.4-3] (5.0; Will Delay 0), and 3.1.1
+-- likewise closes the old connection without a DISCONNECT.
+willOnTakeover :: T.ProtocolLevel -> BL.ByteString -> Assertion
+willOnTakeover pl cid = withTestService $ \u -> do
+  ch <- willWatcher u
+  let req = willReq cid False [T.PropSessionExpiryInterval 60 | pl == T.Protocol50] []
+  withRawConn u pl req $ \rc -> do
+    rawKeepSession rc
+    withRawConn u pl req{T._lastWill=Nothing} $ \_ -> do
+      T.PublishRequest{..} <- expectWill 2000000 ch
+      assertEqual "will topic" ("will/" <> cid) _pubTopic
+
+unit_willOnTakeover311 :: Assertion
+unit_willOnTakeover311 = willOnTakeover T.Protocol311 "takeover311"
+
+unit_willOnTakeover50 :: Assertion
+unit_willOnTakeover50 = willOnTakeover T.Protocol50 "takeover50"
+
+-- T2: A normal DISCONNECT discards the will [MQTT-3.1.2-10] (3.1.1),
+-- [MQTT-3.14.4-3] (5.0).
+noWillOnDisconnect :: T.ProtocolLevel -> BL.ByteString -> Assertion
+noWillOnDisconnect pl cid = withTestService $ \u -> do
+  ch <- willWatcher u
+  withRawConn u pl (willReq cid True [] []) $ \rc ->
+    rawSend rc (T.DisconnectPkt (T.DisconnectRequest T.DiscoNormalDisconnection []))
+  expectNoWill 1000000 ch
+
+unit_noWillOnDisconnect311 :: Assertion
+unit_noWillOnDisconnect311 = noWillOnDisconnect T.Protocol311 "disco311"
+
+unit_noWillOnDisconnect50 :: Assertion
+unit_noWillOnDisconnect50 = noWillOnDisconnect T.Protocol50 "disco50"
+
+-- T2: In 5.0, a DISCONNECT with Remaining Length 0 means reason code
+-- 0x00 (Normal disconnection) [5.0 §3.14.2.1], and that's what most
+-- clients send.  It must discard the will just like the long form.
+unit_noWillOnShortDisconnect50 :: Assertion
+unit_noWillOnShortDisconnect50 = withTestService $ \u -> do
+  ch <- willWatcher u
+  withRawConn u T.Protocol50 (willReq "shortdisco50" True [] []) $ \rc ->
+    rawSendBytes rc (BS.pack [0xe0, 0x00])
+  expectNoWill 1000000 ch
+
+-- T1: Will Delay Interval isn't a PUBLISH property, so it must not be
+-- forwarded, but the will's other properties must be [5.0 §3.3.2.3].
+unit_willPropsOnPublish50 :: Assertion
+unit_willPropsOnPublish50 = withTestService $ \u -> do
+  ch <- willWatcher u
+  withRawConn u T.Protocol50 (willReq "props50" True [] [T.PropWillDelayInterval 0,
+                                                         T.PropContentType "text/plain",
+                                                         T.PropUserProperty "k" "v"]) (const $ pure ())
+  T.PublishRequest{..} <- expectWill 2000000 ch
+  assertBool ("will delay forwarded: " <> show _pubProps) (T.PropWillDelayInterval 0 `notElem` _pubProps)
+  assertBool ("content type missing: " <> show _pubProps) (T.PropContentType "text/plain" `elem` _pubProps)
+  assertBool ("user property missing: " <> show _pubProps) (T.PropUserProperty "k" "v" `elem` _pubProps)
