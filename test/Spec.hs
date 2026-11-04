@@ -253,10 +253,30 @@ unit_ephemeralSessionCleanup = do
     liftIO $ do
       assertBool "session was not cleaned up after disconnect" (Map.null sids)
       assertBool "subscriptions were not cleaned up after disconnect" (all (Map.null . snd) $ SubTree.flatten as)
-    flushStats
-    stats <- retrieveStats
-    let subCount = sum $ map (Map.size . snd) $ SubTree.flatten as
-    liftIO $ assertEqual "subscription stat mismatch" (Just subCount) (Map.lookup StatSubscriptions stats)
+    n <- subscriptionCount
+    liftIO $ assertEqual "subscriptions left" 0 n
+
+-- The subscription count includes shared subscriptions, and so doesn't
+-- go negative when they're removed.
+unit_sharedSubscriptionCount :: Assertion
+unit_sharedSubscriptionCount = do
+  env <- newEnv
+  db <- open ":memory:"
+  initDB db
+  dbq <- newTBQueueIO 100
+  expirer <- newRunner :: IO (QueueRunner SessionID)
+  tid <- myThreadId
+  let req = T.connectRequest{T._connID="counted", T._cleanSession=False}
+      runAction = runEff . withUnliftStrategy (ConcUnlift Persistent Unlimited) .
+                  runFailIO . runNoLogFX . runNewStats . runDB db dbq .
+                  runSchedule expirer . runAuth (Authorizer mempty True) .
+                  fmap fst . runMQTTD env
+  runAction $ do
+    (sess, _) <- registerClient T.Protocol311 req 1 tid
+    subscribe sess (T.SubscribeRequest 1 [("a/b", T.subOptions), ("$share/g/c/d", T.subOptions)] [])
+    _ <- unsubscribe sess ["$share/g/c/d"]
+    n <- subscriptionCount
+    liftIO $ assertEqual "subscriptions" 1 n
 
 test_Spec :: [TestTree]
 test_Spec = [

@@ -26,7 +26,6 @@ import           Data.Map.Strict               (Map)
 import qualified Data.Map.Strict               as Map
 import qualified Data.Set                      as Set
 import           Data.Maybe                    (catMaybes, fromMaybe, isJust, listToMaybe)
-import           Data.Monoid                   (Sum (..))
 import           Data.String                   (IsString (..))
 import qualified Data.Text                     as Txt
 import           Data.Time.Clock               (UTCTime, addUTCTime,
@@ -127,6 +126,14 @@ retainerCleanup = asks retainer >>= cleanRetainer
 isClientConnected :: SessionID -> TVar (Map SessionID Session) -> STM Bool
 isClientConnected sid sidsv = readTVar sidsv >>= \sids -> pure $ isJust (_sessionClient =<< Map.lookup sid sids)
 
+-- | How many subscriptions there are, shared ones included.  It's counted
+-- from the sessions, rather than kept as a running total that every way of
+-- adding or removing one has to keep right.
+subscriptionCount :: (IOE :> es, MQTTD :> es) => Eff es Int
+subscriptionCount = do
+  ss <- readTVarIO =<< asks sessions
+  sum <$> traverse (fmap Map.size . readTVarIO . _sessionSubs) (Map.elems ss)
+
 publishStats :: (IOE :> es, MQTTD :> es, Stats :> es, DB :> es, LogFX :> es) => Eff es ()
 publishStats = do
   broadcast Nothing (T.PublishRequest {T._pubTopic="$SYS/broker/version",
@@ -171,9 +178,7 @@ publishStats = do
       m <- readTVarIO (_store r)
       pub "$SYS/broker/retained messages/count" (length m)
 
-    pubSubs = do
-      m <- readTVarIO =<< asks allSubs
-      pub "$SYS/broker/subscriptions/count" (getSum $ foldMap (Sum . length) m)
+    pubSubs = pub "$SYS/broker/subscriptions/count" =<< subscriptionCount
 
     pubCounters = do
       m <- retrieveStats
@@ -261,7 +266,6 @@ subscribe :: (IOE :> es, MQTTD :> es, Stats :> es, LogFX :> es, DB :> es) => Ses
 subscribe sess@Session{..} (T.SubscribeRequest pid topics props) = do
   subs <- asks allSubs
   subsShared <- asks sharedSubs
-  ss <- getStatStore
   let topics' = map (\(t,o) ->
                        case (T.mkFilter . blToText) t of
                          Just t' | classifyTopic t' /= InvalidTopic ->
@@ -281,8 +285,6 @@ subscribe sess@Session{..} (T.SubscribeRequest pid topics props) = do
     modifyTVar' subs (upSub new)
     -- shared subscriptions
     modifyTVar' subsShared (upShared shared)
-    let added = Map.size $ Map.difference new oldSessionSubs
-    incrementStatSTM StatSubscriptions added ss
     let r = map (second (T._subQoS . snd)) topics'
     sendPacket_ _sessionChan (T.SubACKPkt (T.SubscribeResponse pid r props'))
     pure oldSessionSubs
@@ -330,15 +332,13 @@ removeSubs sharedt subt sid ts = do
         cleanShared n = fmap (Map.filter (not . null) . Map.adjust (filter ((/= sid) . fst)) n)
 
 unsubscribe :: (IOE :> es, MQTTD :> es, Stats :> es) => Session -> [BLFilter] -> Eff es [T.UnsubStatus]
-unsubscribe Session{..} topics = asks allSubs >>= \subs -> asks sharedSubs >>= \ssubs -> getStatStore >>= \st ->
+unsubscribe Session{..} topics = asks allSubs >>= \subs -> asks sharedSubs >>= \ssubs ->
   atomically $ do
     m <- readTVar _sessionSubs
     let mtopics = T.mkFilter . blToText <$> topics
         (uns, n) = foldl' (\(r,m') t -> first ((:r) . unm) $ up t m') ([], m) mtopics
     writeTVar _sessionSubs n
     removeSubs ssubs subs _sessionID (catMaybes mtopics)
-    let removed = Map.size m - Map.size n
-    incrementStatSTM StatSubscriptions (-removed) st
     pure (reverse uns)
 
     where
@@ -357,7 +357,6 @@ registerClient pl req@T.ConnectRequest{..} i o = do
   c <- asks sessions
   subt <- asks allSubs
   ssubt <- asks sharedSubs
-  st <- getStatStore
   ai <- liftIO $ newTVarIO mempty
   ao <- liftIO $ newTVarIO mempty
   l <- liftIO $ newTVarIO (fromMaybe 0 (req ^? properties . folded . _PropTopicAliasMaximum))
@@ -368,7 +367,6 @@ registerClient pl req@T.ConnectRequest{..} i o = do
       dropSubs subsv = do
         subs <- readTVar subsv
         removeSubs ssubt subt k (Map.keys subs)
-        incrementStatSTM StatSubscriptions (-Map.size subs) st
   when (maxInFlight == 0) $ fail "max in flight must be greater than zero"
   (o', x, ns, discarded, oldWill) <- atomically $ do
     emptySession <- Session _connID acl (Just nc) <$> newTBQueue defaultQueueSize
@@ -484,11 +482,9 @@ expireSession k = do
           logDbgL ["Expired session for ", tshow k]
           subt <- asks allSubs
           ssubst <- asks sharedSubs
-          st <- getStatStore
           atomically $ do
             subs <- readTVar _sessionSubs
             removeSubs ssubst subt _sessionID (Map.keys subs)
-            incrementStatSTM StatSubscriptions (-Map.size subs) st
           deleteSession _sessionID
           sessionDied s
 

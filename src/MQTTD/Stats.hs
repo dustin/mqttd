@@ -23,8 +23,6 @@ data StatKey = StatMsgSent
              | StatsActionQueued
              | StatsActionCanceled
              | StatsActionExecuted
-             -- | Currently tracks regular (non-shared) subscriptions only.
-             | StatSubscriptions
   deriving (Eq, Show, Ord, Enum)
 
 statKeyName :: StatKey -> BL.ByteString
@@ -37,7 +35,6 @@ statKeyName StatStoreOperations   = "$SYS/broker/store/operations"
 statKeyName StatsActionQueued     = "$SYS/broker/actions/queued"
 statKeyName StatsActionCanceled   = "$SYS/broker/actions/canceled"
 statKeyName StatsActionExecuted   = "$SYS/broker/actions/executed"
-statKeyName StatSubscriptions    = "$SYS/broker/subscriptions/count"
 
 type Increment = (StatKey, Int)
 
