@@ -1245,7 +1245,8 @@ unit_resentDeliveryIsDup = withTestService $ \u -> do
 
 -- T4: A will topic is a topic name, so it can't be empty or contain
 -- wildcards [MQTT-4.7.3-1], [MQTT-3.1.3-11].  3.1.1 has no CONNACK code
--- for it, so the connection is just closed; 5.0 gets CONNACK 0x90.
+-- for it, so the connection is just closed; 5.0 gets CONNACK 0x82
+-- (Protocol Error), as Mosquitto's 07-will-delay-invalid-573191 expects.
 badWillReq :: BL.ByteString -> T.ConnectRequest
 badWillReq t = (willReq "t4" True [] []){T._lastWill=Just T.LastWill{
   T._willRetain=False, T._willQoS=T.QoS0, T._willTopic=t, T._willMsg="gone", T._willProps=[]}}
@@ -1260,7 +1261,7 @@ badWillTopic311 t = withTestService $ \u -> withRawSocket u T.Protocol311 $ \rc 
 badWillTopic50 :: BL.ByteString -> Assertion
 badWillTopic50 t = withTestService $ \u ->
   withRawConnAck u T.Protocol50 (badWillReq t) $ \(T.ConnACKFlags _ rc' _) rc -> do
-    assertEqual "CONNACK reason code" T.ConnTopicNameInvalid rc'
+    assertEqual "CONNACK reason code" T.ConnProtocolError rc'
     timeout 2000000 (rawRecvMaybe rc) >>= \case
       Just Nothing -> pure ()
       x -> assertFailure ("expected the connection to close, got " <> show x)
