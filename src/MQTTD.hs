@@ -44,7 +44,7 @@ import           System.Random                 (getStdGen, newStdGen, randomR)
 import           UnliftIO                      (atomically, readTVarIO)
 
 import           MQTTD.Authorizer
-import           MQTTD.Config           (ACL (..), ACLAction (..), Limits (..), noLimits)
+import           MQTTD.Config           (ACL (..), ACLAction (..), Limits (..), Redirect (..), noLimits)
 import           MQTTD.DB
 import           MQTTD.GCStats
 import           MQTTD.Logging
@@ -65,7 +65,9 @@ data Env = Env {
   retainer    :: Retainer,
   limits      :: Limits,
   -- | Response Information is this plus the client ID, for clients that ask.
-  responsePrefix :: Maybe BL.ByteString
+  responsePrefix :: Maybe BL.ByteString,
+  -- | Where to send every client instead, if anywhere [5.0 §4.11].
+  redirect    :: Maybe Redirect
   }
 
 data MQTTD :: Effect where
@@ -84,6 +86,7 @@ newEnv = liftIO $ Env
          <*> newTVarIO mempty -- shared subs
          <*> newRetainer
          <*> pure noLimits
+         <*> pure Nothing
          <*> pure Nothing
 
 runMQTTD :: forall es a. Env -> Eff (MQTTD : es) a -> Eff es (a, Env)

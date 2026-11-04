@@ -42,7 +42,7 @@ import           UnliftIO                 (async, atomically, waitAnyCancel)
 
 import           MQTTD
 import           MQTTD.Authorizer
-import           MQTTD.Config             (Limits (..))
+import           MQTTD.Config             (Limits (..), Redirect (..))
 import           MQTTD.DB                 (DB (..))
 import           MQTTD.Logging
 import           MQTTD.ScheduleFX
@@ -87,14 +87,28 @@ runMQTTDConduit (src, sink, addr) = runConduit $ do
     count s x = incrementStat s (fromIntegral $ BCS.length x) >> pure x
 
     run :: (IOE :> es, ScheduleFX SessionID :> es, AuthFX :> es, Fail :> es, DB :> es, Stats :> es, MQTTD :> es) => T.ProtocolLevel -> ClientID -> T.MQTTPkt -> Maybe SessionID -> Eff es ()
+    -- With a redirect configured, every client is sent elsewhere: a 5.0
+    -- client with a Server Reference [5.0 §4.11], a 3.1.1 one (which can't
+    -- be redirected) as server unavailable.  Returning closes the connection.
+    run pl cid pkt nid = asks redirect >>= \case
+      Nothing -> run' pl cid pkt nid
+      Just r -> do
+        logInfoL ["Redirecting a connection from ", addr, " (", tshow r, ")"]
+        let (rc, ref) = case (pl, r) of
+              (T.Protocol50, UseAnotherServer s) -> (T.ConnUseAnotherServer, [T.PropServerReference s])
+              (T.Protocol50, ServerMoved s)      -> (T.ConnServerMoved, [T.PropServerReference s])
+              _                                  -> (T.ServerUnavailable, [])
+        runConduit $ yield (T.ConnACKPkt $ T.ConnACKFlags T.NewSession rc ref) .| commonOut pl
+
+    run' :: (IOE :> es, ScheduleFX SessionID :> es, AuthFX :> es, Fail :> es, DB :> es, Stats :> es, MQTTD :> es) => T.ProtocolLevel -> ClientID -> T.MQTTPkt -> Maybe SessionID -> Eff es ()
     -- In 3.1.1, an empty client ID (one we generated) requires a clean
     -- session [MQTT-3.1.3-8].  Returning closes the connection.
-    run T.Protocol311 _ (T.ConnPkt T.ConnectRequest{T._cleanSession=False} _) (Just _) = do
+    run' T.Protocol311 _ (T.ConnPkt T.ConnectRequest{T._cleanSession=False} _) (Just _) = do
       logInfoL ["Rejecting empty client ID without a clean session from ", addr]
       runConduit $ yield (T.ConnACKPkt $ T.ConnACKFlags T.NewSession T.IdentifierRejected []) .| commonOut T.Protocol311
 
     -- No authentication methods are supported [5.0 §4.12], [MQTT-4.12.0-1].
-    run T.Protocol50 _ (T.ConnPkt T.ConnectRequest{T._connProperties=props} _) _
+    run' T.Protocol50 _ (T.ConnPkt T.ConnectRequest{T._connProperties=props} _) _
       | any (has T._PropAuthenticationMethod) props = do
           logInfoL ["Rejecting unsupported authentication method from ", addr]
           runConduit $ yield (T.ConnACKPkt $ T.ConnACKFlags T.NewSession T.ConnBadAuthenticationMethod []) .| commonOut T.Protocol50
@@ -103,20 +117,20 @@ runMQTTDConduit (src, sink, addr) = runConduit $ do
     -- [MQTT-4.7.3-1], [MQTT-3.1.3-11].  3.1.1 has no CONNACK code for
     -- it, so the connection is just closed.  (5.0's 0x90 is for a will
     -- topic that's valid but not accepted.)
-    run pl _ (T.ConnPkt T.ConnectRequest{T._lastWill=Just T.LastWill{T._willTopic}} _) _
+    run' pl _ (T.ConnPkt T.ConnectRequest{T._lastWill=Just T.LastWill{T._willTopic}} _) _
       | isNothing (mkTopic (blToText _willTopic)) = do
           logInfoL ["Rejecting invalid will topic ", tshow _willTopic, " from ", addr]
           when (pl == T.Protocol50) $
             runConduit $ yield (T.ConnACKPkt $ T.ConnACKFlags T.NewSession T.ConnProtocolError []) .| commonOut pl
 
-    run pl cid (T.ConnPkt req _) nid = either (notAuthorized pl req) (const $ authorized pl cid req nid) =<< auth
+    run' pl cid (T.ConnPkt req _) nid = either (notAuthorized pl req) (const $ authorized pl cid req nid) =<< auth
       where
         -- The will is published as the client, so it needs permission
         -- to publish to its topic.
         auth = authorize req >>= either (pure . Left) (const $ willAuth <$> getACL (T._username req))
         willAuth acl = maybe (Right ()) (authWill acl) (T._lastWill req)
 
-    run _ _ pkt _ = fail ("Unhandled start packet from " <> unpack addr <> ": " <> show pkt)
+    run' _ _ pkt _ = fail ("Unhandled start packet from " <> unpack addr <> ": " <> show pkt)
 
     notAuthorized pl req s = do
       logInfoL ["Unauthorized connection from ", addr, ": ", tshow req]

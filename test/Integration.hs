@@ -63,7 +63,8 @@ testConfig = Config {
   _confDefaults = ListenerOptions { _optAllowAnonymous = Just True },
   _confPersist = PersistenceConfig ":memory:",
   _confLimits = noLimits,
-  _confResponsePrefix = Nothing
+  _confResponsePrefix = Nothing,
+  _confRedirect = Nothing
   }
 
 withTestServiceConfig :: Config -> (TestServer -> Assertion) -> Assertion
@@ -1835,3 +1836,27 @@ unit_responseInformationNotRequested :: Assertion
 unit_responseInformationNotRequested = do
   responseInfo [] >>= assertEqual "Response Information" []
   responseInfo [T.PropRequestResponseInformation 0] >>= assertEqual "Response Information" []
+
+-- * Server redirection
+
+-- With a redirect configured, a 5.0 client is sent elsewhere with a
+-- Server Reference [5.0 §4.11]...
+redirected :: Redirect -> T.ProtocolLevel -> T.ConnACKRC -> [T.Property] -> Assertion
+redirected r pl wantRC wantProps = withTestServiceConfig testConfig{_confRedirect = Just r} $ \u ->
+  withRawConnAck u pl T.connectRequest{T._connID="redirect"} $ \(T.ConnACKFlags _ rc props) c -> do
+    assertEqual "CONNACK" (wantRC, wantProps) (rc, props)
+    timeout 2000000 (rawRecvMaybe c) >>= \case
+      Just Nothing -> pure ()
+      x -> assertFailure ("expected the connection to close, got " <> show x)
+
+unit_useAnotherServer :: Assertion
+unit_useAnotherServer = redirected (UseAnotherServer "other:1883") T.Protocol50 T.ConnUseAnotherServer
+  [T.PropServerReference "other:1883"]
+
+unit_serverMoved :: Assertion
+unit_serverMoved = redirected (ServerMoved "other:1883") T.Protocol50 T.ConnServerMoved
+  [T.PropServerReference "other:1883"]
+
+-- ...and a 3.1.1 client, which can't be, is told the server's unavailable.
+unit_redirect311 :: Assertion
+unit_redirect311 = redirected (ServerMoved "other:1883") T.Protocol311 T.ServerUnavailable []

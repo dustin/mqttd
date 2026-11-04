@@ -2,7 +2,7 @@
 {-# LANGUAGE StrictData  #-}
 
 module MQTTD.Config (Config(..), Creds(..), User(..), ACLAction(..), ACL(..), PersistenceConfig(..),
-                     Limits(..), noLimits,
+                     Limits(..), noLimits, Redirect(..),
                      Listener(..), ListenerOptions(..), listenerOpts,
                      parseConfFile) where
 
@@ -61,6 +61,11 @@ listenerOpts = lens r w
 
 newtype PersistenceConfig = PersistenceConfig { _persistenceDBPath :: FilePath } deriving (Show, Eq)
 
+-- | Sending clients to another server [5.0 §4.11].
+data Redirect = UseAnotherServer BL.ByteString -- ^ for now (0x9C)
+              | ServerMoved BL.ByteString      -- ^ for good (0x9D)
+              deriving (Show, Eq)
+
 -- | Limits the server puts on clients.
 data Limits = Limits {
   -- | The biggest packet a client may send [5.0 §3.2.2.3.6].
@@ -81,12 +86,14 @@ data Config = Config {
   _confLimits    :: Limits,
   -- | Prefix for the Response Information given to clients that ask
   -- [5.0 §3.2.2.3.15].
-  _confResponsePrefix :: Maybe BL.ByteString
+  _confResponsePrefix :: Maybe BL.ByteString,
+  _confRedirect  :: Maybe Redirect
   } deriving (Show, Eq)
 
 data Section = DebugSection Bool
              | LimitsSection Limits
              | ResponsePrefixSection BL.ByteString
+             | RedirectSection Redirect
              | UserSection [User]
              | DefaultsSection ListenerOptions
              | ListenerSection [Listener]
@@ -161,11 +168,13 @@ parseSection = lexeme $ choice [
   ListenerSection <$> namedList "listeners" parseListener,
   PersistenceSection <$> namedValue "persistence" parsePersistence,
   LimitsSection <$> namedValue "limits" parseLimits,
-  ResponsePrefixSection <$> namedValue "response_prefix" (lexeme qstr)
+  ResponsePrefixSection <$> namedValue "response_prefix" (lexeme qstr),
+  RedirectSection . UseAnotherServer <$> namedValue "redirect" (lexeme qstr),
+  RedirectSection . ServerMoved <$> namedValue "moved" (lexeme qstr)
   ]
 
 parseConfig :: Parser Config
-parseConfig = foldr up (Config False mempty mempty mempty (PersistenceConfig ":memory:") noLimits Nothing) <$> some parseSection
+parseConfig = foldr up (Config False mempty mempty mempty (PersistenceConfig ":memory:") noLimits Nothing Nothing) <$> some parseSection
 
     where
       up (DebugSection d) c = c{_confDebug=d}
@@ -176,6 +185,7 @@ parseConfig = foldr up (Config False mempty mempty mempty (PersistenceConfig ":m
       up (PersistenceSection l) c = c{_confPersist=l}
       up (LimitsSection l) c = c{_confLimits=l}
       up (ResponsePrefixSection p) c = c{_confResponsePrefix=Just p}
+      up (RedirectSection r) c = c{_confRedirect=Just r}
 
 parseBool :: Parser Bool
 parseBool = True <$ lexeme "true" <|> False <$ lexeme "false"
