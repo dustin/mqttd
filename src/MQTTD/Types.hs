@@ -75,7 +75,10 @@ data Session = Session {
   _sessionWill    :: Maybe T.LastWill,
   -- | When a disconnected session's will is due (after its Will Delay
   -- Interval).  Nothing while connected, or when no will is pending.
-  _sessionWillAt  :: Maybe UTCTime
+  _sessionWillAt  :: Maybe UTCTime,
+  -- | The last packet ID assigned to an outbound PUBLISH.  Packet IDs
+  -- are per session, and an ID in _sessionQP isn't reused.
+  _sessionPktID   :: TVar T.PktID
   }
 
 makeLenses ''Session

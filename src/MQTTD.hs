@@ -22,7 +22,7 @@ import           Data.Either                   (rights)
 import           Data.Foldable                 (fold, foldl')
 import           Data.Map.Strict               (Map)
 import qualified Data.Map.Strict               as Map
-import           Data.Maybe                    (catMaybes, fromMaybe, isJust)
+import           Data.Maybe                    (catMaybes, fromMaybe, isJust, listToMaybe)
 import           Data.Monoid                   (Sum (..))
 import           Data.String                   (IsString (..))
 import qualified Data.Text                     as Txt
@@ -56,7 +56,6 @@ import           MQTTD.ScheduleFX
 
 data Env = Env {
   sessions    :: TVar (Map SessionID Session),
-  lastPktID   :: TVar Word16,
   clientIDGen :: TVar ClientID,
   allSubs     :: TVar (SubTree (Map SessionID T.SubOptions)),
   sharedSubs  :: TVar (SubTree (Map SubscriberName [(SessionID, T.SubOptions)])),
@@ -74,7 +73,6 @@ data Intention = IntentPublish | IntentSubscribe deriving (Eq, Show)
 newEnv :: MonadIO m => m Env
 newEnv = liftIO $ Env
          <$> newTVarIO mempty
-         <*> newTVarIO 1
          <*> newTVarIO 0
          <*> newTVarIO mempty -- all subs
          <*> newTVarIO mempty -- shared subs
@@ -246,9 +244,8 @@ subscribe sess@Session{..} (T.SubscribeRequest pid topics props) = do
         isSubAckProp _                        = False
 
     sendOne T.SubOptions{..} ir@T.PublishRequest{..} = do
-      pid' <- atomically . nextPktID =<< asks lastPktID
       now <- liftIO getCurrentTime
-      let r = ir{T._pubPktID=pid', T._pubRetain=True, T._pubQoS = min _pubQoS _subQoS}
+      let r = ir{T._pubRetain=True, T._pubQoS = min _pubQoS _subQoS}
       publish (deadline now r) sess r
 
 removeSubs :: TVar (SubTree (Map SubscriberName [(SessionID, T.SubOptions)]))
@@ -312,6 +309,7 @@ registerClient req@T.ConnectRequest{..} i o = do
                     <*> newTVar maxInFlight <*> newTBQueue defaultQueueSize
                     <*> newTVar mempty <*> newTVar mempty
                     <*> pure Nothing <*> pure _lastWill <*> pure Nothing
+                    <*> newTVar 0
     m <- readTVar c
     let s = Map.lookup k m
         o' = _sessionClient =<< s
@@ -481,24 +479,29 @@ sendPacketIO ch = atomically . sendPacket ch
 sendPacketIO_ :: MonadIO m => PktQueue -> T.MQTTPkt -> m ()
 sendPacketIO_ ch = void . atomically . sendPacket ch
 
-nextPktID :: (Enum a, Bounded a, Eq a, Num a) => TVar a -> STM a
-nextPktID x = modifyTVarRet x $ \pid -> if pid == maxBound then 1 else succ pid
+-- | The next packet ID after the given one that isn't in use, wrapping
+-- around and skipping 0, or Nothing if every ID is in use.
+nextPktID :: (T.PktID -> Bool) -> T.PktID -> Maybe T.PktID
+nextPktID inUse lastID = listToMaybe [i | i <- candidates, not (inUse i)]
+  where
+    candidates = take (fromIntegral (maxBound :: T.PktID)) (drop 1 (iterate next lastID))
+    next i = if i == maxBound then 1 else succ i
 
 broadcast :: (IOE :> es, MQTTD :> es, Stats :> es, DB :> es, LogFX :> es) => Maybe SessionID -> T.PublishRequest -> Eff es ()
 broadcast src req@T.PublishRequest{..} = do
   asks retainer >>= retain req
   subs <- maybe (pure []) findSubs ((T.mkTopic . blToText) _pubTopic)
-  pid <- atomically . nextPktID =<< asks lastPktID
   beforeF <- deadline <$> liftIO getCurrentTime
-  mapM_ (\(s@Session{..}, o) -> justM (\p -> publish (beforeF p) s p) (pkt _sessionID o pid)) subs
+  mapM_ (\(s@Session{..}, o) -> justM (\p -> publish (beforeF p) s p) (pkt _sessionID o)) subs
   where
-    pkt sid T.SubOptions{T._noLocal=True} _
+    pkt sid T.SubOptions{T._noLocal=True}
       | Just sid == src = Nothing
-    pkt _ opts pid = Just req{
+    -- publish assigns the packet ID.
+    pkt _ opts = Just req{
       T._pubDup=False,
       T._pubRetain=mightRetain opts,
       T._pubQoS=maxQoS opts,
-      T._pubPktID=pid}
+      T._pubPktID=0}
 
     maxQoS T.SubOptions{_subQoS} = min _pubQoS _subQoS
     mightRetain T.SubOptions{_retainAsPublished=False} = False
@@ -512,11 +515,19 @@ publish before sess@Session{..} pkt@T.PublishRequest{..} = whenM deliverable pub
       -- QoS 0 is special-cased because it's fire-and-forget with no retries or anything.
       | _pubQoS == T.QoS0 = getStatStore >>= \ss -> atomically $ deliver ss sess pkt
       | otherwise = getStatStore >>= \ss -> atomically $ do
-          modifyTVar' _sessionQP $ Map.insert (pkt ^. pktID) (before, pkt)
-          tokens <- readTVar _sessionFlight
-          if tokens == 0
-            then void $ tryWriteQ _sessionBacklog (before, pkt)
-            else deliver ss sess pkt
+          -- Packet IDs are per session, and an ID can't be reused while
+          -- it's in flight [MQTT-2.2.1-3].
+          inFlight <- readTVar _sessionQP
+          nextPktID (`Map.member` inFlight) <$> readTVar _sessionPktID >>= \case
+            Nothing -> pure () -- every packet ID is in flight; drop it
+            Just pid -> do
+              writeTVar _sessionPktID pid
+              let pkt' = pkt{T._pubPktID=pid}
+              modifyTVar' _sessionQP $ Map.insert pid (before, pkt')
+              tokens <- readTVar _sessionFlight
+              if tokens == 0
+                then void $ tryWriteQ _sessionBacklog (before, pkt')
+                else deliver ss sess pkt'
 
 deliver :: StatStore -> Session -> T.PublishRequest -> STM ()
 deliver ss Session{..} pkt@T.PublishRequest{..} = do

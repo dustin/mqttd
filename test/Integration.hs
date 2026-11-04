@@ -618,3 +618,20 @@ unit_qos0SessionSurvivesRestart311 = withTempDB $ \path -> do
     MC.publishq pubber "h3/t" "hello" False MC.QoS0 []
     T.PublishRequest{..} <- rawExpectPublish rc
     assertEqual "delivered on the restored subscription" "h3/t" _pubTopic
+
+-- * Packet IDs
+
+-- H5: Each in-flight PUBLISH to a session needs its own packet ID, even
+-- when overlapping subscriptions deliver the same message twice
+-- [MQTT-2.2.1-3].
+unit_overlappingSubsDistinctPktIDs :: Assertion
+unit_overlappingSubsDistinctPktIDs = withTestService $ \u ->
+  withRawConn u T.Protocol50 T.connectRequest{T._connID="h5-overlap"} $ \rc -> do
+    rawSubscribe rc "h5/#" T.QoS1
+    rawSubscribe rc "h5/t" T.QoS1
+    pubber <- MC.connectURI MC.mqttConfig u
+    MC.publishq pubber "h5/t" "x" False MC.QoS1 []
+    -- Neither is acknowledged, so both are in flight.
+    a <- rawExpectPublish rc
+    b <- rawExpectPublish rc
+    assertBool ("duplicate in-flight packet ID: " <> show (a, b)) (T._pubPktID a /= T._pubPktID b)

@@ -134,12 +134,22 @@ unit_topicClassification = mapM_ aTest [
   where
     aTest (i, want) = assertEqual (show i) want (classifyTopic i)
 
-propNextPacket :: (Enum a, Bounded a, Eq a, Num a) => NonZero a -> Property
-propNextPacket (NonZero n) =
-  ioProperty $ do
-    v <- newTVarIO n
-    i <- atomically $ nextPktID v
-    pure (i /= 0)
+-- H5: The next packet ID is never 0 and never one that's in use.
+propNextPktIDFree :: T.PktID -> [T.PktID] -> Property
+propNextPktIDFree lastID used = case nextPktID (`elem` used) lastID of
+  Nothing -> counterexample "no free ID" False
+  Just i  -> counterexample (show i) (i /= 0 && i `notElem` used)
+
+-- With nothing in use, it's the one after the last, wrapping to 1.
+propNextPktIDSequential :: T.PktID -> Property
+propNextPktIDSequential lastID =
+  nextPktID (const False) lastID === Just (if lastID == maxBound then 1 else lastID + 1)
+
+unit_nextPktIDSkipsInUseAcrossWrap :: Assertion
+unit_nextPktIDSkipsInUseAcrossWrap = assertEqual "" (Just 3) (nextPktID (`elem` [65535, 1, 2]) 65534)
+
+unit_nextPktIDExhausted :: Assertion
+unit_nextPktIDExhausted = assertEqual "" Nothing (nextPktID (const True) 7)
 
 unit_listenerOptions :: Assertion
 unit_listenerOptions = do
@@ -194,10 +204,9 @@ unit_ephemeralSessionCleanup = do
 
 test_Spec :: [TestTree]
 test_Spec = [
-  localOption (QC.QuickCheckTests 500) $
-    testProperty "packet IDs (8bit) are never 0" (propNextPacket :: NonZero Word8 -> Property),
+  testProperty "next packet ID is free" propNextPktIDFree,
   localOption (QC.QuickCheckTests 100000) $
-    testProperty "packet IDs (16bit) are never 0" (propNextPacket :: NonZero Word16 -> Property),
+    testProperty "next packet ID is sequential" propNextPktIDSequential,
 
   testGroup "listener properties" [
       testProperties "semigroup" (unbatch $ semigroup (undefined :: ListenerOptions, undefined :: Int)),
