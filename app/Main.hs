@@ -1,8 +1,11 @@
 module Main where
 
-import           Control.Monad (void)
-import           System.Environment (getArgs)
-import           UnliftIO      (waitAnyCancel)
+import           Control.Concurrent  (myThreadId, throwTo)
+import           Control.Exception   (AsyncException (UserInterrupt))
+import           Control.Monad       (void)
+import           System.Environment  (getArgs)
+import           System.Posix.Signals (Handler (Catch), installHandler, sigTERM)
+import           UnliftIO            (waitAnyCancel)
 
 import           MQTTD.Config
 import           MQTTD.Main
@@ -12,4 +15,10 @@ configFilePath [] = "mqttd.conf"
 configFilePath (path: _) = path
 
 main :: IO ()
-main = void . waitAnyCancel =<< runServer =<< parseConfFile . configFilePath =<< getArgs
+main = do
+  -- SIGTERM shuts down like SIGINT: the services are cancelled, so
+  -- pending DB writes are finished before the process exits.  (By
+  -- default, SIGTERM ends the process on the spot.)
+  tid <- myThreadId
+  void $ installHandler sigTERM (Catch (throwTo tid UserInterrupt)) Nothing
+  void . waitAnyCancel =<< runServer =<< parseConfFile . configFilePath =<< getArgs

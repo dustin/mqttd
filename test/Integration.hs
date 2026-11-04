@@ -4,7 +4,7 @@ module Integration where
 
 import           Test.Tasty.HUnit
 
-import           Control.Concurrent     (threadDelay)
+import           Control.Concurrent     (forkIO, threadDelay)
 import           Control.Concurrent.STM (TChan, TVar, check, modifyTVar', newTChanIO,
                                          newTVarIO, orElse, readTChan, readTVar,
                                          readTVarIO, registerDelay, retry,
@@ -16,6 +16,10 @@ import           Network.MQTT.Topic     (mkTopic)
 import qualified Data.UUID              as UUID
 import qualified Database.SQLite.Simple as SQL
 import           System.Directory       (getTemporaryDirectory, removeFile)
+import           System.IO              (IOMode (WriteMode), withFile)
+import           System.Posix.Signals   (sigTERM, signalProcess)
+import           System.Process         (StdStream (UseHandle), createProcess, getPid, proc, std_err,
+                                         std_out, terminateProcess, waitForProcess)
 import           System.Random          (randomIO)
 import           System.Timeout         (timeout)
 import qualified Data.Attoparsec.ByteString as A
@@ -24,7 +28,7 @@ import           Data.Conduit           (await, runConduit, yield, (.|))
 import           Data.Conduit.Network   (appSink, appSource, clientSettings,
                                          runTCPClient)
 import           Data.IORef             (newIORef, readIORef, writeIORef)
-import           Control.Monad          (replicateM, unless)
+import           Control.Monad          (replicateM, unless, void)
 import qualified Data.ByteString.Lazy   as BL
 import           Data.List              (sort)
 import qualified Data.Map.Strict        as Map
@@ -1722,3 +1726,46 @@ unit_unsubAckNoUserPropsWithoutProblemInfo = withTestService $ \u ->
     rawRecvWithin rc >>= \case
       T.UnsubACKPkt (T.UnsubscribeResponse _ props _) -> assertEqual "UNSUBACK properties" [] props
       x -> assertFailure ("expected UNSUBACK, got " <> show x)
+
+-- * Shutdown
+
+-- | Run the mqttd executable with the given config, listening on the
+-- given port, until the action returns.
+withServerProcess :: String -> Int -> (TestServer -> IO () -> IO a) -> IO a
+withServerProcess conf port f = do
+  dir <- getTemporaryDirectory
+  name <- UUID.toString <$> randomIO
+  let confPath = dir <> "/mqttd-test-" <> name <> ".conf"
+      uri = fromJust $ parseURI $ "mqtt://127.0.0.1:" <> show port <> "/"
+  writeFile confPath conf
+  withFile "/dev/null" WriteMode $ \null' -> do
+    (_, _, _, ph) <- createProcess (proc "mqttd" [confPath]){std_out=UseHandle null', std_err=UseHandle null'}
+    let term = getPid ph >>= mapM_ (signalProcess sigTERM)
+        stop = timeout 5000000 (waitForProcess ph) >>= maybe (terminateProcess ph >> assertFailure "mqttd didn't exit") (const (pure ()))
+    (waitForListener uri >> f uri (term >> stop))
+      `finally` (terminateProcess ph >> removeFile confPath)
+  where
+    waitForListener uri = timeout 5000000 (go uri) >>= maybe (assertFailure "mqttd never listened") pure
+    go uri = (withRawSocket uri T.Protocol311 (const (pure ())) >> pure ())
+             `catch` \(_ :: IOError) -> threadDelay 50000 >> go uri
+
+-- SIGTERM shuts the server down cleanly, so writes still pending (here,
+-- held up by another connection's lock on the DB) are made before it
+-- exits, and a session acknowledged just before survives it.
+unit_sigtermFlushesWrites :: Assertion
+unit_sigtermFlushesWrites = withTempDB $ \path -> do
+  port <- getFreePort
+  let conf = unlines ["persistence = {", "  db = " <> show path, "}",
+                      "defaults = {", "  allow_anonymous = true", "}",
+                      "listeners = [", "  listener mqtt \"127.0.0.1\" " <> show port, "]"]
+  withServerProcess conf port $ \u stop -> do
+    -- Let the server finish starting up before taking the lock.
+    sleep 1 >> pure ()
+    lock <- SQL.open path
+    SQL.execute_ lock "begin immediate"
+    withRawConn u T.Protocol311 (sessionReq T.Protocol311 "sigterm") $ \rc -> rawSubscribe rc "sigterm/t" T.QoS1
+    void . forkIO $ threadDelay 300000 >> SQL.execute_ lock "rollback" >> SQL.close lock
+    stop
+  SQL.withConnection path $ \db -> do
+    [SQL.Only (n :: Int)] <- SQL.query db "select count(*) from session_subs where session_id = ?" (SQL.Only ("sigterm" :: BL.ByteString))
+    assertEqual "stored subscriptions" 1 n

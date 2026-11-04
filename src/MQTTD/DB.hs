@@ -15,7 +15,7 @@ module MQTTD.DB where
 import           Control.Concurrent.STM           (TBQueue, check, flushTBQueue, isEmptyTBQueue, newTBQueueIO,
                                                    newTVarIO, readTVarIO)
 import           Control.Lens
-import           Control.Monad                    (forever)
+import           Control.Monad                    (forever, unless)
 import qualified Data.Attoparsec.ByteString.Lazy  as A
 import qualified Data.ByteString.Lazy             as BL
 import qualified Data.Map.Strict                  as Map
@@ -30,7 +30,7 @@ import           Effectful
 import           Effectful.Dispatch.Dynamic       (interpret)
 import           Effectful.TH
 import           Text.RawString.QQ                (r)
-import           UnliftIO                         (atomically, tryAny, writeTBQueue)
+import           UnliftIO                         (atomically, finally, mask_, tryAny, writeTBQueue)
 
 import qualified Network.MQTT.Lens                as T
 import qualified Network.MQTT.Topic               as T
@@ -102,39 +102,47 @@ runOperations :: (IOE :> es, DB :> es, Stats :> es, LogFX :> es) => Eff es ()
 runOperations = do
   db <- dbConn
   q <- dbQueue
-  forever $ go db q
+  -- Each batch is taken off the queue and written with async exceptions
+  -- masked, so cancelling the writer (i.e. shutting down) doesn't lose
+  -- one partway through.  Only waiting for work is interruptible, and
+  -- whatever's still queued then is written before the writer exits.
+  -- (A blocked write gives up after the DB's busy_timeout.)
+  forever (go db q) `finally` drain db q
     where
-      go db q = do
+      go db q = mask_ $ do
         ops <- atomically $ do
           check . not =<< isEmptyTBQueue q
           flushTBQueue q
-        store ops
-          where
-            store ops = do
-              logDbgL ["Storing a batch of ", tshow (length ops), " operations"]
-              incrementStat StatStoreTransactions 1
-              incrementStat StatStoreOperations (length ops)
-              -- A failure rolls back the batch, so its operations are
-              -- retried one at a time, and only the ones that fail again
-              -- are lost.  Either way, the writer keeps going.
-              liftIO (tryAny (withTransaction db (mapM_ store1 ops))) >>= \case
-                Right () -> pure ()
-                Left e -> do
-                  logErrorL ["Failed to store a batch of ", tshow (length ops), " operations: ", tshow e]
-                  mapM_ (\op -> liftIO (tryAny (withTransaction db (store1 op))) >>=
-                                either (\e' -> logErrorL ["Failed to store ", opName op, ": ", tshow e'])
-                                       pure) ops
-            store1 (DeleteSession i)  = deleteSessionL db i
-            store1 (ClearWill i)      = clearWillL db i
-            store1 (DeleteRetained i) = deleteRetainedL db i
-            store1 (StoreSession i)   = storeSessionL db i
-            store1 (StoreRetained i)  = storeRetainedL db i
+        store db ops
 
-            opName (DeleteSession i)  = "session deletion for " <> tshow i
-            opName (ClearWill i)      = "will clearing for " <> tshow i
-            opName (DeleteRetained i) = "retained deletion for " <> tshow i
-            opName (StoreSession i)   = "session " <> tshow (_sessionID i)
-            opName (StoreRetained i)  = "retained message for " <> tshow (T._pubTopic (_retainMsg i))
+      drain db q = atomically (flushTBQueue q) >>= \ops -> unless (null ops) (store db ops)
+
+      store db ops = do
+        logDbgL ["Storing a batch of ", tshow (length ops), " operations"]
+        incrementStat StatStoreTransactions 1
+        incrementStat StatStoreOperations (length ops)
+        -- A failure rolls back the batch, so its operations are retried
+        -- one at a time, and only the ones that fail again are lost.
+        -- Either way, the writer keeps going.
+        liftIO (tryAny (withTransaction db (mapM_ (store1 db) ops))) >>= \case
+          Right () -> pure ()
+          Left e -> do
+            logErrorL ["Failed to store a batch of ", tshow (length ops), " operations: ", tshow e]
+            mapM_ (\o -> liftIO (tryAny (withTransaction db (store1 db o))) >>=
+                         either (\e' -> logErrorL ["Failed to store ", opName o, ": ", tshow e'])
+                                pure) ops
+
+      store1 db (DeleteSession i)  = deleteSessionL db i
+      store1 db (ClearWill i)      = clearWillL db i
+      store1 db (DeleteRetained i) = deleteRetainedL db i
+      store1 db (StoreSession i)   = storeSessionL db i
+      store1 db (StoreRetained i)  = storeRetainedL db i
+
+      opName (DeleteSession i)  = "session deletion for " <> tshow i
+      opName (ClearWill i)      = "will clearing for " <> tshow i
+      opName (DeleteRetained i) = "retained deletion for " <> tshow i
+      opName (StoreSession i)   = "session " <> tshow (_sessionID i)
+      opName (StoreRetained i)  = "retained message for " <> tshow (T._pubTopic (_retainMsg i))
 
 writeDBQueue :: (IOE :> es, DB :> es) => DBOperation -> Eff es ()
 writeDBQueue o = dbQueue >>= \q -> writeTBQueueIO q o
