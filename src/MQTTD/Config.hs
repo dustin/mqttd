@@ -91,10 +91,14 @@ data Config = Config {
   -- | Prefix for the Response Information given to clients that ask
   -- [5.0 §3.2.2.3.15].
   _confResponsePrefix :: Maybe BL.ByteString,
-  _confRedirect       :: Maybe Redirect
+  _confRedirect       :: Maybe Redirect,
+  -- | Whether to publish clients' connects and disconnects under
+  -- $SYS/broker/clients/<id>/.
+  _confClientEvents   :: Bool
   } deriving (Show, Eq)
 
 data Section = DebugSection Bool
+             | ClientEventsSection Bool
              | LimitsSection Limits
              | ResponsePrefixSection BL.ByteString
              | RedirectSection Redirect
@@ -168,6 +172,7 @@ parsePersistence = bt "{" "}" (PersistenceConfig <$> namedValue "db" (lexeme qst
 parseSection :: Parser Section
 parseSection = lexeme $ choice [
   try (DebugSection <$> namedValue "debug" parseBool),
+  try (ClientEventsSection <$> namedValue "client_events" parseBool),
   DefaultsSection <$> namedValue "defaults" parseListenOpts,
   UserSection <$> namedList "users" parseUser,
   ListenerSection <$> namedList "listeners" parseListener,
@@ -179,7 +184,7 @@ parseSection = lexeme $ choice [
   ]
 
 parseConfig :: Parser Config
-parseConfig = foldr up (Config False mempty mempty mempty (PersistenceConfig ":memory:") noLimits Nothing Nothing) <$> some parseSection
+parseConfig = foldr up (Config False mempty mempty mempty (PersistenceConfig ":memory:") noLimits Nothing Nothing False) <$> some parseSection
 
     where
       up (DebugSection d) c = c{_confDebug=d}
@@ -191,6 +196,7 @@ parseConfig = foldr up (Config False mempty mempty mempty (PersistenceConfig ":m
       up (LimitsSection l) c = c{_confLimits=l}
       up (ResponsePrefixSection p) c = c{_confResponsePrefix=Just p}
       up (RedirectSection r) c = c{_confRedirect=Just r}
+      up (ClientEventsSection e) c = c{_confClientEvents=e}
 
 parseBool :: Parser Bool
 parseBool = True <$ lexeme "true" <|> False <$ lexeme "false"

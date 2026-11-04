@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 496800893f8fd6cf77f5fd0f6229cc4740c00f9a1713c58cc317b1f415b57a5e
+-- hash: 7f0d5c479aa91a7e5275610d4bca0321ecbf56d34ba4d51950ef42f6501f6211
 
 name:           mqttd
 version:        0.9.6.0
@@ -64,7 +64,8 @@ library
       ConstraintKinds
   ghc-options: -Wall
   build-depends:
-      async
+      aeson
+    , async
     , attoparsec
     , base >=4.7 && <5
     , bytestring
@@ -121,7 +122,8 @@ executable mqttd
       ConstraintKinds
   ghc-options: -threaded -rtsopts -with-rtsopts "-N -T" -Wall
   build-depends:
-      async
+      aeson
+    , async
     , attoparsec
     , base >=4.7 && <5
     , bytestring
@@ -177,7 +179,8 @@ executable mqttdpass
       ConstraintKinds
   ghc-options: -threaded -rtsopts -with-rtsopts "-N -T" -Wall
   build-depends:
-      async
+      aeson
+    , async
     , attoparsec
     , base >=4.7 && <5
     , bytestring
@@ -240,6 +243,7 @@ test-suite mqttd-test
   build-depends:
       HUnit
     , QuickCheck
+    , aeson
     , async
     , attoparsec
     , base >=4.7 && <5

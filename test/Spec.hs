@@ -59,7 +59,8 @@ unit_configFiles =
                             _confPersist = PersistenceConfig "mqttd.db",
                             _confLimits = noLimits,
                             _confResponsePrefix = Nothing,
-                            _confRedirect = Nothing}),
+                            _confRedirect = Nothing,
+                            _confClientEvents = False}),
       ("test2.conf", Config {_confDebug = False,
                              _confUsers = mempty,
                              _confDefaults = mempty,
@@ -68,7 +69,8 @@ unit_configFiles =
                              _confPersist = PersistenceConfig ":memory:",
                              _confLimits = noLimits,
                             _confResponsePrefix = Nothing,
-                            _confRedirect = Nothing}),
+                            _confRedirect = Nothing,
+                            _confClientEvents = False}),
       ("test3.conf", Config {_confDebug = False,
                              _confUsers = mempty,
                              _confDefaults = mempty,
@@ -76,7 +78,8 @@ unit_configFiles =
                              _confPersist = PersistenceConfig ":memory:",
                              _confLimits = Limits{_limitPacketSize = Just 1048576, _limitKeepAlive = Just 120},
                              _confResponsePrefix = Just "responses/",
-                             _confRedirect = Nothing}),
+                             _confRedirect = Nothing,
+                            _confClientEvents = False}),
       ("test4.conf", Config {_confDebug = False,
                              _confUsers = mempty,
                              _confDefaults = mempty,
@@ -84,7 +87,8 @@ unit_configFiles =
                              _confPersist = PersistenceConfig ":memory:",
                              _confLimits = noLimits,
                              _confResponsePrefix = Nothing,
-                             _confRedirect = Just (ServerMoved "mqtt.example.com:1883")})
+                             _confRedirect = Just (ServerMoved "mqtt.example.com:1883"),
+                             _confClientEvents = True})
       ]
   where
     aTest (f,w) = assertEqual f w =<< parseConfFile ("test/" <> f)

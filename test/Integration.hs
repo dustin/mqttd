@@ -16,6 +16,7 @@ import           Control.Monad              (replicateM, unless, void)
 import qualified Data.Attoparsec.ByteString as A
 import qualified Data.ByteString            as BS
 import qualified Data.ByteString.Lazy       as BL
+import qualified Data.Aeson             as J
 import qualified Data.ByteString.Lazy.Char8 as BLC
 import           Data.Conduit               (await, runConduit, yield, (.|))
 import           Data.Conduit.Network       (appSink, appSource, clientSettings,
@@ -25,6 +26,7 @@ import           Data.List                  (sort)
 import qualified Data.Map.Strict            as Map
 import           Data.Maybe                 (fromJust, fromMaybe, listToMaybe)
 import           Data.Password.Bcrypt       (PasswordHash (..))
+import           Data.Text              (Text)
 import qualified Data.Text.Encoding         as TE
 import           Data.Time.Clock            (NominalDiffTime, diffUTCTime,
                                              getCurrentTime)
@@ -70,7 +72,8 @@ testConfig = Config {
   _confPersist = PersistenceConfig ":memory:",
   _confLimits = noLimits,
   _confResponsePrefix = Nothing,
-  _confRedirect = Nothing
+  _confRedirect = Nothing,
+  _confClientEvents = False
   }
 
 withTestServiceConfig :: Config -> (TestServer -> Assertion) -> Assertion
@@ -1912,3 +1915,91 @@ unit_sysWillRefused :: Assertion
 unit_sysWillRefused = withTestService $ \u ->
   withRawConnAck u T.Protocol311 (badWillReq "$SYS/broker/clients/connected") $ \(T.ConnACKFlags _ rc _) _ ->
     assertEqual "CONNACK" T.NotAuthorized rc
+
+-- * Client events
+
+eventsConfig :: Config
+eventsConfig = testConfig{_confClientEvents = True}
+
+-- | The JSON object in a message body.
+jsonBody :: BL.ByteString -> IO (Map.Map Text J.Value)
+jsonBody b = maybe (assertFailure ("not a JSON object: " <> show b)) pure (J.decode b)
+
+-- | Nothing more arrives for a moment.
+rawExpectNothing :: RawConn -> Assertion
+rawExpectNothing rc = timeout 500000 (rawRecv rc) >>= mapM_ (\p -> assertFailure ("unexpected: " <> show p))
+
+-- A connected client has a retained $SYS/broker/clients/<id>/connected,
+-- describing the connection, for as long as it's connected.
+unit_clientConnectedRetained :: Assertion
+unit_clientConnectedRetained = withTestServiceConfig eventsConfig $ \u ->
+  withRawConn u T.Protocol50 T.connectRequest{T._connID="ev-on", T._keepAlive=30} $ \_ ->
+    withRawConn u T.Protocol311 T.connectRequest{T._connID="ev-watch"} $ \w -> do
+      rawSubscribe w "$SYS/broker/clients/ev-on/connected" T.QoS0
+      T.PublishRequest{_pubRetain, _pubBody} <- rawExpectPublish w
+      assertBool "retained" _pubRetain
+      o <- jsonBody _pubBody
+      assertEqual "client_id" (Just (J.String "ev-on")) (Map.lookup "client_id" o)
+      assertEqual "protocol" (Just (J.Number 5)) (Map.lookup "protocol" o)
+      assertEqual "keep_alive" (Just (J.Number 30)) (Map.lookup "keep_alive" o)
+      assertEqual "clean_start" (Just (J.Bool True)) (Map.lookup "clean_start" o)
+      assertBool "address" (Map.member "address" o)
+
+-- On disconnect, the retained connected message is cleared, and a
+-- disconnected event is published.
+unit_clientDisconnectedEvents :: Assertion
+unit_clientDisconnectedEvents = withTestServiceConfig eventsConfig $ \u -> do
+  withRawConn u T.Protocol311 T.connectRequest{T._connID="ev-watch"} $ \w -> do
+    rawSubscribe w "$SYS/broker/clients/+/+" T.QoS0
+    -- The watcher is a connected client, too.
+    T.PublishRequest{_pubTopic=own} <- rawExpectPublish w
+    assertEqual "watcher's own" "$SYS/broker/clients/ev-watch/connected" own
+    withRawConn u T.Protocol50 T.connectRequest{T._connID="ev-off"} $ \_ -> do
+      T.PublishRequest{_pubTopic} <- rawExpectPublish w
+      assertEqual "connected" "$SYS/broker/clients/ev-off/connected" _pubTopic
+    ps <- replicateM 2 (rawExpectPublish w)
+    let cleared = [p | p@T.PublishRequest{_pubTopic="$SYS/broker/clients/ev-off/connected"} <- ps]
+        disco = [p | p@T.PublishRequest{_pubTopic="$SYS/broker/clients/ev-off/disconnected"} <- ps]
+    assertEqual "connected cleared" [""] (T._pubBody <$> cleared)
+    case disco of
+      [T.PublishRequest{_pubBody, _pubRetain}] -> do
+        assertBool "disconnected isn't retained" (not _pubRetain)
+        o <- jsonBody _pubBody
+        assertEqual "client_id" (Just (J.String "ev-off")) (Map.lookup "client_id" o)
+      x -> assertFailure ("expected one disconnected event, got " <> show x)
+  withRawConn u T.Protocol311 T.connectRequest{T._connID="ev-later"} $ \w -> do
+    rawSubscribe w "$SYS/broker/clients/ev-off/connected" T.QoS0
+    rawExpectNothing w
+
+-- A takeover's old connection ending doesn't clear the new one's
+-- connected message.
+unit_clientEventsTakeover :: Assertion
+unit_clientEventsTakeover = withTestServiceConfig eventsConfig $ \u ->
+  withRawConn u T.Protocol50 T.connectRequest{T._connID="ev-take"} $ \old ->
+    withRawConn u T.Protocol50 T.connectRequest{T._connID="ev-take"} $ \_ -> do
+      _ <- timeout 2000000 (rawRecvMaybe old) -- its DISCONNECT, then the close
+      _ <- timeout 2000000 (rawRecvMaybe old)
+      sleep 1
+      withRawConn u T.Protocol311 T.connectRequest{T._connID="ev-watch"} $ \w -> do
+        rawSubscribe w "$SYS/broker/clients/ev-take/connected" T.QoS0
+        T.PublishRequest{_pubBody} <- rawExpectPublish w
+        assertBool "still connected" (_pubBody /= "")
+
+-- Client events are off unless they're configured.
+unit_clientEventsOff :: Assertion
+unit_clientEventsOff = withTestService $ \u ->
+  withRawConn u T.Protocol311 T.connectRequest{T._connID="ev-watch"} $ \w -> do
+    rawSubscribe w "$SYS/broker/clients/+/+" T.QoS0
+    withRawConn u T.Protocol50 T.connectRequest{T._connID="ev-quiet"} $ \_ -> rawExpectNothing w
+
+-- Characters that would change the topic (/, +, #, and % itself) are
+-- percent-encoded in the client ID level; the JSON has the real ID.
+unit_clientEventsEncodedID :: Assertion
+unit_clientEventsEncodedID = withTestServiceConfig eventsConfig $ \u ->
+  withRawConn u T.Protocol50 T.connectRequest{T._connID="a/b+c#d%e"} $ \_ ->
+    withRawConn u T.Protocol311 T.connectRequest{T._connID="ev-watch"} $ \w -> do
+      rawSubscribe w "$SYS/broker/clients/+/connected" T.QoS0
+      T.PublishRequest{_pubTopic, _pubBody} <- rawExpectPublish w
+      assertEqual "topic" "$SYS/broker/clients/a%2Fb%2Bc%23d%25e/connected" _pubTopic
+      o <- jsonBody _pubBody
+      assertEqual "client_id" (Just (J.String "a/b+c#d%e")) (Map.lookup "client_id" o)

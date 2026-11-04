@@ -178,6 +178,7 @@ runMQTTDConduit' (src, sink, addr) = runConduit $ do
                    <> [ T.PropServerKeepAlive ka | let ka = effectiveKeepAlive (_limitKeepAlive lims) pl _keepAlive,
                                                    ka /= _keepAlive, pl == T.Protocol50 ]
       deliverConnACK pl existing cprops
+      clientConnected addr pl req existing (effectiveKeepAlive (_limitKeepAlive lims) pl _keepAlive)
 
       wdch <- liftIO newTChanIO
       w <- traverse (\t -> async $ watchdog t wdch pl sess tid) (keepAliveTimeout (_limitKeepAlive lims) pl _keepAlive)

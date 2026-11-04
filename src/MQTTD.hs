@@ -61,6 +61,7 @@ import qualified MQTTD.SubTree                 as SubTree
 import           MQTTD.Types
 import           MQTTD.Util
 import           MQTTD.Version                 (versionString)
+import qualified Data.Aeson                    as J
 
 import           MQTTD.ScheduleFX
 
@@ -76,7 +77,9 @@ data Env = Env {
   -- | Where to send every client instead, if anywhere [5.0 §4.11].
   redirect    :: Maybe Redirect,
   -- | When the broker started, for $SYS/broker/uptime.
-  startTime   :: UTCTime
+  startTime   :: UTCTime,
+  -- | Whether to publish clients' connects and disconnects.
+  clientEvents :: Bool
   }
 
 data MQTTD :: Effect where
@@ -98,6 +101,7 @@ newEnv = liftIO $ Env
          <*> pure Nothing
          <*> pure Nothing
          <*> getCurrentTime
+         <*> pure False
 
 runMQTTD :: forall es a. Env -> Eff (MQTTD : es) a -> Eff es (a, Env)
 runMQTTD initialEnv = reinterpret (runState initialEnv) \_ -> \case
@@ -533,7 +537,11 @@ publishWill k w = do
 unregisterClient :: (IOE :> es, MQTTD :> es, ScheduleFX SessionID :> es, LogFX :> es, Stats :> es, DB :> es) => T.ProtocolLevel -> SessionID -> ClientID -> Eff es ()
 unregisterClient pl k mid = do
   now <- liftIO getCurrentTime
+  -- Only if this connection is still the session's (it isn't, after a
+  -- takeover, and the new one's connected message has to stay).
+  current <- (\m -> (Map.lookup k m >>= _sessionClient) <&> (\c -> _clientID c == mid)) <$> (readTVarIO =<< asks sessions)
   modifySession k (up now)
+  when (current == Just True) $ clientDisconnected k now
   expireSession k
 
     where
@@ -580,6 +588,49 @@ nextPktID inUse lastID = listToMaybe [i | i <- candidates, not (inUse i)]
   where
     candidates = take (fromIntegral (maxBound :: T.PktID)) (drop 1 (iterate next lastID))
     next i = if i == maxBound then 1 else succ i
+
+-- | The $SYS topic for an event about a client.  Characters that would
+-- change the topic's levels, or make it a filter, are percent-encoded.
+clientEventTopic :: SessionID -> BL.ByteString -> BL.ByteString
+clientEventTopic cid ev = "$SYS/broker/clients/" <> BL.concatMap enc cid <> "/" <> ev
+  where
+    enc 0x2f = "%2F" -- /
+    enc 0x2b = "%2B" -- +
+    enc 0x23 = "%23" -- #
+    enc 0x25 = "%25" -- %
+    enc c    = BL.singleton c
+
+publishClientEvent :: (IOE :> es, MQTTD :> es, Stats :> es, DB :> es, LogFX :> es) => SessionID -> BL.ByteString -> Bool -> BL.ByteString -> Eff es ()
+publishClientEvent cid ev r body = broadcast Nothing T.PublishRequest{
+  T._pubDup=False, T._pubQoS=T.QoS0, T._pubRetain=r, T._pubTopic=clientEventTopic cid ev,
+  T._pubPktID=0, T._pubBody=body, T._pubProps=[]}
+
+-- | A client connected: $SYS/broker/clients/<id>/connected, retained for as
+-- long as it's connected, describes the connection (if client events are on).
+clientConnected :: (IOE :> es, MQTTD :> es, Stats :> es, DB :> es, LogFX :> es)
+                => Txt.Text -> T.ProtocolLevel -> T.ConnectRequest -> T.SessionReuse -> Word16 -> Eff es ()
+clientConnected addr pl T.ConnectRequest{..} existing ka = whenM (asks clientEvents) $ do
+  now <- liftIO getCurrentTime
+  publishClientEvent _connID "connected" True . J.encode $ J.object [
+    "client_id" J..= blToText _connID,
+    "address" J..= addr,
+    "protocol" J..= (if pl == T.Protocol50 then 5 else 4 :: Int),
+    "username" J..= (blToText <$> _username),
+    "keep_alive" J..= ka,
+    "clean_start" J..= _cleanSession,
+    "session_present" J..= (existing == T.ExistingSession),
+    "connected_at" J..= now
+    ]
+
+-- | A client disconnected: its connected message is cleared, and a
+-- disconnected event published (if client events are on).
+clientDisconnected :: (IOE :> es, MQTTD :> es, Stats :> es, DB :> es, LogFX :> es) => SessionID -> UTCTime -> Eff es ()
+clientDisconnected cid now = whenM (asks clientEvents) $ do
+  publishClientEvent cid "connected" True ""
+  publishClientEvent cid "disconnected" False . J.encode $ J.object [
+    "client_id" J..= blToText cid,
+    "disconnected_at" J..= now
+    ]
 
 broadcast :: (IOE :> es, MQTTD :> es, Stats :> es, DB :> es, LogFX :> es) => Maybe SessionID -> T.PublishRequest -> Eff es ()
 broadcast src req@T.PublishRequest{..} = do
