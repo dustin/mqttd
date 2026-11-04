@@ -1041,3 +1041,26 @@ unit_receiveMaximum311 :: Assertion
 unit_receiveMaximum311 = withTestService $ \u ->
   withRawConn u T.Protocol311 T.connectRequest{T._connID="t3-311"} $ \rc ->
     mapM_ (\p -> rawSend rc (qos2Publish "t3/t" p) >> rawExpectPubREC rc p) [1..101]
+
+-- * Retain Handling
+
+-- M1: Retain Handling 1 sends retained messages only for a new
+-- subscription, not when an existing one is subscribed again
+-- [MQTT-3.3.1-10].
+unit_retainHandlingNewOnly :: Assertion
+unit_retainHandlingNewOnly = withTestService $ \u -> do
+  pubber <- MC.connectURI MC.mqttConfig u
+  MC.publishq pubber "m1/t" "retained" True MC.QoS0 []
+  withRawConn u T.Protocol50 T.connectRequest{T._connID="m1"} $ \rc -> do
+    let sub = do
+          rawSend rc (T.SubscribePkt (T.SubscribeRequest 1 [("m1/t", T.subOptions{T._retainHandling=T.SendOnSubscribeNew})] []))
+          rawRecvWithin rc >>= \case
+            T.SubACKPkt _ -> pure ()
+            x -> assertFailure ("expected SUBACK, got " <> show x)
+    sub
+    T.PublishRequest{_pubTopic} <- rawExpectPublish rc
+    assertEqual "retained on the new subscription" "m1/t" _pubTopic
+    sub
+    -- Anything sent because of the SUBSCRIBE comes before the PINGRESP.
+    rawSend rc T.PingPkt
+    rawRecvWithin rc >>= assertEqual "nothing resent on resubscribe" T.PongPkt

@@ -244,7 +244,7 @@ subscribe sess@Session{..} (T.SubscribeRequest pid topics props) = do
                                  (authTopic (classifyTopic t') IntentSubscribe _sessionACL)) topics
       (shared, normal) = partitionShared (rights topics')
       new = Map.fromList normal
-  atomically $ do
+  existing <- atomically $ do
     oldSessionSubs <- readTVar _sessionSubs
     -- session copy subscriptions
     modifyTVar' _sessionSubs . Map.union . Map.fromList . rights $ topics'
@@ -256,16 +256,20 @@ subscribe sess@Session{..} (T.SubscribeRequest pid topics props) = do
     incrementStatSTM StatSubscriptions added ss
     let r = map (second (T._subQoS . snd)) topics'
     sendPacket_ _sessionChan (T.SubACKPkt (T.SubscribeResponse pid r props'))
+    pure oldSessionSubs
   p <- asks retainer
-  mapM_ (doRetained p) (Map.assocs new)
+  mapM_ (doRetained p existing) (Map.assocs new)
   storeSession sess
 
   where
     upSub m subs = Map.foldrWithKey (\k x -> SubTree.add k (Map.singleton _sessionID x)) subs m
     upShared m subs = foldr (\(n,f,o) -> SubTree.addWith f (Map.unionWith (<>)) (Map.singleton n [(_sessionID, o)])) subs m
 
-    doRetained _ (_, T.SubOptions{T._retainHandling=T.DoNotSendOnSubscribe}) = pure ()
-    doRetained p (t, ops)                                                    = mapM_ (sendOne ops) =<< matchRetained p t
+    doRetained _ _ (_, T.SubOptions{T._retainHandling=T.DoNotSendOnSubscribe}) = pure ()
+    -- Only for a subscription that didn't already exist [MQTT-3.3.1-10].
+    doRetained _ existing (t, T.SubOptions{T._retainHandling=T.SendOnSubscribeNew})
+      | Map.member t existing = pure ()
+    doRetained p _ (t, ops) = mapM_ (sendOne ops) =<< matchRetained p t
 
     props' = filter isSubAckProp props
         where
