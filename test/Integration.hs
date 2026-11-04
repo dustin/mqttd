@@ -1888,3 +1888,27 @@ unit_uptimePublished = withTestService $ \u ->
     case reads (BLC.unpack _pubBody) :: [(Integer, String)] of
       [(n, "")] -> assertBool ("uptime of a server just started: " <> show n) (n >= 0 && n < 60)
       _         -> assertFailure ("not a number of seconds: " <> show _pubBody)
+
+-- * $SYS is the broker's
+
+-- A client can't publish to $SYS (e.g. to fake a stat, or replace the
+-- retained version), so it's refused like an ACL denial...
+unit_sysPublishRefused :: Assertion
+unit_sysPublishRefused = withTestService $ \u -> do
+  withRawConn u T.Protocol50 T.connectRequest{T._connID="sys-pub"} $ \rc -> do
+    rawSend rc (T.PublishPkt T.PublishRequest{T._pubDup=False, T._pubQoS=T.QoS1, T._pubRetain=True,
+                                              T._pubTopic="$SYS/broker/version", T._pubPktID=1,
+                                              T._pubBody="fake", T._pubProps=[]})
+    rawRecvWithin rc >>= \case
+      T.PubACKPkt (T.PubACK 1 st _) -> assertEqual "PUBACK reason" 0x87 st
+      x -> assertFailure ("expected PUBACK, got " <> show x)
+  withRawConn u T.Protocol311 T.connectRequest{T._connID="sys-check"} $ \rc -> do
+    rawSubscribe rc "$SYS/broker/version" T.QoS0
+    T.PublishRequest{_pubBody} <- rawExpectPublish rc
+    assertBool ("retained version replaced: " <> show _pubBody) (_pubBody /= "fake")
+
+-- ...and a will can't be published there either.
+unit_sysWillRefused :: Assertion
+unit_sysWillRefused = withTestService $ \u ->
+  withRawConnAck u T.Protocol311 (badWillReq "$SYS/broker/clients/connected") $ \(T.ConnACKFlags _ rc _) _ ->
+    assertEqual "CONNACK" T.NotAuthorized rc

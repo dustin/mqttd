@@ -49,7 +49,7 @@ unit_configFiles =
                             _confUsers = Map.fromList [
                                ("myuser", User "myuser" (Plaintext "mypw") []),
                                ("otheruser", User "otheruser" (HashedPass (PasswordHash "otherpw")) [
-                                   Allow ACLPubSub "tmp/#", Allow ACLSub "$SYS/#", Deny "#"
+                                   Allow ACLPubSub "tmp/#", Allow ACLSub "$SYS/#", DenyWrite "ro/#", Deny "#"
                                    ])
                                ],
                             _confListeners = [MQTTListener "*" 1883 mempty,
@@ -118,7 +118,19 @@ unit_ACLs = mapM_ aTest [
   ([Deny "#"], IntentPublish, "deny", isLeft),
   ([Allow ACLPubSub "#"], IntentPublish, "allow", isRight),
   ([Deny "tmp/#", Allow ACLPubSub "#"], IntentPublish, "allowed", isRight),
-  ([Deny "tmp/#", Allow ACLSub "#"], IntentPublish, "denied", isLeft)
+  ([Deny "tmp/#", Allow ACLSub "#"], IntentPublish, "denied", isLeft),
+  -- deny write denies publishing, and leaves subscribing to later entries
+  ([DenyWrite "ro/#"], IntentPublish, "ro/x", isLeft),
+  ([DenyWrite "ro/#"], IntentSubscribe, "ro/x", isRight),
+  ([DenyWrite "ro/#", Deny "#"], IntentSubscribe, "ro/x", isLeft),
+  ([DenyWrite "ro/#", Allow ACLPubSub "#"], IntentPublish, "ro/x", isLeft),
+  -- $SYS is the broker's: nobody can publish there, whatever the ACL says
+  ([], IntentPublish, "$SYS/broker/version", isLeft),
+  ([], IntentPublish, "$SYS", isLeft),
+  ([Allow ACLPubSub "#"], IntentPublish, "$SYS/x", isLeft),
+  ([Allow ACLPubSub "$SYS/#"], IntentPublish, "$SYS/x", isLeft),
+  ([], IntentSubscribe, "$SYS/#", isRight),
+  ([], IntentPublish, "$other/x", isRight)
   ]
   where
     aTest (a,i,t,f) = assertBool (show (a, i, t)) $ f (authTopic (classifyTopic t) i a)

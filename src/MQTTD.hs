@@ -668,8 +668,11 @@ authTopic :: TopicType -> Intention -> [ACL] -> Either String ()
 authTopic InvalidTopic _ = const $ Left "invalid topics are invalid"
 authTopic tt _
   | topicTypeFilter tt == "" = const $ Left "empty topics are not valid"
-authTopic tt action = foldr check (Right ())
+authTopic tt action = foldr check (Right ()) . (brokerACL <>)
   where
+    -- $SYS is the broker's: ahead of everyone's own ACL, nobody may
+    -- publish there (to fake a stat, or replace the retained version).
+    brokerACL = [DenyWrite "$SYS/#"]
     t = topicTypeFilter tt
     check (Allow aclt f) o
       | actOK aclt action && T.match f (ftot t) = Right ()
@@ -677,6 +680,9 @@ authTopic tt action = foldr check (Right ())
       | otherwise = o
     check (Deny f) o
       | T.match f (ftot t) = Left "unauthorized topic"
+      | otherwise = o
+    check (DenyWrite f) o
+      | action == IntentPublish && T.match f (ftot t) = Left "unauthorized topic"
       | otherwise = o
     actOK ACLSub IntentSubscribe    = True
     actOK ACLPubSub IntentSubscribe = True

@@ -34,7 +34,10 @@ type PortNumber = Int
 
 data ACLAction = ACLSub | ACLPubSub deriving (Show, Eq)
 
-data ACL = Allow ACLAction T.Filter | Deny T.Filter deriving (Show, Eq)
+-- | ACL entries, of which the first matching one applies.  DenyWrite
+-- denies publishing, but has no say over subscribing, which later entries
+-- decide.
+data ACL = Allow ACLAction T.Filter | Deny T.Filter | DenyWrite T.Filter deriving (Show, Eq)
 
 data Creds = Plaintext BL.ByteString | HashedPass (PasswordHash Bcrypt) deriving (Show, Eq)
 
@@ -133,6 +136,7 @@ parseUser = User <$> (lexeme "user" *> lexeme qstr) <*> lexeme passwd <*> option
   where parseACL = lexeme "acls" *> bt "[" "]" (some (lexeme aclEntry))
         aclEntry = asum . map try $ [Allow ACLPubSub <$> (lexeme "allow" *> qstr),
                                      Allow ACLSub <$> (lexeme "allow" *> lexeme "read" *> qstr),
+                                     DenyWrite <$> (lexeme "deny" *> lexeme "write" *> qstr),
                                      Deny <$> (lexeme "deny" *> qstr)]
         passwd = Plaintext <$> (lexeme "password" *> qstr)
                  <|> HashedPass . PasswordHash <$> (lexeme "hashedpass" *> qstr)
