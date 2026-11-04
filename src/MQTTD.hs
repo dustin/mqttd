@@ -87,6 +87,20 @@ runMQTTD initialEnv = reinterpret (runState initialEnv) \_ -> \case
 seconds :: Num p => p -> p
 seconds = (1000000 *)
 
+-- | The Keep Alive in effect.  When a client asks for 0, a 5.0 client is
+-- sent a Server Keep Alive of this.
+effectiveKeepAlive :: Word16 -> Word16
+effectiveKeepAlive 0 = 1800
+effectiveKeepAlive x = x
+
+-- | How long to wait for a packet from a client before disconnecting
+-- it, in microseconds: one and a half times the Keep Alive
+-- [3.1.1 MQTT-3.1.2-24], [5.0 MQTT-3.1.2-22].  A 3.1.1 Keep Alive of
+-- 0 turns the mechanism off.
+keepAliveTimeout :: T.ProtocolLevel -> Word16 -> Maybe Int
+keepAliveTimeout T.Protocol311 0 = Nothing
+keepAliveTimeout _ ka = Just (seconds (fromIntegral (effectiveKeepAlive ka)) * 3 `div` 2)
+
 asks :: MQTTD :> es => (Env -> a) -> Eff es a
 asks f = f <$> getEnv
 

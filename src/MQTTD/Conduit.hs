@@ -22,6 +22,7 @@ import qualified Data.Conduit.Combinators as C
 import           Data.Conduit.Network     (AppData, appSink, appSockAddr, appSource)
 import           Data.Functor             (($>))
 import qualified Data.Map.Strict          as Map
+import           Data.Maybe               (maybeToList)
 import qualified Data.Set                 as Set
 import           Data.String              (IsString (..))
 import           Data.Text                (Text, intercalate, pack, unpack)
@@ -77,19 +78,16 @@ runMQTTDConduit (src, sink, addr) = runConduit $ do
       -- Register and accept the connection
       tid <- liftIO myThreadId
       (sess@Session{_sessionID, _sessionChan}, existing) <- registerClient req cid tid
-      let ka = \case
-            0 -> 1800
-            x -> fromIntegral x
       let cprops = [ T.PropTopicAliasMaximum 100 ] <> [ T.PropAssignedClientIdentifier i | Just i <- [nid] ]
-                   <> [ T.PropServerKeepAlive (fromIntegral (ka _keepAlive)) | _keepAlive == 0]
+                   <> [ T.PropServerKeepAlive (effectiveKeepAlive _keepAlive) | _keepAlive == 0, pl == T.Protocol50 ]
       deliverConnACK pl existing cprops
 
       wdch <- liftIO newTChanIO
-      w <- async $ watchdog (3 * seconds (ka _keepAlive)) wdch _sessionID tid
+      w <- traverse (\to -> async $ watchdog to wdch _sessionID tid) (keepAliveTimeout pl _keepAlive)
       o <- async $ processOut pl _sessionChan
       i <- async $ E.finally (processIn wdch sess pl `E.onException` logConn "process exception" req) (teardown pl cid req)
       retransmit sess
-      void $ waitAnyCancel [i, o, w]
+      void $ waitAnyCancel ([i, o] <> maybeToList w)
 
     logConn h T.ConnectRequest{..} =
       logInfoL [h,  " from ",  addr,  lu,

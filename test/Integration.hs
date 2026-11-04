@@ -28,6 +28,8 @@ import           Data.List              (sort)
 import qualified Data.Map.Strict        as Map
 import           Data.Maybe             (fromJust, fromMaybe)
 import           Data.Password.Bcrypt   (PasswordHash (..))
+import           Data.Time.Clock        (NominalDiffTime, diffUTCTime,
+                                         getCurrentTime)
 import           Effectful
 import           Network.MQTT.Client    as MC
 import qualified Network.MQTT.Types     as T
@@ -380,6 +382,8 @@ data RawConn = RawConn {
   rawSend           :: T.MQTTPkt -> IO (),
   rawSendBytes      :: BS.ByteString -> IO (),
   rawRecv           :: IO T.MQTTPkt,
+  -- | Receive a packet, or Nothing if the server closed the connection.
+  rawRecvMaybe      :: IO (Maybe T.MQTTPkt),
   rawSessionPresent :: T.SessionReuse
   }
 
@@ -390,15 +394,15 @@ withRawConn u pl req f = runTCPClient (clientSettings port "127.0.0.1") $ \ad ->
   buf <- newIORef BS.empty
   let sendBytes b = runConduit $ yield b .| appSink ad
       send = sendBytes . BL.toStrict . T.toByteString pl
-      recv = readIORef buf >>= go . A.parse (T.parsePacket pl)
+      recvMaybe = readIORef buf >>= go . A.parse (T.parsePacket pl)
         where
-          go (A.Done rest p) = writeIORef buf rest >> pure p
+          go (A.Done rest p) = writeIORef buf rest >> pure (Just p)
           go (A.Fail _ _ e)  = assertFailure ("parse error: " <> e)
-          go (A.Partial k)   = runConduit (appSource ad .| await) >>=
-                               maybe (assertFailure "connection closed") (go . k)
+          go (A.Partial k)   = runConduit (appSource ad .| await) >>= maybe (pure Nothing) (go . k)
+      recv = recvMaybe >>= maybe (assertFailure "connection closed") pure
   send (T.ConnPkt req pl)
   recv >>= \case
-    T.ConnACKPkt (T.ConnACKFlags sp T.ConnAccepted _) -> f (RawConn send sendBytes recv sp)
+    T.ConnACKPkt (T.ConnACKFlags sp T.ConnAccepted _) -> f (RawConn send sendBytes recv recvMaybe sp)
     x -> assertFailure ("unexpected connect response: " <> show x)
   where
     port = read . drop 1 . uriPort . fromJust . uriAuthority $ u
@@ -782,3 +786,22 @@ unit_backlogSkipsExpired = withTestService $ \u -> withBacklog u "k4-expired" $ 
   rawSend rc (T.PubACKPkt (T.PubACK pid 0 []))
   T.PublishRequest{_pubTopic} <- rawExpectPublish rc
   assertEqual "expired message skipped" "k4/live" _pubTopic
+
+-- * Keep alive
+
+-- | Wait for the server to close a raw connection, returning how long it
+-- took (ignoring any packets it sends first).
+rawTimeToClose :: RawConn -> IO NominalDiffTime
+rawTimeToClose rc = do
+  start <- getCurrentTime
+  let loop = rawRecvMaybe rc >>= maybe (pure ()) (const loop)
+  timeout 10000000 loop >>= maybe (assertFailure "connection never closed") pure
+  (`diffUTCTime` start) <$> getCurrentTime
+
+-- M4: A client that sends nothing is disconnected after one and a half
+-- times its Keep Alive [3.1.1 MQTT-3.1.2-24], [5.0 MQTT-3.1.2-22].
+unit_keepAliveTimeout :: Assertion
+unit_keepAliveTimeout = withTestService $ \u ->
+  withRawConn u T.Protocol50 T.connectRequest{T._connID="m4", T._keepAlive=2} $ \rc -> do
+    t <- rawTimeToClose rc
+    assertBool ("closed after " <> show t <> ", expected about 3s") (t >= 2.5 && t <= 3.5)

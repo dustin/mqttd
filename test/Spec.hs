@@ -14,7 +14,6 @@ import           Control.Concurrent.STM   (atomically, newTBQueueIO, newTVarIO, 
 import           Data.Either              (isLeft, isRight)
 import           Data.Foldable            (for_)
 import qualified Data.Map.Strict          as Map
-import           Data.Word                (Word16, Word8)
 
 import           Data.Password.Bcrypt     (PasswordHash (..))
 import           Network.MQTT.Arbitrary   (MatchingTopic (..))
@@ -150,6 +149,16 @@ unit_nextPktIDSkipsInUseAcrossWrap = assertEqual "" (Just 3) (nextPktID (`elem` 
 
 unit_nextPktIDExhausted :: Assertion
 unit_nextPktIDExhausted = assertEqual "" Nothing (nextPktID (const True) 7)
+
+-- M4: The keep alive timeout is one and a half times the Keep Alive,
+-- and a 3.1.1 Keep Alive of 0 disables it (5.0 clients asking for 0 are
+-- given a Server Keep Alive).
+unit_keepAliveTimeouts :: Assertion
+unit_keepAliveTimeouts = do
+  assertEqual "3.1.1, 0" Nothing (keepAliveTimeout T.Protocol311 0)
+  assertEqual "3.1.1, 2" (Just 3000000) (keepAliveTimeout T.Protocol311 2)
+  assertEqual "5.0, 2" (Just 3000000) (keepAliveTimeout T.Protocol50 2)
+  assertEqual "5.0, 0" (Just (seconds 2700)) (keepAliveTimeout T.Protocol50 0)
 
 unit_listenerOptions :: Assertion
 unit_listenerOptions = do
