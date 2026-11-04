@@ -957,3 +957,60 @@ unit_disconnectSessionExpiryFromZero = withTestService $ \u ->
   withRawConn u T.Protocol50 T.connectRequest{T._connID="m10-zero"} $ \rc -> do
     rawSend rc (T.DisconnectPkt (T.DisconnectRequest T.DiscoNormalDisconnection [T.PropSessionExpiryInterval 5]))
     rawExpectDisconnect rc T.DiscoProtocolError
+
+-- * Inbound QoS 2
+
+qos2Publish :: BL.ByteString -> T.PktID -> T.MQTTPkt
+qos2Publish t p = T.PublishPkt T.PublishRequest{T._pubDup=False, T._pubQoS=T.QoS2, T._pubRetain=False,
+                                                T._pubTopic=t, T._pubPktID=p, T._pubBody="x", T._pubProps=[]}
+
+rawExpectPubREC :: RawConn -> T.PktID -> Assertion
+rawExpectPubREC rc p = rawRecvWithin rc >>= \case
+  T.PubRECPkt (T.PubREC p' _ _) -> assertEqual "PUBREC ID" p p'
+  x -> assertFailure ("expected PUBREC, got " <> show x)
+
+rawExpectPubCOMP :: RawConn -> T.PktID -> Assertion
+rawExpectPubCOMP rc p = rawRecvWithin rc >>= \case
+  T.PubCOMPPkt (T.PubCOMP p' st _) -> assertEqual "PUBCOMP" (p, 0) (p', st)
+  x -> assertFailure ("expected PUBCOMP, got " <> show x)
+
+-- K5: An inbound QoS 2 message waiting for PUBREL is the client's, so
+-- it's not "resent" to the client when the session resumes, and the
+-- PUBREL can still complete it [MQTT-4.3.3].
+unit_inboundQoS2NotResent :: Assertion
+unit_inboundQoS2NotResent = withTestService $ \u -> do
+  (_, mv) <- do
+    (c, mv) <- countingClient u
+    _ <- MC.subscribe c [("k5/t", MC.subOptions)] []
+    pure (c, mv)
+  let req = sessionReq T.Protocol311 "k5-resend"
+  withRawConn u T.Protocol311 req $ \rc -> do
+    rawSend rc (qos2Publish "k5/t" 1)
+    rawExpectPubREC rc 1
+  -- Dropped before PUBREL.
+  withRawConn u T.Protocol311 req $ \rc -> do
+    timeout 500000 (rawRecv rc) >>= mapM_ (\x -> assertFailure ("unexpected resend: " <> show x))
+    rawSend rc (T.PubRELPkt (T.PubREL 1 0 []))
+    rawExpectPubCOMP rc 1
+  awaitCount mv "k5/t" 1
+
+-- K5: Inbound and outbound packet IDs are separate, so acknowledging an
+-- outbound PUBLISH doesn't touch an inbound QoS 2 message with the same
+-- ID [5.0 §2.2.1].
+unit_inboundOutboundIDsSeparate :: Assertion
+unit_inboundOutboundIDsSeparate = withTestService $ \u -> do
+  (_, mv) <- do
+    (c, mv) <- countingClient u
+    _ <- MC.subscribe c [("k5/in", MC.subOptions)] []
+    pure (c, mv)
+  withRawConn u T.Protocol50 T.connectRequest{T._connID="k5-ids"} $ \rc -> do
+    rawSubscribe rc "k5/out" T.QoS1
+    rawSend rc (qos2Publish "k5/in" 1)
+    rawExpectPubREC rc 1
+    pubber <- MC.connectURI MC.mqttConfig u
+    MC.publishq pubber "k5/out" "x" False MC.QoS1 []
+    T.PublishRequest{_pubPktID} <- rawExpectPublish rc
+    rawSend rc (T.PubACKPkt (T.PubACK _pubPktID 0 []))
+    rawSend rc (T.PubRELPkt (T.PubREL 1 0 []))
+    rawExpectPubCOMP rc 1
+  awaitCount mv "k5/in" 1

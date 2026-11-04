@@ -70,6 +70,8 @@ data Session = Session {
   _sessionChan    :: PktQueue,
   _sessionFlight  :: TVar Word16,
   _sessionBacklog :: TBQueue (Maybe UTCTime, T.PublishRequest),
+  -- | Outbound QoS 1 and 2 PUBLISHes in flight (or backlogged), by
+  -- packet ID.
   _sessionQP      :: TVar (Map T.PktID (Maybe UTCTime, T.PublishRequest)),
   _sessionSubs    :: TVar (Map T.Filter T.SubOptions),
   _sessionExpires :: Maybe UTCTime,
@@ -82,7 +84,11 @@ data Session = Session {
   _sessionPktID   :: TVar T.PktID,
   -- | Outbound QoS 2 packet IDs that have been PUBREC'd and are waiting
   -- for PUBCOMP.  Their PUBRELs are resent when the session resumes.
-  _sessionRel     :: TVar (Set T.PktID)
+  _sessionRel     :: TVar (Set T.PktID),
+  -- | Inbound QoS 2 PUBLISHes waiting for PUBREL, by the client's packet
+  -- ID.  Separate from _sessionQP, since the client and server packet
+  -- IDs are independent [5.0 §2.2.1].
+  _sessionInbound :: TVar (Map T.PktID (Maybe UTCTime, T.PublishRequest))
   }
 
 makeLenses ''Session

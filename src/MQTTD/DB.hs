@@ -249,6 +249,7 @@ loadSessions = liftIO . fetch =<< dbConn
           _sessionQP <- newTVarIO mempty
           _sessionPktID <- newTVarIO 0
           _sessionRel <- newTVarIO mempty
+          _sessionInbound <- newTVarIO mempty
           _sessionFlight <- newTVarIO 0
           _sessionBacklog <- newTBQueueIO defaultQueueSize
           _sessionSubs <- newTVarIO $ Map.fromList (Map.findWithDefault [] _sessionID subs)

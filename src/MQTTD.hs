@@ -335,7 +335,7 @@ registerClient req@T.ConnectRequest{..} i o = do
                     <*> newTVar maxInFlight <*> newTBQueue defaultQueueSize
                     <*> newTVar mempty <*> newTVar mempty
                     <*> pure Nothing <*> pure _lastWill <*> pure Nothing
-                    <*> newTVar 0 <*> newTVar mempty
+                    <*> newTVar 0 <*> newTVar mempty <*> newTVar mempty
     m <- readTVar c
     let s = Map.lookup k m
         o' = _sessionClient =<< s
@@ -654,8 +654,8 @@ dispatch Session{..} (T.PubRECPkt ack) = atomically $ do
 -- QoS 2 REL (publishing client says we can ship the message)
 dispatch Session{..} (T.PubRELPkt rel) = do
   pkt <- atomically $ do
-    (r, m) <- Map.updateLookupWithKey (const.const $ Nothing) (rel ^. pktID) <$> readTVar _sessionQP
-    writeTVar _sessionQP m
+    (r, m) <- Map.updateLookupWithKey (const.const $ Nothing) (rel ^. pktID) <$> readTVar _sessionInbound
+    writeTVar _sessionInbound m
     _ <- sendPacket _sessionChan (T.PubCOMPPkt (T.PubCOMP (rel ^. pktID) (maybe 0x92 (const 0) r) mempty))
     pure r
   justM (broadcast (Just _sessionID) . snd) pkt
@@ -704,7 +704,7 @@ dispatch sess@Session{..} (T.PublishPkt req) = resolveAliasIn sess req >>= eithe
         countIn
       satisfyQoS T.QoS2 r@T.PublishRequest{..} = liftIO getCurrentTime >>= \now -> getStatStore >>= \ss -> atomically $ do
         sendPacket_ _sessionChan (T.PubRECPkt (T.PubREC _pubPktID 0 mempty))
-        modifyTVar' _sessionQP (Map.insert _pubPktID (deadline now r, r))
+        modifyTVar' _sessionInbound (Map.insert _pubPktID (deadline now r, r))
         incrementStatSTM StatMsgRcvd 1 ss
 
       countIn = incrementStat StatMsgRcvd 1
