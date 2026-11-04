@@ -1,5 +1,6 @@
 {-# LANGUAGE BlockArguments      #-}
 {-# LANGUAGE FlexibleContexts    #-}
+{-# LANGUAGE LambdaCase          #-}
 {-# LANGUAGE OverloadedStrings   #-}
 {-# LANGUAGE QuasiQuotes         #-}
 {-# LANGUAGE RecordWildCards     #-}
@@ -29,7 +30,7 @@ import           Effectful
 import           Effectful.Dispatch.Dynamic       (interpret)
 import           Effectful.TH
 import           Text.RawString.QQ                (r)
-import           UnliftIO                         (atomically, writeTBQueue)
+import           UnliftIO                         (atomically, tryAny, writeTBQueue)
 
 import qualified Network.MQTT.Lens                as T
 import qualified Network.MQTT.Topic               as T
@@ -92,7 +93,7 @@ initTables db = do
 initDB :: Connection -> IO ()
 initDB db = do
   -- busy_timeout: wait for other readers of the DB (e.g. the sqlite3 CLI)
-  -- rather than failing a write, which would stop the DB writer.
+  -- rather than failing a write.
   mapM_ (execute_ db) ["pragma foreign_keys = ON", "pragma busy_timeout = 5000"]
   initTables db
 
@@ -112,12 +113,25 @@ runOperations = do
               logDbgL ["Storing a batch of ", tshow (length ops), " operations"]
               incrementStat StatStoreTransactions 1
               incrementStat StatStoreOperations (length ops)
-              liftIO . withTransaction db $
-                mapM_ store1 ops
+              -- A failure rolls back the batch, so its operations are
+              -- retried one at a time, and only the ones that fail again
+              -- are lost.  Either way, the writer keeps going.
+              liftIO (tryAny (withTransaction db (mapM_ store1 ops))) >>= \case
+                Right () -> pure ()
+                Left e -> do
+                  logErrorL ["Failed to store a batch of ", tshow (length ops), " operations: ", tshow e]
+                  mapM_ (\op -> liftIO (tryAny (withTransaction db (store1 op))) >>=
+                                either (\e' -> logErrorL ["Failed to store ", opName op, ": ", tshow e'])
+                                       pure) ops
             store1 (DeleteSession i)  = deleteSessionL db i
             store1 (DeleteRetained i) = deleteRetainedL db i
             store1 (StoreSession i)   = storeSessionL db i
             store1 (StoreRetained i)  = storeRetainedL db i
+
+            opName (DeleteSession i)  = "session deletion for " <> tshow i
+            opName (DeleteRetained i) = "retained deletion for " <> tshow i
+            opName (StoreSession i)   = "session " <> tshow (_sessionID i)
+            opName (StoreRetained i)  = "retained message for " <> tshow (T._pubTopic (_retainMsg i))
 
 writeDBQueue :: (IOE :> es, DB :> es) => DBOperation -> Eff es ()
 writeDBQueue o = dbQueue >>= \q -> writeTBQueueIO q o

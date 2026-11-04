@@ -1494,3 +1494,19 @@ unit_clientDisconnectErrorSendsWill = withTestService $ \u -> do
       x -> assertFailure ("expected the connection to close, got " <> show x)
   T.PublishRequest{_pubTopic} <- expectWill 2000000 wills
   assertEqual "will" "will/disco-err" _pubTopic
+
+-- * Persistence
+
+-- A failing write doesn't stop the DB writer, or lose the other writes
+-- in its batch.  (Here, retained messages can't be stored because their
+-- table is gone.)
+unit_dbWriterSurvivesErrors :: Assertion
+unit_dbWriterSurvivesErrors = withTempDB $ \path -> do
+  let conf = testConfig{_confPersist = PersistenceConfig path}
+  withTestServiceConfig conf $ \u -> do
+    SQL.withConnection path $ \db -> SQL.execute_ db "drop table persisted"
+    pubber <- MC.connectURI MC.mqttConfig u
+    MC.publishq pubber "db/r" "x" True MC.QoS1 []
+    withRawConn u T.Protocol311 (sessionReq T.Protocol311 "db-survives") $ \rc -> do
+      rawSubscribe rc "db/t" T.QoS1
+      waitForStoredSubs path "db-survives"
