@@ -1,8 +1,11 @@
 {-# OPTIONS_GHC -Wno-orphans #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE LambdaCase          #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module Spec where
 
+import qualified Control.Exception      as E
 import           Test.QuickCheck.Checkers
 import           Test.QuickCheck.Classes
 import           Test.Tasty
@@ -73,6 +76,17 @@ unit_configFiles =
       ]
   where
     aTest (f,w) = assertEqual f w =<< parseConfFile ("test/" <> f)
+
+-- Anything the parser doesn't understand is an error, rather than the end
+-- of the config.
+unit_badConfigRejected :: Assertion
+unit_badConfigRejected = E.try (parseConfFile "test/bad.conf") >>= \case
+  Left (_ :: E.IOException) -> pure ()
+  Right c                   -> assertFailure ("parsed: " <> show c)
+
+-- The example config parses.
+unit_exampleConfig :: Assertion
+unit_exampleConfig = () <$ parseConfFile "mqttd.conf"
 
 instance EqProp ListenerOptions where (=-=) = eq
 

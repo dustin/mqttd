@@ -21,7 +21,7 @@ import qualified Data.Text.IO               as TIO
 import           Data.Void                  (Void)
 import           Data.Word                  (Word16, Word32)
 import qualified Network.MQTT.Topic         as T
-import           Text.Megaparsec            (Parsec, between, choice, many, manyTill, option, parse, some, try)
+import           Text.Megaparsec            (Parsec, between, choice, eof, many, manyTill, option, parse, some, try)
 import           Text.Megaparsec.Char       (char, space, space1)
 import qualified Text.Megaparsec.Char.Lexer as L
 import           Text.Megaparsec.Error      (errorBundlePretty)
@@ -184,4 +184,4 @@ parseFile :: Parser a -> String -> IO a
 parseFile f s = TIO.readFile s >>= either (fail.errorBundlePretty) pure . parse f s
 
 parseConfFile :: String -> IO Config
-parseConfFile = parseFile (sc *> parseConfig)
+parseConfFile = parseFile (sc *> parseConfig <* eof)
