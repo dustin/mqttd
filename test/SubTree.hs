@@ -36,14 +36,14 @@ unit_SubTree =
     ("a/d/c", ["a/+/c", "a/+/+", "+/+/+", "#", "a/#"]),
     ("b/b/c", ["+/+/+", "+/b/c", "#", "b/#"]),
     ("b/real", ["#", "b/#"]),
-    ("a/b/x", ["#","+/+/+","a/#","a/+/+"]),
-    ("b", ["#"]),
+    ("a/b/x", ["#","+/+/+","a/#","a/+/+", "a/b/x/#"]),
+    ("b", ["#", "b/#"]),
     ("z/y/w", ["#", "+/+/+"]),
     ("$special/case", ["$special/#"])]
 
   where
     someSubs = Sub.modify "z/#" (const Nothing) . Sub.modify "z/y" (const Nothing) $ foldr (\x -> Sub.add x [x]) mempty [
-      "a/b/c", "a/+/c", "a/+/+", "+/+/+", "+/b/c",
+      "a/b/c", "a/+/c", "a/+/+", "+/+/+", "+/b/c", "a/b/x/#",
       "#", "a/#", "b/#", "z/y", "z/#", "$special/#"]
     aTest (f,w) = assertEqual (show f) (sort w) (sort $ Sub.find f someSubs)
 

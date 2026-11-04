@@ -56,7 +56,9 @@ addWith top f i = modify top (fmap (f i) . maybe (Just mempty) Just)
 findMap :: Monoid m => Topic -> (a -> m) -> SubTree a -> m
 findMap top f = go mwc (split (toFilter top))
   where
-    go _ [] SubTree{subs} = maybe mempty f subs
+    -- "x/#" also matches "x" [MQTT-4.7.1.2]
+    go _ [] n@SubTree{children} = maybe mempty f (subs n)
+                                  <> maybe mempty (maybe mempty f . subs) (Map.lookup "#" children)
     go d (x:xs) SubTree{children} = maybe mempty (go id xs)                 (Map.lookup x children)
                                     <> maybe mempty (go id xs)              (d $ Map.lookup "+" children)
                                     <> maybe mempty (maybe mempty f . subs) (d $ Map.lookup "#" children)
