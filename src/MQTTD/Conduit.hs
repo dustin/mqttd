@@ -7,6 +7,7 @@
 
 module MQTTD.Conduit where
 
+import           Control.Applicative      ((<|>))
 import           Control.Concurrent       (myThreadId, throwTo)
 import           Control.Concurrent.STM   (check, modifyTVar', newTChanIO, orElse, readTBQueue, readTChan, readTVar,
                                            registerDelay, writeTBQueue, writeTChan)
@@ -14,6 +15,7 @@ import           Control.Lens
 import           Control.Monad            (forever, guard, unless, void, when)
 import qualified Control.Monad.Catch      as E
 import           Control.Monad.Trans      (lift)
+import qualified Data.Attoparsec.ByteString as A
 import qualified Data.ByteString.Char8    as BCS
 import qualified Data.ByteString.Lazy     as BL
 import           Data.Conduit             (ConduitT, Void, await, runConduit, yield, (.|))
@@ -27,6 +29,7 @@ import qualified Data.Set                 as Set
 import           Data.String              (IsString (..))
 import           Data.Text                (Text, intercalate, pack, unpack)
 import           Data.Time.Clock          (getCurrentTime)
+import           Data.Word                (Word8)
 import qualified Data.UUID                as UUID
 import           Effectful
 import           Effectful.Fail
@@ -45,16 +48,40 @@ import           MQTTD.Stats
 import           MQTTD.Types
 import           MQTTD.Util
 
+-- | The protocol level of a CONNECT for a version we don't support
+-- (e.g. 3 for MQTT 3.1).
+unsupportedLevel :: A.Parser Word8
+unsupportedLevel = do
+  _ <- A.word8 0x10
+  _ <- T.parseHdrLen
+  n <- (\hi lo -> fromIntegral hi * 256 + fromIntegral lo) <$> A.anyWord8 <*> A.anyWord8
+  name <- A.take n
+  guard (name `elem` ["MQTT", "MQIsdp"])
+  lvl <- A.anyWord8
+  guard (lvl `notElem` [4, 5])
+  pure lvl
+
 type MQTTConduit es = (ConduitT () BCS.ByteString (Eff es) (), ConduitT BCS.ByteString Void (Eff es) (), Text)
 
 runMQTTDConduit :: forall es. (IOE :> es, ScheduleFX SessionID :> es, AuthFX :> es, Fail :> es, LogFX :> es, DB :> es, Stats :> es, MQTTD :> es) => MQTTConduit es -> Eff es ()
 runMQTTDConduit (src, sink, addr) = runConduit $ do
-  (cpkt@(T.ConnPkt _ pl), genedID) <- lift . ensureID =<< commonIn .| sinkParser T.parseConnect
-  cid <- lift nextID
-
-  lift $ run pl cid cpkt genedID
+  start <- commonIn .| sinkParser ((Right <$> T.parseConnect) <|> (Left <$> unsupportedLevel))
+  case start of
+    Left lvl -> lift $ refuseLevel lvl
+    Right connPkt -> do
+      (cpkt@(T.ConnPkt _ pl), genedID) <- lift (ensureID connPkt)
+      cid <- lift nextID
+      lift $ run pl cid cpkt genedID
 
   where
+    -- Say why, in a CONNACK the client can read, then close
+    -- [3.1.1 MQTT-3.1.2-2], [5.0 §3.1.2.2].
+    refuseLevel lvl = do
+      logInfoL ["Unsupported protocol level ", tshow lvl, " from ", addr]
+      let (pl, rc) = if lvl < 4 then (T.Protocol311, T.UnacceptableProtocol)
+                     else (T.Protocol50, T.ConnUnsupportedProtocolVersion)
+      runConduit $ yield (T.ConnACKPkt $ T.ConnACKFlags T.NewSession rc []) .| commonOut pl
+
     count s x = incrementStat s (fromIntegral $ BCS.length x) >> pure x
 
     run :: (IOE :> es, ScheduleFX SessionID :> es, AuthFX :> es, Fail :> es, DB :> es, Stats :> es, MQTTD :> es) => T.ProtocolLevel -> ClientID -> T.MQTTPkt -> Maybe SessionID -> Eff es ()

@@ -30,7 +30,7 @@ import           Data.Maybe             (fromJust, fromMaybe)
 import           Data.Password.Bcrypt   (PasswordHash (..))
 import           Data.Time.Clock        (NominalDiffTime, diffUTCTime,
                                          getCurrentTime)
-import           Data.Word              (Word16)
+import           Data.Word              (Word16, Word8)
 import           Effectful
 import           Network.MQTT.Client    as MC
 import qualified Network.MQTT.Types     as T
@@ -398,7 +398,16 @@ withRawConn u pl req f = withRawConnAck u pl req $ \ack rc -> case ack of
 
 -- | Connect and run the action with whatever CONNACK came back.
 withRawConnAck :: TestServer -> T.ProtocolLevel -> T.ConnectRequest -> (T.ConnACKFlags -> RawConn -> IO a) -> IO a
-withRawConnAck u pl req f = runTCPClient (clientSettings port "127.0.0.1") $ \ad -> do
+withRawConnAck u pl req f = withRawSocket u pl $ \rc -> do
+  rawSend rc (T.ConnPkt req pl)
+  rawRecv rc >>= \case
+    T.ConnACKPkt ack@(T.ConnACKFlags sp _ props) -> f ack rc{rawSessionPresent=sp, rawConnAckProps=props}
+    x -> assertFailure ("unexpected connect response: " <> show x)
+
+-- | Open a connection without sending anything, parsing what comes back
+-- at the given protocol level.
+withRawSocket :: TestServer -> T.ProtocolLevel -> (RawConn -> IO a) -> IO a
+withRawSocket u pl f = runTCPClient (clientSettings port "127.0.0.1") $ \ad -> do
   buf <- newIORef BS.empty
   let sendBytes b = runConduit $ yield b .| appSink ad
       send = sendBytes . BL.toStrict . T.toByteString pl
@@ -408,10 +417,7 @@ withRawConnAck u pl req f = runTCPClient (clientSettings port "127.0.0.1") $ \ad
           go (A.Fail _ _ e)  = assertFailure ("parse error: " <> e)
           go (A.Partial k)   = runConduit (appSource ad .| await) >>= maybe (pure Nothing) (go . k)
       recv = recvMaybe >>= maybe (assertFailure "connection closed") pure
-  send (T.ConnPkt req pl)
-  recv >>= \case
-    T.ConnACKPkt ack@(T.ConnACKFlags sp _ props) -> f ack (RawConn send sendBytes recv recvMaybe sp props)
-    x -> assertFailure ("unexpected connect response: " <> show x)
+  f (RawConn send sendBytes recv recvMaybe T.NewSession [])
   where
     port = read . drop 1 . uriPort . fromJust . uriAuthority $ u
 
@@ -1115,3 +1121,33 @@ unit_refusedConnect311 = refusedConnect T.Protocol311 T.NotAuthorized
 
 unit_refusedConnect50 :: Assertion
 unit_refusedConnect50 = refusedConnect T.Protocol50 T.ConnNotAuthorized
+
+-- * Protocol levels
+
+-- | A CONNECT with the given protocol name and level (clean session,
+-- keep alive 60, client ID "m6").
+connectAtLevel :: BS.ByteString -> Word8 -> BS.ByteString
+connectAtLevel name lvl = BS.pack [0x10, fromIntegral (BS.length body)] <> body
+  where
+    body = BS.pack [0, fromIntegral (BS.length name)] <> name <> BS.pack [lvl, 0x02, 0, 60, 0, 2] <> "m6"
+
+-- M6: An unsupported protocol level gets a CONNACK saying so, then the
+-- connection is closed: 0x01 in the 3.1.1 format for older versions
+-- [3.1.1 MQTT-3.1.2-2], and 0x84 in the 5.0 format for newer ones
+-- [5.0 §3.1.2.2].
+unsupportedLevel :: BS.ByteString -> Word8 -> T.ProtocolLevel -> T.ConnACKRC -> Assertion
+unsupportedLevel name lvl pl want = withTestService $ \u ->
+  withRawSocket u pl $ \rc -> do
+    rawSendBytes rc (connectAtLevel name lvl)
+    rawRecvWithin rc >>= \case
+      T.ConnACKPkt (T.ConnACKFlags _ rc' _) -> assertEqual "CONNACK return code" want rc'
+      x -> assertFailure ("expected CONNACK, got " <> show x)
+    timeout 2000000 (rawRecvMaybe rc) >>= \case
+      Just Nothing -> pure ()
+      x -> assertFailure ("expected the connection to close, got " <> show x)
+
+unit_unsupportedLevelMQTT31 :: Assertion
+unit_unsupportedLevelMQTT31 = unsupportedLevel "MQIsdp" 3 T.Protocol311 T.UnacceptableProtocol
+
+unit_unsupportedLevelFuture :: Assertion
+unit_unsupportedLevelFuture = unsupportedLevel "MQTT" 6 T.Protocol50 T.ConnUnsupportedProtocolVersion
