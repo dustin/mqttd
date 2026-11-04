@@ -4,7 +4,9 @@
 {-# LANGUAGE TypeFamilies        #-}
 module MQTTD.Stats where
 
-import           Control.Concurrent.STM     (STM, TBQueue, TVar, check, flushTBQueue, isEmptyTBQueue, modifyTVar')
+import           Control.Concurrent.STM     (STM, TBQueue, TVar, check,
+                                             flushTBQueue, isEmptyTBQueue,
+                                             modifyTVar')
 import           Control.Monad              (forever, unless)
 import qualified Data.ByteString.Lazy       as BL
 import           Data.Map.Strict            (Map)
@@ -12,7 +14,9 @@ import qualified Data.Map.Strict            as Map
 import           Effectful
 import           Effectful.Dispatch.Dynamic (interpret)
 import           Effectful.TH
-import           UnliftIO                   (atomically, newTBQueueIO, newTVarIO, readTVarIO, writeTBQueue)
+import           UnliftIO                   (atomically, newTBQueueIO,
+                                             newTVarIO, readTVarIO,
+                                             writeTBQueue)
 
 data StatKey = StatMsgSent
              | StatMsgRcvd

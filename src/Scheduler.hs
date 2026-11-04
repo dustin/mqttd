@@ -1,12 +1,14 @@
 module Scheduler (QueueID(..), Clock(..), TimedQueue, add, ready, next, QueueRunner, newRunner, enqueue, enqueueSTM, cancelSTM, run, runOnce) where
 
-import           Control.Concurrent.STM (STM, TVar, check, modifyTVar', newTVarIO, orElse, readTVar, registerDelay,
-                                         writeTVar)
+import           Control.Concurrent.STM (STM, TVar, check, modifyTVar',
+                                         newTVarIO, orElse, readTVar,
+                                         registerDelay, writeTVar)
 import           Control.Monad          (forever)
 import           Data.Map.Strict        (Map)
 import qualified Data.Map.Strict        as Map
 import           Data.Maybe             (fromMaybe)
-import           Data.Time.Clock        (NominalDiffTime, UTCTime (..), diffUTCTime, getCurrentTime)
+import           Data.Time.Clock        (NominalDiffTime, UTCTime (..),
+                                         diffUTCTime, getCurrentTime)
 import           Effectful
 import           UnliftIO               (atomically)
 

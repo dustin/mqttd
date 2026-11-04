@@ -4,57 +4,60 @@ module Integration where
 
 import           Test.Tasty.HUnit
 
-import           Control.Concurrent     (forkIO, threadDelay)
-import           Control.Concurrent.STM (TChan, TVar, check, modifyTVar', newTChanIO,
-                                         newTVarIO, orElse, readTChan, readTVar,
-                                         readTVarIO, registerDelay, retry,
-                                         writeTChan, writeTVar)
-import           Control.Exception      (catch, finally)
-import qualified Control.Exception      as E
-import qualified Data.Text.Encoding     as TE
-import           Network.MQTT.Topic     (mkTopic)
-import qualified Data.UUID              as UUID
-import qualified Database.SQLite.Simple as SQL
-import           System.Directory       (getTemporaryDirectory, removeFile)
-import           System.IO              (IOMode (WriteMode), withFile)
-import           System.Posix.Signals   (sigTERM, signalProcess)
-import           System.Process         (StdStream (UseHandle), createProcess, getPid, proc, readProcess,
-                                         std_err, std_out, terminateProcess, waitForProcess)
-import qualified Data.ByteString.Lazy.Char8 as BLC
-import           Data.Version           (showVersion)
-import           Paths_mqttd            (version)
-import           System.Random          (randomIO)
-import           System.Timeout         (timeout)
+import           Control.Concurrent         (forkIO, threadDelay)
+import           Control.Concurrent.STM     (TChan, TVar, check, modifyTVar',
+                                             newTChanIO, newTVarIO, orElse,
+                                             readTChan, readTVar, readTVarIO,
+                                             registerDelay, retry, writeTChan,
+                                             writeTVar)
+import           Control.Exception          (catch, finally)
+import qualified Control.Exception          as E
+import           Control.Monad              (replicateM, unless, void)
 import qualified Data.Attoparsec.ByteString as A
-import qualified Data.ByteString        as BS
-import           Data.Conduit           (await, runConduit, yield, (.|))
-import           Data.Conduit.Network   (appSink, appSource, clientSettings,
-                                         runTCPClient)
-import           Data.IORef             (newIORef, readIORef, writeIORef)
-import           Control.Monad          (replicateM, unless, void)
-import qualified Data.ByteString.Lazy   as BL
-import           Data.List              (sort)
-import qualified Data.Map.Strict        as Map
-import           Data.Maybe             (fromJust, fromMaybe, listToMaybe)
-import           Data.Password.Bcrypt   (PasswordHash (..))
-import           Data.Time.Clock        (NominalDiffTime, diffUTCTime,
-                                         getCurrentTime)
-import           Data.Word              (Word16, Word32, Word8)
+import qualified Data.ByteString            as BS
+import qualified Data.ByteString.Lazy       as BL
+import qualified Data.ByteString.Lazy.Char8 as BLC
+import           Data.Conduit               (await, runConduit, yield, (.|))
+import           Data.Conduit.Network       (appSink, appSource, clientSettings,
+                                             runTCPClient)
+import           Data.IORef                 (newIORef, readIORef, writeIORef)
+import           Data.List                  (sort)
+import qualified Data.Map.Strict            as Map
+import           Data.Maybe                 (fromJust, fromMaybe, listToMaybe)
+import           Data.Password.Bcrypt       (PasswordHash (..))
+import qualified Data.Text.Encoding         as TE
+import           Data.Time.Clock            (NominalDiffTime, diffUTCTime,
+                                             getCurrentTime)
+import qualified Data.UUID                  as UUID
+import           Data.Version               (showVersion)
+import           Data.Word                  (Word16, Word32, Word8)
+import qualified Database.SQLite.Simple     as SQL
 import           Effectful
-import           Network.MQTT.Client    as MC
-import qualified Network.MQTT.Types     as T
-import           Network.Socket.Free    (getFreePort)
-import           Network.URI            hiding (path)
-import           UnliftIO               (Concurrently (..), atomically, bracket,
-                                         cancel, concurrently, mapConcurrently_,
-                                         runConcurrently)
+import           Network.MQTT.Client        as MC
+import           Network.MQTT.Topic         (mkTopic)
+import qualified Network.MQTT.Types         as T
+import           Network.Socket.Free        (getFreePort)
+import           Network.URI                hiding (path)
+import           Paths_mqttd                (version)
+import           System.Directory           (getTemporaryDirectory, removeFile)
+import           System.IO                  (IOMode (WriteMode), withFile)
+import           System.Posix.Signals       (sigTERM, signalProcess)
+import           System.Process             (StdStream (UseHandle),
+                                             createProcess, getPid, proc,
+                                             readProcess, std_err, std_out,
+                                             terminateProcess, waitForProcess)
+import           System.Random              (randomIO)
+import           System.Timeout             (timeout)
+import           UnliftIO                   (Concurrently (..), atomically,
+                                             bracket, cancel, concurrently,
+                                             mapConcurrently_, runConcurrently)
 
 import           MQTTD
 import           MQTTD.Config
 import           MQTTD.Logging
 import           MQTTD.Main
 import           MQTTD.Stats
-import           MQTTD.Util             (runFailIO)
+import           MQTTD.Util                 (runFailIO)
 
 type TestServer = URI
 

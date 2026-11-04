@@ -12,7 +12,8 @@
 
 module MQTTD.DB where
 
-import           Control.Concurrent.STM           (TBQueue, check, flushTBQueue, isEmptyTBQueue, newTBQueueIO,
+import           Control.Concurrent.STM           (TBQueue, check, flushTBQueue,
+                                                   isEmptyTBQueue, newTBQueueIO,
                                                    newTVarIO, readTVarIO)
 import           Control.Lens
 import           Control.Monad                    (forever, unless)
@@ -30,7 +31,8 @@ import           Effectful
 import           Effectful.Dispatch.Dynamic       (interpret)
 import           Effectful.TH
 import           Text.RawString.QQ                (r)
-import           UnliftIO                         (atomically, finally, mask_, tryAny, writeTBQueue)
+import           UnliftIO                         (atomically, finally, mask_,
+                                                   tryAny, writeTBQueue)
 
 import qualified Network.MQTT.Lens                as T
 import qualified Network.MQTT.Topic               as T

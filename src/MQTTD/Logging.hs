@@ -6,7 +6,9 @@
 module MQTTD.Logging where
 
 import           Control.Monad                  (when)
-import           Control.Monad.Logger           (Loc (..), LogLevel (..), LogLine, LogSource, LogStr, defaultLoc, fromLogStr)
+import           Control.Monad.Logger           (Loc (..), LogLevel (..),
+                                                 LogLine, LogSource, LogStr,
+                                                 defaultLoc, fromLogStr)
 import qualified Data.ByteString.Char8          as C8
 import           Data.Foldable                  (fold)
 import           Data.String                    (fromString)

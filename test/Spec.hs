@@ -1,11 +1,11 @@
 {-# OPTIONS_GHC -Wno-orphans #-}
-{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE LambdaCase          #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications    #-}
 
 module Spec where
 
-import qualified Control.Exception      as E
+import qualified Control.Exception        as E
 import           Test.QuickCheck.Checkers
 import           Test.QuickCheck.Classes
 import           Test.Tasty
@@ -21,8 +21,8 @@ import           Data.Maybe               (listToMaybe)
 
 import           Data.Password.Bcrypt     (PasswordHash (..))
 import           Network.MQTT.Arbitrary   (MatchingTopic (..))
-import qualified Network.MQTT.Types       as T
 import           Network.MQTT.Topic       (Topic, toFilter)
+import qualified Network.MQTT.Types       as T
 
 import           Control.Lens             hiding (elements)
 import           Effectful

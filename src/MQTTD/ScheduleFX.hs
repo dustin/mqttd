@@ -11,8 +11,8 @@ import           Effectful.Dispatch.Dynamic (interpret)
 import           Effectful.TH
 
 import           MQTTD.Stats
-import           Scheduler                  (QueueID, QueueRunner)
 import qualified Scheduler                  as S
+import           Scheduler                  (QueueID, QueueRunner)
 
 data ScheduleFX a :: Effect where
   Enqueue :: UTCTime -> a -> ScheduleFX a m QueueID

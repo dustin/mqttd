@@ -3,7 +3,8 @@
 module SchedulerSpec where
 
 import           Control.Concurrent.Async (withAsync)
-import           Control.Concurrent.STM   (modifyTVar', newTVarIO, readTVar, readTVarIO, registerDelay)
+import           Control.Concurrent.STM   (modifyTVar', newTVarIO, readTVar,
+                                           readTVarIO, registerDelay)
 import           Control.Monad.Logger     (LogLine)
 import           Data.Foldable            (traverse_)
 import           Data.List                (sort)

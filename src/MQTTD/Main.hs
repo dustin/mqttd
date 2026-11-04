@@ -1,9 +1,11 @@
 module MQTTD.Main where
 
-import           Control.Concurrent       (newChan, newEmptyMVar, putMVar, readChan, takeMVar)
+import           Control.Concurrent       (newChan, newEmptyMVar, putMVar,
+                                           readChan, takeMVar)
 import           Control.Concurrent.STM   (newTBQueueIO)
 import           Control.Lens
-import           Data.Conduit.Network     (runGeneralTCPServer, serverSettings, setAfterBind)
+import           Data.Conduit.Network     (runGeneralTCPServer, serverSettings,
+                                           setAfterBind)
 import           Data.Conduit.Network.TLS (runGeneralTCPServerTLS, tlsConfig)
 import           Data.Maybe               (fromMaybe)
 import           Database.SQLite.Simple   hiding (bind)

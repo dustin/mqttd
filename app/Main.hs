@@ -1,17 +1,17 @@
 module Main where
 
-import           Control.Concurrent  (myThreadId, throwTo)
-import           Control.Exception   (AsyncException (UserInterrupt))
-import           Control.Monad       (void)
-import           System.Environment  (getArgs)
+import           Control.Concurrent   (myThreadId, throwTo)
+import           Control.Exception    (AsyncException (UserInterrupt))
+import           Control.Monad        (void)
+import           System.Environment   (getArgs)
 import           System.Posix.Signals (Handler (Catch), installHandler, sigTERM)
-import           UnliftIO            (waitAnyCancel)
+import           UnliftIO             (waitAnyCancel)
 
 import           MQTTD.Config
 import           MQTTD.Main
 
 configFilePath :: [String] -> String
-configFilePath [] = "mqttd.conf"
+configFilePath []        = "mqttd.conf"
 configFilePath (path: _) = path
 
 main :: IO ()

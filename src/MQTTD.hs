@@ -14,18 +14,23 @@
 module MQTTD where
 
 import           Control.Concurrent            (ThreadId, threadDelay, throwTo)
-import           Control.Concurrent.STM        (STM, TBQueue, TVar, isFullTBQueue, modifyTVar', newTBQueue, newTVar, newTVarIO,
-                                                readTVar, tryReadTBQueue, writeTBQueue, writeTVar)
+import           Control.Concurrent.STM        (STM, TBQueue, TVar,
+                                                isFullTBQueue, modifyTVar',
+                                                newTBQueue, newTVar, newTVarIO,
+                                                readTVar, tryReadTBQueue,
+                                                writeTBQueue, writeTVar)
 import           Control.Lens
-import           Control.Monad                 (forever, guard, mfilter, unless, void, when)
+import           Control.Monad                 (forever, guard, mfilter, unless,
+                                                void, when)
 import           Data.Bifunctor                (first, second)
-import           Data.Either                   (rights)
 import qualified Data.ByteString.Lazy          as BL
+import           Data.Either                   (rights)
 import           Data.Foldable                 (fold)
 import           Data.Map.Strict               (Map)
 import qualified Data.Map.Strict               as Map
+import           Data.Maybe                    (catMaybes, fromMaybe, isJust,
+                                                listToMaybe)
 import qualified Data.Set                      as Set
-import           Data.Maybe                    (catMaybes, fromMaybe, isJust, listToMaybe)
 import           Data.String                   (IsString (..))
 import qualified Data.Text                     as Txt
 import           Data.Time.Clock               (UTCTime, addUTCTime,
@@ -43,17 +48,19 @@ import           System.Random                 (getStdGen, newStdGen, randomR)
 import           UnliftIO                      (atomically, readTVarIO)
 
 import           MQTTD.Authorizer
-import           MQTTD.Config           (ACL (..), ACLAction (..), Limits (..), Redirect (..), noLimits)
-import           MQTTD.Version          (versionString)
+import           MQTTD.Config                  (ACL (..), ACLAction (..),
+                                                Limits (..), Redirect (..),
+                                                noLimits)
 import           MQTTD.DB
 import           MQTTD.GCStats
 import           MQTTD.Logging
 import           MQTTD.Retention
 import           MQTTD.Stats
-import           MQTTD.SubTree          (SubTree)
-import qualified MQTTD.SubTree          as SubTree
+import           MQTTD.SubTree                 (SubTree)
+import qualified MQTTD.SubTree                 as SubTree
 import           MQTTD.Types
 import           MQTTD.Util
+import           MQTTD.Version                 (versionString)
 
 import           MQTTD.ScheduleFX
 

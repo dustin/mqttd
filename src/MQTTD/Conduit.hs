@@ -7,43 +7,49 @@
 
 module MQTTD.Conduit where
 
-import           Control.Applicative      ((<|>))
-import           Control.Concurrent       (myThreadId, throwTo)
-import           Control.Concurrent.STM   (check, flushTBQueue, modifyTVar', newTChanIO, orElse, readTBQueue, readTChan, readTVar,
-                                           registerDelay, writeTBQueue, writeTChan)
+import           Control.Applicative        ((<|>))
+import           Control.Concurrent         (myThreadId, throwTo)
+import           Control.Concurrent.STM     (check, flushTBQueue, modifyTVar',
+                                             newTChanIO, orElse, readTBQueue,
+                                             readTChan, readTVar, registerDelay,
+                                             writeTBQueue, writeTChan)
 import           Control.Lens
-import           Control.Monad            (forever, guard, unless, void, when)
-import qualified Control.Monad.Catch      as E
-import           Control.Monad.Trans      (lift)
+import           Control.Monad              (forever, guard, unless, void, when)
+import qualified Control.Monad.Catch        as E
+import           Control.Monad.Trans        (lift)
 import qualified Data.Attoparsec.ByteString as A
-import qualified Data.ByteString.Char8    as BCS
-import qualified Data.ByteString.Lazy     as BL
-import           Data.Conduit             (ConduitT, Void, await, runConduit, yield, (.|))
-import           Data.Conduit.Attoparsec  (Position (..), PositionRange (..), conduitParser, sinkParser)
-import qualified Data.Conduit.Combinators as C
-import           Data.Conduit.Network     (AppData, appSink, appSockAddr, appSource)
-import           Data.Functor             (($>))
-import qualified Data.Map.Strict          as Map
-import           Data.Maybe               (isNothing, maybeToList)
-import qualified Data.Set                 as Set
-import           Data.String              (IsString (..))
-import           Data.Text                (Text, intercalate, pack, unpack)
-import           Data.Time.Clock          (getCurrentTime)
-import           Data.Word                (Word8)
-import qualified Data.UUID                as UUID
+import qualified Data.ByteString.Char8      as BCS
+import qualified Data.ByteString.Lazy       as BL
+import           Data.Conduit               (ConduitT, Void, await, runConduit,
+                                             yield, (.|))
+import           Data.Conduit.Attoparsec    (Position (..), PositionRange (..),
+                                             conduitParser, sinkParser)
+import qualified Data.Conduit.Combinators   as C
+import           Data.Conduit.Network       (AppData, appSink, appSockAddr,
+                                             appSource)
+import           Data.Functor               (($>))
+import qualified Data.Map.Strict            as Map
+import           Data.Maybe                 (isNothing, maybeToList)
+import qualified Data.Set                   as Set
+import           Data.String                (IsString (..))
+import           Data.Text                  (Text, intercalate, pack, unpack)
+import           Data.Time.Clock            (getCurrentTime)
+import qualified Data.UUID                  as UUID
+import           Data.Word                  (Word8)
 import           Effectful
 import           Effectful.Fail
-import qualified Network.MQTT.Lens        as T
-import           Network.MQTT.Topic       (mkTopic)
-import qualified Network.MQTT.Types       as T
-import qualified Network.WebSockets       as WS
-import           System.Random            (randomIO)
-import           UnliftIO                 (async, atomically, handleAny, waitAnyCancel)
+import qualified Network.MQTT.Lens          as T
+import           Network.MQTT.Topic         (mkTopic)
+import qualified Network.MQTT.Types         as T
+import qualified Network.WebSockets         as WS
+import           System.Random              (randomIO)
+import           UnliftIO                   (async, atomically, handleAny,
+                                             waitAnyCancel)
 
 import           MQTTD
 import           MQTTD.Authorizer
-import           MQTTD.Config             (Limits (..), Redirect (..))
-import           MQTTD.DB                 (DB (..))
+import           MQTTD.Config               (Limits (..), Redirect (..))
+import           MQTTD.DB                   (DB (..))
 import           MQTTD.Logging
 import           MQTTD.ScheduleFX
 import           MQTTD.Stats

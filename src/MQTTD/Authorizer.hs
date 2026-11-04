@@ -9,7 +9,8 @@ import           Control.Monad              (unless, when)
 import qualified Data.ByteString.Lazy       as BL
 import qualified Data.Map.Strict            as Map
 import           Data.Maybe                 (fromMaybe)
-import           Data.Password.Bcrypt       (PasswordCheck (..), checkPassword, mkPassword)
+import           Data.Password.Bcrypt       (PasswordCheck (..), checkPassword,
+                                             mkPassword)
 import qualified Data.Text.Encoding         as TE
 import           Effectful
 import           Effectful.Dispatch.Dynamic (interpret)

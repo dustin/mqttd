@@ -21,7 +21,8 @@ import qualified Data.Text.IO               as TIO
 import           Data.Void                  (Void)
 import           Data.Word                  (Word16, Word32)
 import qualified Network.MQTT.Topic         as T
-import           Text.Megaparsec            (Parsec, between, choice, eof, many, manyTill, option, parse, some, try)
+import           Text.Megaparsec            (Parsec, between, choice, eof, many,
+                                             manyTill, option, parse, some, try)
 import           Text.Megaparsec.Char       (char, space, space1)
 import qualified Text.Megaparsec.Char.Lexer as L
 import           Text.Megaparsec.Error      (errorBundlePretty)
@@ -78,16 +79,16 @@ noLimits :: Limits
 noLimits = Limits Nothing Nothing
 
 data Config = Config {
-  _confDebug     :: Bool,
-  _confUsers     :: Map BL.ByteString User,
-  _confListeners :: [Listener],
-  _confDefaults  :: ListenerOptions,
-  _confPersist   :: PersistenceConfig,
-  _confLimits    :: Limits,
+  _confDebug          :: Bool,
+  _confUsers          :: Map BL.ByteString User,
+  _confListeners      :: [Listener],
+  _confDefaults       :: ListenerOptions,
+  _confPersist        :: PersistenceConfig,
+  _confLimits         :: Limits,
   -- | Prefix for the Response Information given to clients that ask
   -- [5.0 §3.2.2.3.15].
   _confResponsePrefix :: Maybe BL.ByteString,
-  _confRedirect  :: Maybe Redirect
+  _confRedirect       :: Maybe Redirect
   } deriving (Show, Eq)
 
 data Section = DebugSection Bool

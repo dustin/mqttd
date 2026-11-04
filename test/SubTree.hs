@@ -13,7 +13,8 @@ import           Data.List                (sort)
 import           Data.Monoid              (Sum (..))
 import           Data.Set                 (Set)
 
-import           Network.MQTT.Arbitrary   (arbitraryMatchingTopic, arbitraryTopic)
+import           Network.MQTT.Arbitrary   (arbitraryMatchingTopic,
+                                           arbitraryTopic)
 import           Network.MQTT.Topic       (Filter, Topic, toFilter)
 
 import           MQTTD.SubTree            (SubTree)

@@ -24,7 +24,8 @@ import qualified Data.ByteString.Lazy   as BL
 import           Data.Map.Strict        (Map)
 import           Data.Set               (Set)
 import qualified Data.Text              as Txt
-import           Data.Time.Clock        (NominalDiffTime, UTCTime (..), addUTCTime, diffUTCTime)
+import           Data.Time.Clock        (NominalDiffTime, UTCTime (..),
+                                         addUTCTime, diffUTCTime)
 import           Data.Word              (Word16)
 import           Network.MQTT.Lens
 import qualified Network.MQTT.Topic     as T
