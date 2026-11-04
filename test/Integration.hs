@@ -913,3 +913,47 @@ unit_emptyClientIDPersistent50 = withTestService $ \u ->
   withRawConn u T.Protocol50 T.connectRequest{T._connID="", T._cleanSession=False} $ \rc ->
     assertBool ("no assigned ID: " <> show (rawConnAckProps rc))
       (any (\case T.PropAssignedClientIdentifier _ -> True; _ -> False) (rawConnAckProps rc))
+
+-- * Authentication and DISCONNECT properties
+
+-- M10: mqttd supports no authentication methods, so CONNECT naming one
+-- gets CONNACK 0x8C and the connection is closed [5.0 §4.12],
+-- [MQTT-4.12.0-1].
+unit_authMethodRejected :: Assertion
+unit_authMethodRejected = withTestService $ \u ->
+  withRawConnAck u T.Protocol50 T.connectRequest{T._connID="m10-auth",
+                                                 T._connProperties=[T.PropAuthenticationMethod "SCRAM-SHA-1"]} $ \ack rc -> do
+    case ack of
+      T.ConnACKFlags _ T.ConnBadAuthenticationMethod _ -> pure ()
+      x -> assertFailure ("expected bad authentication method, got " <> show x)
+    timeout 2000000 (rawRecvMaybe rc) >>= \case
+      Just Nothing -> pure ()
+      x -> assertFailure ("expected the connection to close, got " <> show x)
+
+-- M10: ...and with no authentication method, AUTH is a protocol error
+-- [5.0 §4.12].
+unit_authPacketProtocolError :: Assertion
+unit_authPacketProtocolError = withTestService $ \u ->
+  withRawConn u T.Protocol50 T.connectRequest{T._connID="m10-authpkt"} $ \rc -> do
+    rawSend rc (T.AuthPkt (T.AuthRequest 0x18 []))
+    rawExpectDisconnect rc T.DiscoProtocolError
+
+-- M10: A Session Expiry Interval on DISCONNECT replaces the one from
+-- CONNECT [5.0 §3.14.2.2.2].
+unit_disconnectSessionExpiry :: Assertion
+unit_disconnectSessionExpiry = withTestService $ \u -> do
+  let req = T.connectRequest{T._connID="m10-expiry", T._cleanSession=False,
+                             T._connProperties=[T.PropSessionExpiryInterval 1]}
+  withRawConn u T.Protocol50 req $ \rc ->
+    rawSend rc (T.DisconnectPkt (T.DisconnectRequest T.DiscoNormalDisconnection [T.PropSessionExpiryInterval 5]))
+  threadDelay 2000000
+  withRawConn u T.Protocol50 req $ \rc ->
+    assertEqual "session outlived the CONNECT expiry" T.ExistingSession (rawSessionPresent rc)
+
+-- M10: ...but setting one when CONNECT's was 0 is a protocol error
+-- [MQTT-3.14.2-2].
+unit_disconnectSessionExpiryFromZero :: Assertion
+unit_disconnectSessionExpiryFromZero = withTestService $ \u ->
+  withRawConn u T.Protocol50 T.connectRequest{T._connID="m10-zero"} $ \rc -> do
+    rawSend rc (T.DisconnectPkt (T.DisconnectRequest T.DiscoNormalDisconnection [T.PropSessionExpiryInterval 5]))
+    rawExpectDisconnect rc T.DiscoProtocolError

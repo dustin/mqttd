@@ -715,10 +715,29 @@ dispatch sess@Session{..} (T.PublishPkt req) = resolveAliasIn sess req >>= eithe
                         _        -> Left "invalid topic"
                       >> authTopic t IntentPublish acl
 
-dispatch sess (T.DisconnectPkt (T.DisconnectRequest T.DiscoNormalDisconnection _props)) = do
-  let sid = sess ^?! sessionClient . _Just . clientConnReq . connID
-  modifySession sid (Just . set sessionWill Nothing)
+dispatch sess@Session{..} (T.DisconnectPkt (T.DisconnectRequest reason props))
+  | reason `elem` [T.DiscoNormalDisconnection, T.DiscoDisconnectWithWill] = do
+      let creq = sess ^?! sessionClient . _Just . clientConnReq
+          sid = creq ^. connID
+          connExp = creq ^? properties . folded . _PropSessionExpiryInterval
+          discoExp = props ^? folded . _PropSessionExpiryInterval
+      -- Setting a Session Expiry Interval when CONNECT's was 0 is a
+      -- protocol error [MQTT-3.14.2-2].
+      when (maybe True (== 0) connExp && maybe False (/= 0) discoExp) $ do
+        sendPacketIO_ _sessionChan (T.DisconnectPkt (T.DisconnectRequest T.DiscoProtocolError []))
+        fail "session expiry set on DISCONNECT after CONNECT's was 0"
+      -- Otherwise it replaces CONNECT's [5.0 §3.14.2.2.2].
+      mapM_ (\x -> modifySession sid (Just . over (sessionClient . _Just . clientConnReq . properties) (setExpiry x))) discoExp
+      -- A normal disconnection discards the will [MQTT-3.14.4-3].
+      when (reason == T.DiscoNormalDisconnection) $ modifySession sid (Just . set sessionWill Nothing)
 
-dispatch _ (T.DisconnectPkt (T.DisconnectRequest T.DiscoDisconnectWithWill _props)) = pure ()
+    where
+      setExpiry x ps = T.PropSessionExpiryInterval x : filter (hasn't _PropSessionExpiryInterval) ps
+
+-- No authentication methods are supported, so AUTH is a protocol error
+-- [5.0 §4.12].
+dispatch Session{..} (T.AuthPkt _) = do
+  sendPacketIO_ _sessionChan (T.DisconnectPkt (T.DisconnectRequest T.DiscoProtocolError []))
+  fail "AUTH without an authentication method"
 
 dispatch _ x = fail ("unhandled: " <> show x)

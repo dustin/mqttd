@@ -64,6 +64,12 @@ runMQTTDConduit (src, sink, addr) = runConduit $ do
       logInfoL ["Rejecting empty client ID without a clean session from ", addr]
       runConduit $ yield (T.ConnACKPkt $ T.ConnACKFlags T.NewSession T.IdentifierRejected []) .| commonOut T.Protocol311
 
+    -- No authentication methods are supported [5.0 §4.12], [MQTT-4.12.0-1].
+    run T.Protocol50 _ (T.ConnPkt T.ConnectRequest{T._connProperties=props} _) _
+      | any (has T._PropAuthenticationMethod) props = do
+          logInfoL ["Rejecting unsupported authentication method from ", addr]
+          runConduit $ yield (T.ConnACKPkt $ T.ConnACKFlags T.NewSession T.ConnBadAuthenticationMethod []) .| commonOut T.Protocol50
+
     run pl cid (T.ConnPkt req _) nid = either (notAuthorized pl req) (const $ authorized pl cid req nid) =<< authorize req
 
     run _ _ pkt _ = fail ("Unhandled start packet from " <> unpack addr <> ": " <> show pkt)
