@@ -747,3 +747,38 @@ unit_unsubSharedUnsuback = withTestService $ \u -> do
   _ <- MC.subscribe c [("$share/g/k1/t", MC.subOptions)] []
   r <- MC.unsubscribe c ["$share/g/k1/t", "$share/g/k1/nope"] []
   assertEqual "unsuback" ([T.UnsubSuccess, T.UnsubNoSubscriptionExisted], []) r
+
+-- * Backlog
+
+-- | A raw connection with Receive Maximum 1, subscribed to k4/# at QoS1,
+-- holding the first message ("first") in flight so later ones are
+-- backlogged.  Returns the in-flight message's packet ID.
+withBacklog :: TestServer -> BL.ByteString -> (RawConn -> MC.MQTTClient -> T.PktID -> IO a) -> IO a
+withBacklog u cid f =
+  withRawConn u T.Protocol50 T.connectRequest{T._connID=cid, T._connProperties=[T.PropReceiveMaximum 1]} $ \rc -> do
+    rawSubscribe rc "k4/#" T.QoS1
+    pubber <- MC.connectURI MC.mqttConfig{_protocol=MC.Protocol50} u
+    MC.publishq pubber "k4/first" "first" False MC.QoS1 []
+    T.PublishRequest{_pubTopic, _pubPktID} <- rawExpectPublish rc
+    assertEqual "first message" "k4/first" _pubTopic
+    f rc pubber _pubPktID
+
+-- K4: A backlogged message that hasn't expired is delivered when a slot
+-- frees up.
+unit_backlogDeliversUnexpired :: Assertion
+unit_backlogDeliversUnexpired = withTestService $ \u -> withBacklog u "k4-live" $ \rc pubber pid -> do
+  MC.publishq pubber "k4/live" "live" False MC.QoS1 [T.PropMessageExpiryInterval 60]
+  rawSend rc (T.PubACKPkt (T.PubACK pid 0 []))
+  T.PublishRequest{_pubTopic} <- rawExpectPublish rc
+  assertEqual "backlogged message delivered" "k4/live" _pubTopic
+
+-- K4: ...but one that expired while waiting is discarded
+-- [MQTT-3.3.2-5].
+unit_backlogSkipsExpired :: Assertion
+unit_backlogSkipsExpired = withTestService $ \u -> withBacklog u "k4-expired" $ \rc pubber pid -> do
+  MC.publishq pubber "k4/expired" "expired" False MC.QoS1 [T.PropMessageExpiryInterval 1]
+  MC.publishq pubber "k4/live" "live" False MC.QoS1 []
+  threadDelay 1500000
+  rawSend rc (T.PubACKPkt (T.PubACK pid 0 []))
+  T.PublishRequest{_pubTopic} <- rawExpectPublish rc
+  assertEqual "expired message skipped" "k4/live" _pubTopic

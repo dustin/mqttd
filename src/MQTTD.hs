@@ -586,8 +586,10 @@ releasePubSlot now ss sess@Session{..} = do
     getOne = tryReadTBQueue _sessionBacklog >>= \case
       Nothing -> pure () -- Nothing to do
       Just (Nothing, p) -> deliver ss sess p -- No deadline
-      Just (Just t, p) | t < now -> deliver ss sess p -- Deadline not yet reached
-      Just (Just _, _) -> getOne -- This one's expired, see if there's another one
+      Just (Just t, p) | now < t -> deliver ss sess p -- Deadline not yet reached
+      -- This one's expired [MQTT-3.3.2-5].  It's no longer in flight, so
+      -- free its packet ID and see if there's another one.
+      Just (Just _, p) -> modifyTVar' _sessionQP (Map.delete (p ^. pktID)) >> getOne
 
 dispatch :: (IOE :> es, Fail :> es, MQTTD :> es, DB :> es, LogFX :> es, Stats :> es) => Session -> T.MQTTPkt -> Eff es ()
 
