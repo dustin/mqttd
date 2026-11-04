@@ -38,7 +38,7 @@ import           Network.MQTT.Topic       (mkTopic)
 import qualified Network.MQTT.Types       as T
 import qualified Network.WebSockets       as WS
 import           System.Random            (randomIO)
-import           UnliftIO                 (async, atomically, waitAnyCancel)
+import           UnliftIO                 (async, atomically, handleAny, waitAnyCancel)
 
 import           MQTTD
 import           MQTTD.Authorizer
@@ -66,7 +66,15 @@ unsupportedLevel = do
 type MQTTConduit es = (ConduitT () BCS.ByteString (Eff es) (), ConduitT BCS.ByteString Void (Eff es) (), Text)
 
 runMQTTDConduit :: forall es. (IOE :> es, ScheduleFX SessionID :> es, AuthFX :> es, Fail :> es, LogFX :> es, DB :> es, Stats :> es, MQTTD :> es) => MQTTConduit es -> Eff es ()
-runMQTTDConduit (src, sink, addr) = runConduit $ do
+runMQTTDConduit c@(_, _, addr) =
+  -- A connection ends with an exception for all sorts of ordinary reasons
+  -- (a protocol error, bad input, a takeover, a keep alive timeout), and
+  -- it's already been cleaned up by then.  Log why, rather than letting it
+  -- reach the thread's default handler, which prints it with a backtrace.
+  handleAny (\e -> logInfoL ["Connection from ", addr, " ended: ", tshow e]) (runMQTTDConduit' c)
+
+runMQTTDConduit' :: forall es. (IOE :> es, ScheduleFX SessionID :> es, AuthFX :> es, Fail :> es, LogFX :> es, DB :> es, Stats :> es, MQTTD :> es) => MQTTConduit es -> Eff es ()
+runMQTTDConduit' (src, sink, addr) = runConduit $ do
   start <- commonIn .| sinkParser ((Right <$> T.parseConnect) <|> (Left <$> unsupportedLevel))
   case start of
     Left lvl -> lift $ refuseLevel lvl
