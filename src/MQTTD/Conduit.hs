@@ -173,7 +173,15 @@ runMQTTDConduit (src, sink, addr) = runConduit $ do
     processIn wdch sess pl = runConduit $ commonIn
         .| conduitParser (T.parsePacket pl)
         .| C.mapM (\i@(_,x) -> logDbgL ["<< ", tshow x] >> pure i)
-        .| C.mapM_ (\(_,x) -> feed wdch >> dispatch sess x)
+        .| dispatchUntilDisconnect
+      where
+        -- Nothing follows a client's DISCONNECT, and returning closes the
+        -- connection [3.1.1 §3.14.4], [5.0 §3.14.4].
+        dispatchUntilDisconnect = await >>= mapM_ \(_,x) -> do
+          lift (feed wdch >> dispatch sess x)
+          case x of
+            T.DisconnectPkt{} -> pure ()
+            _                 -> dispatchUntilDisconnect
 
 
     commonIn = src .| C.mapM (count StatBytesRcvd)

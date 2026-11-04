@@ -804,8 +804,8 @@ dispatch sess@Session{..} (T.PublishPkt req) = resolveAliasIn sess req >>= eithe
                         _        -> Left "invalid topic"
                       >> authTopic t IntentPublish acl
 
-dispatch sess@Session{..} (T.DisconnectPkt (T.DisconnectRequest reason props))
-  | reason `elem` [T.DiscoNormalDisconnection, T.DiscoDisconnectWithWill] = do
+-- Any other reason code keeps the will [5.0 §3.14.2.1].
+dispatch sess@Session{..} (T.DisconnectPkt (T.DisconnectRequest reason props)) = do
       let creq = sess ^?! sessionClient . _Just . clientConnReq
           sid = creq ^. connID
           connExp = creq ^? properties . folded . _PropSessionExpiryInterval

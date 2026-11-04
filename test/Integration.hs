@@ -357,8 +357,6 @@ unit_cleanSessionDropsOldSubs = withTestService $ \u -> do
   _ <- MC.subscribe old [("h1/old", MC.subOptions{_subQoS=MC.QoS1})] []
 
   -- Take over the session with the same client ID, but a clean session.
-  -- (Taking over rather than disconnecting first, since mqttd doesn't
-  -- close the connection on DISCONNECT and normalDisconnect waits 10s.)
   got <- newTVarIO []
   new <- MC.connectURI MC.mqttConfig{_cleanSession=True,
                                      _msgCB=MC.OrderedCallback (\_ t _ _ -> atomically $ modifyTVar' got (t:))} cu
@@ -1465,3 +1463,34 @@ unit_keepAliveDisconnect50 :: Assertion
 unit_keepAliveDisconnect50 = withTestService $ \u ->
   withRawConn u T.Protocol50 T.connectRequest{T._connID="l7-keepalive", T._keepAlive=1} $ \rc ->
     rawExpectDisconnectWithin 3 rc T.DiscoKeepAliveTimeout
+
+-- * Client DISCONNECT
+
+-- The server closes the connection after a client's DISCONNECT
+-- [3.1.1 §3.14.4], [5.0 §3.14.4].
+clientDisconnectCloses :: T.ProtocolLevel -> T.DiscoReason -> Assertion
+clientDisconnectCloses pl reason = withTestService $ \u ->
+  withRawConn u pl T.connectRequest{T._connID="disco"} $ \rc -> do
+    rawSend rc (T.DisconnectPkt (T.DisconnectRequest reason []))
+    timeout 2000000 (rawRecvMaybe rc) >>= \case
+      Just Nothing -> pure ()
+      x -> assertFailure ("expected the connection to close, got " <> show x)
+
+unit_clientDisconnectCloses311 :: Assertion
+unit_clientDisconnectCloses311 = clientDisconnectCloses T.Protocol311 T.DiscoNormalDisconnection
+
+unit_clientDisconnectCloses50 :: Assertion
+unit_clientDisconnectCloses50 = clientDisconnectCloses T.Protocol50 T.DiscoNormalDisconnection
+
+-- A client can disconnect with an error code, too, and its will is sent
+-- [5.0 §3.14.2.1], [MQTT-3.14.4-3].
+unit_clientDisconnectErrorSendsWill :: Assertion
+unit_clientDisconnectErrorSendsWill = withTestService $ \u -> do
+  wills <- willWatcher u
+  withRawConn u T.Protocol50 (willReq "disco-err" True [] []) $ \rc -> do
+    rawSend rc (T.DisconnectPkt (T.DisconnectRequest T.DiscoUnspecifiedError []))
+    timeout 2000000 (rawRecvMaybe rc) >>= \case
+      Just Nothing -> pure ()
+      x -> assertFailure ("expected the connection to close, got " <> show x)
+  T.PublishRequest{_pubTopic} <- expectWill 2000000 wills
+  assertEqual "will" "will/disco-err" _pubTopic
