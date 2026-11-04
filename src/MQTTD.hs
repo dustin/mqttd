@@ -29,7 +29,7 @@ import           Data.Maybe                    (catMaybes, fromMaybe, isJust, li
 import           Data.Monoid                   (Sum (..))
 import           Data.String                   (IsString (..))
 import qualified Data.Text                     as Txt
-import           Data.Time.Clock               (NominalDiffTime, UTCTime, addUTCTime,
+import           Data.Time.Clock               (UTCTime, addUTCTime,
                                                 getCurrentTime)
 import           Data.Word                     (Word16)
 import           Effectful
