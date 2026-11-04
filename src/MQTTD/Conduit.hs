@@ -128,7 +128,7 @@ runMQTTDConduit (src, sink, addr) = runConduit $ do
 
       wdch <- liftIO newTChanIO
       w <- traverse (\to -> async $ watchdog to wdch _sessionID tid) (keepAliveTimeout pl _keepAlive)
-      o <- async $ processOut pl _sessionChan
+      o <- async $ processOut pl sess
       i <- async $ E.finally (processIn wdch sess pl `E.onException` logConn "process exception" req) (teardown pl cid req)
       retransmit sess
       void $ waitAnyCancel ([i, o] <> maybeToList w)
@@ -171,8 +171,14 @@ runMQTTDConduit (src, sink, addr) = runConduit $ do
     deliverConnACK pl existing cprops = runConduit $
       yield (T.ConnACKPkt $ T.ConnACKFlags existing T.ConnAccepted cprops) .| commonOut pl
 
-    processOut pl ch = runConduit $
-      C.repeatM (atomically $ readTBQueue ch) .| commonOut pl
+    processOut pl Session{..} = runConduit $
+      C.repeatM (atomically $ readTBQueue _sessionChan >>= sending) .| commonOut pl
+      where
+        -- Once a PUBLISH goes out, sending it again is a resend, so the
+        -- copy kept for retransmission gets DUP=1 [MQTT-3.3.1-1].
+        sending p@(T.PublishPkt T.PublishRequest{_pubQoS, _pubPktID})
+          | _pubQoS > T.QoS0 = p <$ modifyTVar' _sessionQP (Map.adjust (_2 . T.pubDup .~ True) _pubPktID)
+        sending p = pure p
 
     teardown :: (IOE :> es, MQTTD :> es) => T.ProtocolLevel -> ClientID -> T.ConnectRequest -> Eff es ()
     teardown pl cid c@T.ConnectRequest{..} = do
@@ -210,7 +216,8 @@ runMQTTDConduit (src, sink, addr) = runConduit $ do
         modifyTVar' _sessionQP (Map.filter (stillValid now))
         (t, bl) <- splitAt (min defaultQueueSize (fromIntegral tokens)) . Map.elems <$> readTVar _sessionQP
         modifyTVar' _sessionFlight (subtract . fromIntegral . length $ t)
-        mapM_ (sendPacket _sessionChan . T.PublishPkt . set T.pubDup True . uncurry (adjExpiry now)) t
+        -- DUP is already set on the ones that were sent before.
+        mapM_ (sendPacket _sessionChan . T.PublishPkt . uncurry (adjExpiry now)) t
         pure bl
       -- The backlog is processed as space frees up in its queue.
       allSessions <- asks sessions
@@ -218,7 +225,7 @@ runMQTTDConduit (src, sink, addr) = runConduit $ do
         where
           art now allSessions (_, p) = do
               guard =<< isClientConnected _sessionID allSessions
-              writeTBQueue _sessionBacklog (deadline now p, p{T._pubDup=True})
+              writeTBQueue _sessionBacklog (deadline now p, p)
 
           stillValid now (Just t, _) = now < t
           stillValid _ _             = True

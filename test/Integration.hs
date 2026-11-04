@@ -1205,3 +1205,29 @@ unit_takeoverOfTransientSession311 = takeoverOfTransientSession T.Protocol311 "t
 
 unit_takeoverOfTransientSession50 :: Assertion
 unit_takeoverOfTransientSession50 = takeoverOfTransientSession T.Protocol50 "t5-50"
+
+-- L3: DUP is 0 on a PUBLISH's first transmission, even when it was
+-- queued for a disconnected session, and 1 when it's resent
+-- [MQTT-3.3.1-1].
+unit_queuedFirstDeliveryNotDup :: Assertion
+unit_queuedFirstDeliveryNotDup = withTestService $ \u -> do
+  let req = sessionReq T.Protocol311 "l3-queued"
+  withRawConn u T.Protocol311 req $ \rc -> rawSubscribe rc "l3/q" T.QoS1
+  pubber <- MC.connectURI MC.mqttConfig u
+  MC.publishq pubber "l3/q" "x" False MC.QoS1 []
+  withRawConn u T.Protocol311 req $ \rc -> do
+    T.PublishRequest{_pubDup} <- rawExpectPublish rc
+    assertBool "first transmission has DUP=0" (not _pubDup)
+
+unit_resentDeliveryIsDup :: Assertion
+unit_resentDeliveryIsDup = withTestService $ \u -> do
+  let req = sessionReq T.Protocol311 "l3-resent"
+  withRawConn u T.Protocol311 req $ \rc -> do
+    rawSubscribe rc "l3/r" T.QoS1
+    pubber <- MC.connectURI MC.mqttConfig u
+    MC.publishq pubber "l3/r" "x" False MC.QoS1 []
+    T.PublishRequest{_pubDup} <- rawExpectPublish rc
+    assertBool "first transmission has DUP=0" (not _pubDup)
+  withRawConn u T.Protocol311 req $ \rc -> do
+    T.PublishRequest{_pubDup} <- rawExpectPublish rc
+    assertBool "resend has DUP=1" _pubDup
