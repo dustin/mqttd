@@ -124,6 +124,9 @@ classifyTopic :: T.Filter -> TopicType
 classifyTopic f@(T.unFilter -> txt)
   | "$share/" `Txt.isPrefixOf` txt = case Txt.break (== '/') (Txt.drop 7 txt) of
                                        (_, "") -> InvalidTopic
+                                       -- A share name is at least one character, with no
+                                       -- wildcards [MQTT-4.8.2-1].
+                                       (n, _) | Txt.null n || Txt.any (`elem` ['+', '#']) n -> InvalidTopic
                                        (n, f')  -> case (T.mkFilter . Txt.drop 1) f' of
                                                     Just f'' -> SharedSubscription n f''
                                                     _        -> InvalidTopic

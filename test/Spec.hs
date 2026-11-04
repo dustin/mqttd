@@ -128,7 +128,13 @@ unit_topicClassification = mapM_ aTest [
   ("a/b", Normal "a/b"),
   ("$share/x", InvalidTopic),
   ("$share/a/b", SharedSubscription "a" "b"),
-  ("$share/a/b/c", SharedSubscription "a" "b/c")
+  ("$share/a/b/c", SharedSubscription "a" "b/c"),
+  -- K2: A share name is at least one character, with no wildcards
+  -- [MQTT-4.8.2-1].
+  ("$share//x", InvalidTopic),
+  ("$share/+/x", InvalidTopic),
+  ("$share/#/x", InvalidTopic),
+  ("$share/a+/x", InvalidTopic)
   ]
   where
     aTest (i, want) = assertEqual (show i) want (classifyTopic i)

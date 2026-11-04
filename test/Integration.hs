@@ -1151,3 +1151,18 @@ unit_unsupportedLevelMQTT31 = unsupportedLevel "MQIsdp" 3 T.Protocol311 T.Unacce
 
 unit_unsupportedLevelFuture :: Assertion
 unit_unsupportedLevelFuture = unsupportedLevel "MQTT" 6 T.Protocol50 T.ConnUnsupportedProtocolVersion
+
+-- K2: Subscribing with an empty share name fails [MQTT-4.8.2-1], and
+-- doesn't break delivery afterwards.
+unit_emptyShareName :: Assertion
+unit_emptyShareName = withTestService $ \u -> do
+  (c, _) <- countingClient u
+  (r, _) <- MC.subscribe c [("$share//k2", MC.subOptions)] []
+  case r of
+    [Left _] -> pure ()
+    x -> assertFailure ("expected the subscription to fail, got " <> show x)
+  (c2, mv) <- countingClient u
+  _ <- MC.subscribe c2 [("k2", MC.subOptions)] []
+  pubber <- MC.connectURI MC.mqttConfig u
+  MC.publishq pubber "k2" "x" False MC.QoS0 []
+  awaitCount mv "k2" 1
