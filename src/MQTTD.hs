@@ -279,7 +279,7 @@ subscribe sess@Session{..} (T.SubscribeRequest pid topics props) = do
       | Map.member t existing = pure ()
     doRetained p _ (t, ops) = mapM_ (sendOne ops) =<< matchRetained p t
 
-    props' = filter isSubAckProp props
+    props' = ackProps sess (filter isSubAckProp props)
         where
         isSubAckProp (T.PropUserProperty _ _) = True
         isSubAckProp (T.PropReasonString _)   = True
@@ -673,6 +673,15 @@ releasePubSlot now ss sess@Session{..} = do
     -- If it wasn't sent (e.g. it's too big), the slot is still free.
     deliverOrNext p = deliver ss sess p >>= \sent -> unless sent getOne
 
+-- | Properties for an ack.  A client that set Request Problem
+-- Information to 0 gets no Reason String or User Properties on anything
+-- but PUBLISH, CONNACK and DISCONNECT [MQTT-3.1.2-29].
+ackProps :: Session -> [T.Property] -> [T.Property]
+ackProps Session{_sessionClient} props
+  | Just 0 <- _sessionClient ^? _Just . clientConnReq . properties . folded . _PropRequestProblemInformation =
+      filter (\case T.PropUserProperty{} -> False; T.PropReasonString{} -> False; _ -> True) props
+  | otherwise = props
+
 -- | Whether the session's connected client speaks MQTT 5.0.
 sessionIs50 :: Session -> Bool
 sessionIs50 Session{_sessionClient} = (_sessionClient ^? _Just . clientProtocol) == Just T.Protocol50
@@ -747,7 +756,7 @@ dispatch sess (T.SubscribePkt req) = subscribe sess req
 
 dispatch sess@Session{..} (T.UnsubscribePkt (T.UnsubscribeRequest pid subs props)) = do
   uns <- unsubscribe sess subs
-  sendPacketIO_ _sessionChan (T.UnsubACKPkt (T.UnsubscribeResponse pid props uns))
+  sendPacketIO_ _sessionChan (T.UnsubACKPkt (T.UnsubscribeResponse pid (ackProps sess props) uns))
 
 dispatch sess@Session{..} (T.PublishPkt req) = resolveAliasIn sess req >>= either protocolError pub
 

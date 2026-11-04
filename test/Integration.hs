@@ -1686,3 +1686,39 @@ unit_willFlagWithoutWill = withTestService $ \u -> withRawSocket u T.Protocol311
   timeout 2000000 (rawRecvMaybe rc) >>= \case
     Just Nothing -> pure ()
     x -> assertFailure ("expected the connection to close, got " <> show x)
+
+-- T8: The will from a DISCONNECT 0x04 is sent when the server closes the
+-- connection, not whenever the client gets around to it.
+unit_disconnectWithWillPrompt :: Assertion
+unit_disconnectWithWillPrompt = withTestService $ \u -> do
+  wills <- willWatcher u
+  withRawConn u T.Protocol50 (willReq "dww-prompt" True [] []) $ \rc -> do
+    rawSend rc (T.DisconnectPkt (T.DisconnectRequest T.DiscoDisconnectWithWill []))
+    T.PublishRequest{_pubTopic} <- expectWill 1000000 wills
+    assertEqual "will" "will/dww-prompt" _pubTopic
+
+-- T6: With Request Problem Information 0, User Properties only go on
+-- PUBLISH, CONNACK and DISCONNECT, so not on SUBACK [MQTT-3.1.2-29].
+subAckProps :: [T.Property] -> [T.Property] -> Assertion
+subAckProps cprops want = withTestService $ \u ->
+  withRawConn u T.Protocol50 T.connectRequest{T._connID="t6", T._connProperties=cprops} $ \rc -> do
+    rawSend rc (T.SubscribePkt (T.SubscribeRequest 1 [("t6/t", T.subOptions)] [T.PropUserProperty "k" "v"]))
+    rawRecvWithin rc >>= \case
+      T.SubACKPkt (T.SubscribeResponse _ _ props) -> assertEqual "SUBACK properties" want props
+      x -> assertFailure ("expected SUBACK, got " <> show x)
+
+unit_subAckNoUserPropsWithoutProblemInfo :: Assertion
+unit_subAckNoUserPropsWithoutProblemInfo = subAckProps [T.PropRequestProblemInformation 0] []
+
+unit_subAckUserPropsByDefault :: Assertion
+unit_subAckUserPropsByDefault = subAckProps [] [T.PropUserProperty "k" "v"]
+
+-- T6: ...and not on UNSUBACK either.
+unit_unsubAckNoUserPropsWithoutProblemInfo :: Assertion
+unit_unsubAckNoUserPropsWithoutProblemInfo = withTestService $ \u ->
+  withRawConn u T.Protocol50 T.connectRequest{T._connID="t6-unsub",
+                                              T._connProperties=[T.PropRequestProblemInformation 0]} $ \rc -> do
+    rawSend rc (T.UnsubscribePkt (T.UnsubscribeRequest 1 ["t6/t"] [T.PropUserProperty "k" "v"]))
+    rawRecvWithin rc >>= \case
+      T.UnsubACKPkt (T.UnsubscribeResponse _ props _) -> assertEqual "UNSUBACK properties" [] props
+      x -> assertFailure ("expected UNSUBACK, got " <> show x)
