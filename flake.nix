@@ -23,6 +23,7 @@
               pkgs.pkg-config
               pkgs.sqlite-interactive
               pkgs.hlint
+              pkgs.hpack
               pkgs.stylish-haskell
               pkgs.ghcid
             ];

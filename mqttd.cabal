@@ -4,10 +4,10 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 43b9ed37ec6cafb7d8e13b0aa9c0e641d3e4f0a5746e350ce47e1cd7ba7f220f
+-- hash: cb3d9095e42ef4c1401ffbf523fd952e1d70e0eb0c3b940dba673967b26edbfc
 
 name:           mqttd
-version:        0.9.5.1
+version:        0.9.6.0
 description:    Please see the README on GitHub at <https://github.com/dustin/mqttd#readme>
 homepage:       https://github.com/dustin/mqttd#readme
 bug-reports:    https://github.com/dustin/mqttd/issues
@@ -230,8 +230,8 @@ test-suite mqttd-test
       DataKinds
       ConstraintKinds
   ghc-options: -Wall -threaded -rtsopts -with-rtsopts=-N
-  build-tool-depends:
-      mqttd:mqttd
+  build-tools:
+      mqttd
   build-depends:
       HUnit
     , QuickCheck

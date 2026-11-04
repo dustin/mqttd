@@ -6,6 +6,7 @@ mkShell {
     ffmpeg
     stylish-haskell
     hlint
+    hpack
     niv
     ghcid
     haskell-language-server
