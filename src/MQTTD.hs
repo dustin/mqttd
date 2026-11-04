@@ -373,6 +373,8 @@ registerClient pl req@T.ConnectRequest{..} i o = do
     pure (o', ruse, ns, discarded, replacedWill clean =<< s)
   -- The cascade removes the discarded session's persisted subscriptions.
   when (isJust discarded) $ deleteSession k
+  -- A persistent session is stored with its current will and expiry.
+  unless (endsWithConnection nc) $ storeSession ns
   mapM_ (publishWill k) oldWill
   case o' of
     Nothing                  -> pure ()
@@ -425,7 +427,7 @@ expireSession k = do
             writeTVar ss (Map.insert k sess' m)
             pure (Just w, Just sess')
       current -> pure (Nothing, current)
-  mapM_ (publishWill k) due
+  mapM_ (\w -> publishWill k w >> clearWill k) due
   possiblyCleanup now current
 
   where
@@ -474,10 +476,6 @@ expireSession k = do
     sessionDied Session{_sessionWill=Just w} = do
       logDbgL ["Session with will ", tshow k, " has died"]
       publishWill k w
-
--- | The Will Delay Interval of a will (0 if absent, as always in 3.1.1).
-willDelay :: T.LastWill -> NominalDiffTime
-willDelay w = maybe 0 fromIntegral (T._willProps w ^? folded . _PropWillDelayInterval)
 
 -- | The PUBLISH a will is sent as.  Will Delay Interval is only a will
 -- property and isn't allowed on PUBLISH [5.0 §3.3.2.3].
@@ -819,6 +817,9 @@ dispatch sess@Session{..} (T.DisconnectPkt (T.DisconnectRequest reason props)) =
       mapM_ (\x -> modifySession sid (Just . over (sessionClient . _Just . clientConnReq . properties) (setExpiry x))) discoExp
       -- A normal disconnection discards the will [MQTT-3.14.4-3].
       when (reason == T.DiscoNormalDisconnection) $ modifySession sid (Just . set sessionWill Nothing)
+      -- Persist the will and expiry as they are now.
+      current <- Map.lookup sid <$> (readTVarIO =<< asks sessions)
+      mapM_ storeSession (mfilter (\Session{_sessionClient=c} -> maybe False (not . endsWithConnection) c) current)
 
     where
       setExpiry x ps = T.PropSessionExpiryInterval x : filter (hasn't _PropSessionExpiryInterval) ps

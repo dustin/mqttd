@@ -97,6 +97,10 @@ makeLenses ''Session
 defaultSessionExp :: NominalDiffTime
 defaultSessionExp = 300
 
+-- | The Will Delay Interval of a will (0 if absent, as always in 3.1.1).
+willDelay :: T.LastWill -> NominalDiffTime
+willDelay w = maybe 0 fromIntegral (T._willProps w ^? folded . _PropWillDelayInterval)
+
 data Authorizer = Authorizer {
   _authUsers :: Map BL.ByteString User,
   _authAnon  :: Bool

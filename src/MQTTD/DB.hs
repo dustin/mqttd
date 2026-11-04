@@ -44,6 +44,7 @@ import           Scheduler                        (QueueID (..))
 
 
 data DBOperation = DeleteSession SessionID
+                 | ClearWill SessionID
                  | StoreSession Session
                  | DeleteRetained BLTopic
                  | StoreRetained Retained
@@ -124,11 +125,13 @@ runOperations = do
                                 either (\e' -> logErrorL ["Failed to store ", opName op, ": ", tshow e'])
                                        pure) ops
             store1 (DeleteSession i)  = deleteSessionL db i
+            store1 (ClearWill i)      = clearWillL db i
             store1 (DeleteRetained i) = deleteRetainedL db i
             store1 (StoreSession i)   = storeSessionL db i
             store1 (StoreRetained i)  = storeRetainedL db i
 
             opName (DeleteSession i)  = "session deletion for " <> tshow i
+            opName (ClearWill i)      = "will clearing for " <> tshow i
             opName (DeleteRetained i) = "retained deletion for " <> tshow i
             opName (StoreSession i)   = "session " <> tshow (_sessionID i)
             opName (StoreRetained i)  = "retained message for " <> tshow (T._pubTopic (_retainMsg i))
@@ -140,6 +143,15 @@ writeDBQueue o = dbQueue >>= \q -> writeTBQueueIO q o
 
 deleteSessionL :: MonadIO m => Connection -> SessionID -> m ()
 deleteSessionL db sid = liftIO $ execute db "delete from sessions where session_id = ?" (Only sid)
+
+-- | Forget a session's stored will (once it's been sent).
+clearWill :: (IOE :> es, DB :> es) => SessionID -> Eff es ()
+clearWill = writeDBQueue . ClearWill
+
+clearWillL :: MonadIO m => Connection -> SessionID -> m ()
+clearWillL db sid = liftIO $ execute db [r|update sessions set will_topic = null, will_retain = null, will_qos = null,
+                                                              will_body = null, will_props = null
+                                           where session_id = ?|] (Only sid)
 
 deleteSession :: (IOE :> es, DB :> es) => SessionID -> Eff es ()
 deleteSession = writeDBQueue . DeleteSession
@@ -254,9 +266,10 @@ loadSessions = liftIO . fetch =<< dbConn
           let _sessionACL = mempty
               _sessionClient = Nothing
               _sessionWill = will
-              -- The stored will isn't cleared by DISCONNECT, so a restored
-              -- session's will is only sent if the session expires.
-              _sessionWillAt = Nothing
+              -- The restart ended the session's connection, if it had
+              -- one, so its will is due after its delay [5.0 §3.1.2.5].
+              -- (A will that was discarded or sent isn't stored.)
+              _sessionWillAt = (\w -> addUTCTime (willDelay w) now) <$> will
               _sessionExpires = Just (addUTCTime (fromIntegral _sts_expiry) now)
               _sessionID = _sts_sessionID
           _sessionChan <- newTBQueueIO defaultQueueSize

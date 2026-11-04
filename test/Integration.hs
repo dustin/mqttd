@@ -611,7 +611,11 @@ withTempDB f = do
 
 -- | Wait for a session's subscriptions to be written to the DB.
 waitForStoredSubs :: FilePath -> BL.ByteString -> Assertion
-waitForStoredSubs path cid = timeout 2000000 loop >>= maybe (assertFailure "subscription never stored") pure
+waitForStoredSubs = waitForDB "subscription never stored" "select count(*) from session_subs where session_id = ?"
+
+-- | Wait for a count query about a session to find something.
+waitForDB :: String -> SQL.Query -> FilePath -> BL.ByteString -> Assertion
+waitForDB msg q path cid = timeout 2000000 loop >>= maybe (assertFailure msg) pure
   where
     loop = do
       n <- count `catch` \e -> case SQL.sqlError e of
@@ -619,7 +623,7 @@ waitForStoredSubs path cid = timeout 2000000 loop >>= maybe (assertFailure "subs
                                 _             -> E.throwIO e
       unless (n > 0) $ threadDelay 10000 >> loop
     count = SQL.withConnection path $ \db -> do
-      [SQL.Only (n :: Int)] <- SQL.query db "select count(*) from session_subs where session_id = ?" (SQL.Only cid)
+      [SQL.Only (n :: Int)] <- SQL.query db q (SQL.Only cid)
       pure n
 
 -- H3: ...and across a restart.
@@ -1510,3 +1514,63 @@ unit_dbWriterSurvivesErrors = withTempDB $ \path -> do
     withRawConn u T.Protocol311 (sessionReq T.Protocol311 "db-survives") $ \rc -> do
       rawSubscribe rc "db/t" T.QoS1
       waitForStoredSubs path "db-survives"
+
+-- * Wills across restarts
+
+willStored, willCleared :: FilePath -> BL.ByteString -> Assertion
+willStored = waitForDB "will never stored" "select count(*) from sessions where session_id = ? and will_topic is not null"
+willCleared = waitForDB "will never cleared" "select count(*) from sessions where session_id = ? and will_topic is null"
+
+persistConf :: FilePath -> Config
+persistConf path = testConfig{_confPersist = PersistenceConfig path}
+
+-- A restart ends every connection, so a restored session's will is
+-- sent after its Will Delay, not when the session expires
+-- [5.0 §3.1.2.5], [MQTT-3.1.2-8].
+unit_willAfterRestart :: Assertion
+unit_willAfterRestart = withTempDB $ \path -> do
+  let req = willReq "rw-restart" False [T.PropSessionExpiryInterval 60] [T.PropWillDelayInterval 1]
+  withTestServiceConfig (persistConf path) $ \u ->
+    withRawConn u T.Protocol50 req $ \_ -> willStored path "rw-restart"
+  withTestServiceConfig (persistConf path) $ \u -> do
+    wills <- willWatcher u
+    T.PublishRequest{_pubTopic} <- expectWill 3000000 wills
+    assertEqual "will" "will/rw-restart" _pubTopic
+
+-- ...but not a will the client discarded with a normal DISCONNECT
+-- [MQTT-3.14.4-3]...
+unit_noDiscardedWillAfterRestart :: Assertion
+unit_noDiscardedWillAfterRestart = withTempDB $ \path -> do
+  let req = willReq "rw-discarded" False [T.PropSessionExpiryInterval 60] [T.PropWillDelayInterval 1]
+  withTestServiceConfig (persistConf path) $ \u -> do
+    withRawConn u T.Protocol50 req $ \rc -> do
+      willStored path "rw-discarded"
+      rawSend rc (T.DisconnectPkt (T.DisconnectRequest T.DiscoNormalDisconnection []))
+    willCleared path "rw-discarded"
+  withTestServiceConfig (persistConf path) $ \u -> do
+    wills <- willWatcher u
+    expectNoWill 3000000 wills
+
+-- ...or one that was already sent.
+unit_sentWillNotResentAfterRestart :: Assertion
+unit_sentWillNotResentAfterRestart = withTempDB $ \path -> do
+  let req = willReq "rw-sent" False [T.PropSessionExpiryInterval 60] [T.PropWillDelayInterval 1]
+  withTestServiceConfig (persistConf path) $ \u -> do
+    wills <- willWatcher u
+    withRawConn u T.Protocol50 req $ \_ -> willStored path "rw-sent"
+    _ <- expectWill 3000000 wills
+    willCleared path "rw-sent"
+  withTestServiceConfig (persistConf path) $ \u -> do
+    wills <- willWatcher u
+    expectNoWill 3000000 wills
+
+-- A Session Expiry Interval set on DISCONNECT is persisted, so it
+-- survives a restart [5.0 §3.14.2.2.2].
+unit_disconnectSessionExpiryPersisted :: Assertion
+unit_disconnectSessionExpiryPersisted = withTempDB $ \path -> do
+  let req = (sessionReq T.Protocol50 "rw-expiry"){T._connProperties=[T.PropSessionExpiryInterval 1]}
+  withTestServiceConfig (persistConf path) $ \u -> do
+    withRawConn u T.Protocol50 req $ \rc -> do
+      rawSubscribe rc "rw/t" T.QoS1
+      rawSend rc (T.DisconnectPkt (T.DisconnectRequest T.DiscoNormalDisconnection [T.PropSessionExpiryInterval 60]))
+    waitForDB "expiry never stored" "select count(*) from sessions where session_id = ? and expiry = 60" path "rw-expiry"
