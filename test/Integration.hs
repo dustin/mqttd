@@ -5,7 +5,7 @@ module Integration where
 import           Test.Tasty.HUnit
 
 import           Control.Concurrent     (threadDelay)
-import           Control.Concurrent.STM (TChan, check, modifyTVar', newTChanIO,
+import           Control.Concurrent.STM (TChan, TVar, check, modifyTVar', newTChanIO,
                                          newTVarIO, orElse, readTChan, readTVar,
                                          readTVarIO, registerDelay, retry,
                                          writeTChan, writeTVar)
@@ -694,3 +694,56 @@ unit_nothingResentAfterPubcomp = withTestService $ \u -> do
   withRawConn u T.Protocol311 req $ \rc -> do
     assertEqual "session present" T.ExistingSession (rawSessionPresent rc)
     timeout 500000 (rawRecv rc) >>= mapM_ (\x -> assertFailure ("unexpected resend: " <> show x))
+
+-- * Shared subscriptions
+
+-- | Count messages received, by topic.
+countingClient :: TestServer -> IO (MC.MQTTClient, TVar (Map.Map Topic Int))
+countingClient u = do
+  mv <- newTVarIO mempty
+  c <- MC.connectURI MC.mqttConfig{_protocol=MC.Protocol50,
+                                   _msgCB=MC.OrderedCallback (\_ t _ _ -> atomically $ modifyTVar' mv (Map.insertWith (+) t 1))} u
+  pure (c, mv)
+
+awaitCount :: TVar (Map.Map Topic Int) -> Topic -> Int -> Assertion
+awaitCount mv t n = do
+  to <- registerDelay 2000000
+  r <- atomically $ ((readTVar to >>= check) >> (Left <$> readTVar mv)) `orElse` do
+    m <- readTVar mv
+    check (Map.findWithDefault 0 t m >= n)
+    pure (Right ())
+  either (\m -> assertFailure ("timed out waiting for " <> show n <> " of " <> show t <> ": " <> show m)) pure r
+
+-- K1: Unsubscribing from a shared subscription removes only that
+-- session; the other members keep getting messages [MQTT-3.10.4-1].
+unit_unsubSharedKeepsOthers :: Assertion
+unit_unsubSharedKeepsOthers = withTestService $ \u -> do
+  (c1, _) <- countingClient u
+  (c2, mv2) <- countingClient u
+  mapM_ (\c -> MC.subscribe c [("$share/g/k1/t", MC.subOptions)] []) [c1, c2]
+  _ <- MC.unsubscribe c1 ["$share/g/k1/t"] []
+  pubber <- MC.connectURI MC.mqttConfig u
+  mapM_ (\i -> MC.publishq pubber "k1/t" (BL.pack [i]) False MC.QoS0 []) [1..10]
+  awaitCount mv2 "k1/t" 10
+
+-- K1: ...and only from the named group.
+unit_unsubSharedOnlyThatGroup :: Assertion
+unit_unsubSharedOnlyThatGroup = withTestService $ \u -> do
+  (c, mv) <- countingClient u
+  _ <- MC.subscribe c [("$share/a/k1/x", MC.subOptions), ("$share/b/k1/x", MC.subOptions),
+                       ("k1/canary", MC.subOptions)] []
+  _ <- MC.unsubscribe c ["$share/a/k1/x"] []
+  pubber <- MC.connectURI MC.mqttConfig u
+  MC.publishq pubber "k1/x" "x" False MC.QoS0 []
+  MC.publishq pubber "k1/canary" "c" False MC.QoS0 []
+  awaitCount mv "k1/canary" 1
+  m <- readTVarIO mv
+  assertEqual "delivered once, via group b" 1 (Map.findWithDefault 0 "k1/x" m)
+
+-- K1: UNSUBACK reports what was actually removed.
+unit_unsubSharedUnsuback :: Assertion
+unit_unsubSharedUnsuback = withTestService $ \u -> do
+  (c, _) <- countingClient u
+  _ <- MC.subscribe c [("$share/g/k1/t", MC.subOptions)] []
+  r <- MC.unsubscribe c ["$share/g/k1/t", "$share/g/k1/nope"] []
+  assertEqual "unsuback" ([T.UnsubSuccess, T.UnsubNoSubscriptionExisted], []) r

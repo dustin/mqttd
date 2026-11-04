@@ -261,10 +261,11 @@ removeSubs sharedt subt sid ts = do
 
   where
     up l s = foldr (\(t,_) -> SubTree.modify t (Map.delete sid <$>)) s l
-    upShared l s = foldr (\(t,_,_) s' -> maybe s' (\t' -> SubTree.modify t' cleanShared s') (T.mkFilter t)) s l
+    upShared l s = foldr (\(n,f,_) -> SubTree.modify f (cleanShared n)) s l
       where
-        -- Drop this session from each share group, and drop groups left empty.
-        cleanShared = fmap (Map.filter (not . null) . fmap (filter ((/= sid) . fst)))
+        -- Drop this session from the named share group (only), and drop
+        -- the group if it's left empty.
+        cleanShared n = fmap (Map.filter (not . null) . Map.adjust (filter ((/= sid) . fst)) n)
 
 unsubscribe :: (IOE :> es, MQTTD :> es, Stats :> es) => Session -> [BLFilter] -> Eff es [T.UnsubStatus]
 unsubscribe Session{..} topics = asks allSubs >>= \subs -> asks sharedSubs >>= \ssubs -> getStatStore >>= \st ->
