@@ -250,7 +250,9 @@ runMQTTDConduit (src, sink, addr) = runConduit $ do
         mapM_ (\p -> sendPacket _sessionChan (T.PubRELPkt (T.PubREL p 0 mempty))) rel
         modifyTVar' _sessionFlight (\x -> x - min x (fromIntegral (length rel)))
         tokens <- readTVar _sessionFlight
-        modifyTVar' _sessionQP (Map.filter (stillValid now))
+        -- Expired messages are dropped, and so are ones too big for this
+        -- connection, as if they'd been delivered [MQTT-3.1.2-25].
+        modifyTVar' _sessionQP (Map.filter (\e -> stillValid now e && not (tooBig e)))
         (t, bl) <- splitAt (min defaultQueueSize (fromIntegral tokens)) . Map.elems <$> readTVar _sessionQP
         modifyTVar' _sessionFlight (subtract . fromIntegral . length $ t)
         -- DUP is already set on the ones that were sent before.
@@ -264,6 +266,8 @@ runMQTTDConduit (src, sink, addr) = runConduit $ do
           art allSessions dp = do
               guard =<< isClientConnected _sessionID allSessions
               writeTBQueue _sessionBacklog dp
+
+          tooBig (_, p) = maybe False (`tooLargeFor` p) _sessionClient
 
           stillValid now (Just t, _) = now < t
           stillValid _ _             = True

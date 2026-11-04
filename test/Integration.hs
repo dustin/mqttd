@@ -1574,3 +1574,20 @@ unit_disconnectSessionExpiryPersisted = withTempDB $ \path -> do
       rawSubscribe rc "rw/t" T.QoS1
       rawSend rc (T.DisconnectPkt (T.DisconnectRequest T.DiscoNormalDisconnection [T.PropSessionExpiryInterval 60]))
     waitForDB "expiry never stored" "select count(*) from sessions where session_id = ? and expiry = 60" path "rw-expiry"
+
+-- M8: Messages resent when a session resumes are held to the new
+-- connection's Maximum Packet Size too [MQTT-3.1.2-24], [MQTT-3.1.2-25].
+unit_maximumPacketSizeOnResend :: Assertion
+unit_maximumPacketSizeOnResend = withTestService $ \u -> do
+  let req = sessionReq T.Protocol50 "m8-resend"
+  withRawConn u T.Protocol50 req $ \rc -> do
+    rawSubscribe rc "m8r/#" T.QoS1
+    pubber <- MC.connectURI MC.mqttConfig{_protocol=MC.Protocol50} u
+    MC.publishq pubber "m8r/big" (BL.replicate 200 0x78) False MC.QoS1 []
+    _ <- rawExpectPublish rc -- not acked
+    pure ()
+  withRawConn u T.Protocol50 req{T._connProperties=T.PropMaximumPacketSize 100 : T._connProperties req} $ \rc -> do
+    pubber <- MC.connectURI MC.mqttConfig{_protocol=MC.Protocol50} u
+    MC.publishq pubber "m8r/small" "small" False MC.QoS1 []
+    T.PublishRequest{_pubTopic} <- rawExpectPublish rc
+    assertEqual "oversize message not resent" "m8r/small" _pubTopic
