@@ -24,7 +24,7 @@ import qualified Data.Conduit.Combinators as C
 import           Data.Conduit.Network     (AppData, appSink, appSockAddr, appSource)
 import           Data.Functor             (($>))
 import qualified Data.Map.Strict          as Map
-import           Data.Maybe               (maybeToList)
+import           Data.Maybe               (isNothing, maybeToList)
 import qualified Data.Set                 as Set
 import           Data.String              (IsString (..))
 import           Data.Text                (Text, intercalate, pack, unpack)
@@ -34,6 +34,7 @@ import qualified Data.UUID                as UUID
 import           Effectful
 import           Effectful.Fail
 import qualified Network.MQTT.Lens        as T
+import           Network.MQTT.Topic       (mkTopic)
 import qualified Network.MQTT.Types       as T
 import qualified Network.WebSockets       as WS
 import           System.Random            (randomIO)
@@ -96,6 +97,15 @@ runMQTTDConduit (src, sink, addr) = runConduit $ do
       | any (has T._PropAuthenticationMethod) props = do
           logInfoL ["Rejecting unsupported authentication method from ", addr]
           runConduit $ yield (T.ConnACKPkt $ T.ConnACKFlags T.NewSession T.ConnBadAuthenticationMethod []) .| commonOut T.Protocol50
+
+    -- A will topic is a topic name: not empty, and no wildcards
+    -- [MQTT-4.7.3-1], [MQTT-3.1.3-11].  3.1.1 has no CONNACK code for
+    -- it, so the connection is just closed.
+    run pl _ (T.ConnPkt T.ConnectRequest{T._lastWill=Just T.LastWill{T._willTopic}} _) _
+      | isNothing (mkTopic (blToText _willTopic)) = do
+          logInfoL ["Rejecting invalid will topic ", tshow _willTopic, " from ", addr]
+          when (pl == T.Protocol50) $
+            runConduit $ yield (T.ConnACKPkt $ T.ConnACKFlags T.NewSession T.ConnTopicNameInvalid []) .| commonOut pl
 
     run pl cid (T.ConnPkt req _) nid = either (notAuthorized pl req) (const $ authorized pl cid req nid) =<< authorize req
 

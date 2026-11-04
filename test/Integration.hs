@@ -1231,3 +1231,37 @@ unit_resentDeliveryIsDup = withTestService $ \u -> do
   withRawConn u T.Protocol311 req $ \rc -> do
     T.PublishRequest{_pubDup} <- rawExpectPublish rc
     assertBool "resend has DUP=1" _pubDup
+
+-- T4: A will topic is a topic name, so it can't be empty or contain
+-- wildcards [MQTT-4.7.3-1], [MQTT-3.1.3-11].  3.1.1 has no CONNACK code
+-- for it, so the connection is just closed; 5.0 gets CONNACK 0x90.
+badWillReq :: BL.ByteString -> T.ConnectRequest
+badWillReq t = (willReq "t4" True [] []){T._lastWill=Just T.LastWill{
+  T._willRetain=False, T._willQoS=T.QoS0, T._willTopic=t, T._willMsg="gone", T._willProps=[]}}
+
+badWillTopic311 :: BL.ByteString -> Assertion
+badWillTopic311 t = withTestService $ \u -> withRawSocket u T.Protocol311 $ \rc -> do
+  rawSend rc (T.ConnPkt (badWillReq t) T.Protocol311)
+  timeout 2000000 (rawRecvMaybe rc) >>= \case
+    Just Nothing -> pure ()
+    x -> assertFailure ("expected the connection to close, got " <> show x)
+
+badWillTopic50 :: BL.ByteString -> Assertion
+badWillTopic50 t = withTestService $ \u ->
+  withRawConnAck u T.Protocol50 (badWillReq t) $ \(T.ConnACKFlags _ rc' _) rc -> do
+    assertEqual "CONNACK reason code" T.ConnTopicNameInvalid rc'
+    timeout 2000000 (rawRecvMaybe rc) >>= \case
+      Just Nothing -> pure ()
+      x -> assertFailure ("expected the connection to close, got " <> show x)
+
+unit_emptyWillTopic311 :: Assertion
+unit_emptyWillTopic311 = badWillTopic311 ""
+
+unit_wildcardWillTopic311 :: Assertion
+unit_wildcardWillTopic311 = badWillTopic311 "will/+"
+
+unit_emptyWillTopic50 :: Assertion
+unit_emptyWillTopic50 = badWillTopic50 ""
+
+unit_wildcardWillTopic50 :: Assertion
+unit_wildcardWillTopic50 = badWillTopic50 "will/#"
