@@ -1878,3 +1878,13 @@ unit_versionPublished = withTestService $ \u -> do
     rawSubscribe rc "$SYS/broker/version" T.QoS0
     T.PublishRequest{_pubBody} <- rawExpectPublish rc
     assertEqual "version" (BLC.pack ("mqttd " <> showVersion version <> " (" <> rev <> ")")) _pubBody
+
+-- $SYS/broker/uptime is how long the broker's been running, in seconds.
+unit_uptimePublished :: Assertion
+unit_uptimePublished = withTestService $ \u ->
+  withRawConn u T.Protocol311 T.connectRequest{T._connID="uptime"} $ \rc -> do
+    rawSubscribe rc "$SYS/broker/uptime" T.QoS0
+    T.PublishRequest{_pubBody} <- rawExpectPublish rc
+    case reads (BLC.unpack _pubBody) :: [(Integer, String)] of
+      [(n, "")] -> assertBool ("uptime of a server just started: " <> show n) (n >= 0 && n < 60)
+      _         -> assertFailure ("not a number of seconds: " <> show _pubBody)

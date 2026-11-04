@@ -33,7 +33,7 @@ import           Data.Maybe                    (catMaybes, fromMaybe, isJust,
 import qualified Data.Set                      as Set
 import           Data.String                   (IsString (..))
 import qualified Data.Text                     as Txt
-import           Data.Time.Clock               (UTCTime, addUTCTime,
+import           Data.Time.Clock               (UTCTime, addUTCTime, diffUTCTime,
                                                 getCurrentTime)
 import           Data.Word                     (Word16)
 import           Effectful
@@ -74,7 +74,9 @@ data Env = Env {
   -- | Response Information is this plus the client ID, for clients that ask.
   responsePrefix :: Maybe BL.ByteString,
   -- | Where to send every client instead, if anywhere [5.0 §4.11].
-  redirect    :: Maybe Redirect
+  redirect    :: Maybe Redirect,
+  -- | When the broker started, for $SYS/broker/uptime.
+  startTime   :: UTCTime
   }
 
 data MQTTD :: Effect where
@@ -95,6 +97,7 @@ newEnv = liftIO $ Env
          <*> pure noLimits
          <*> pure Nothing
          <*> pure Nothing
+         <*> getCurrentTime
 
 runMQTTD :: forall es a. Env -> Eff (MQTTD : es) a -> Eff es (a, Env)
 runMQTTD initialEnv = reinterpret (runState initialEnv) \_ -> \case
@@ -157,6 +160,7 @@ publishStats = do
     sleep = liftIO . threadDelay . seconds
 
     pubStats = do
+      pubUptime
       pubClients
       pubSubs
       pubRetained
@@ -165,6 +169,13 @@ publishStats = do
       when gce $ pubGCStats pubBS
 
     pub k = pubBS k . textToBL . tshow
+
+    -- Whole seconds since startup, as a bare number (easier to graph than
+    -- mosquitto's "N seconds").
+    pubUptime = do
+      start <- asks startTime
+      now <- liftIO getCurrentTime
+      pub "$SYS/broker/uptime" (floor (diffUTCTime now start) :: Integer)
 
     pubBS k v = broadcast Nothing (T.PublishRequest {
                                       T._pubDup=False,
