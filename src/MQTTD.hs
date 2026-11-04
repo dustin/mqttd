@@ -376,18 +376,13 @@ expireSession k = do
                                     _sessionExpires=Nothing}) = expireNow
     possiblyCleanup now (Just Session{_sessionClient=Nothing,
                                       _sessionExpires=Just ex,
-                                      _sessionWillAt=willAt,
-                                      _sessionSubs=subsv}) = do
-      subs <- readTVarIO subsv
-      if hasHighQoS subs && ex > now
-        then do
+                                      _sessionWillAt=willAt})
+      | ex > now = do
           void $ enqueue ex k
           -- Come back for a delayed will, unless the session ends first
           -- (which sends it).
           mapM_ (void . (`enqueue` k)) (mfilter (< ex) willAt)
-        else expireNow
-
-    hasHighQoS = isJust . preview (folded . subQoS . filtered (> T.QoS0))
+      | otherwise = expireNow
 
     expireNow = do
       now <- liftIO getCurrentTime
@@ -395,14 +390,12 @@ expireSession k = do
       kilt <- atomically $ do
         current <- Map.lookup k <$> readTVar ss
         case current of
-          Nothing -> pure Nothing
-          Just Session{_sessionExpires=Nothing} ->
+          -- Re-checked here, since the client may have reconnected.
+          Just Session{_sessionClient=Nothing, _sessionExpires=Nothing} ->
             modifyTVar' ss (Map.delete k) >> pure current
-          Just Session{_sessionExpires=Just ex, _sessionSubs=subsv} -> do
-            subs <- readTVar subsv
-            if not (hasHighQoS subs) || now >= ex
-              then modifyTVar' ss (Map.delete k) >> pure current
-              else pure Nothing
+          Just Session{_sessionClient=Nothing, _sessionExpires=Just ex}
+            | now >= ex -> modifyTVar' ss (Map.delete k) >> pure current
+          _ -> pure Nothing
       case kilt of
         Nothing -> logDbgL ["Nothing expired for ", tshow k]
         Just s@Session{..}  -> do

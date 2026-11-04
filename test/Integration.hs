@@ -9,14 +9,20 @@ import           Control.Concurrent.STM (TChan, check, modifyTVar', newTChanIO,
                                          newTVarIO, orElse, readTChan, readTVar,
                                          readTVarIO, registerDelay, retry,
                                          writeTChan, writeTVar)
-import           Control.Exception      (catch)
+import           Control.Exception      (catch, finally)
+import qualified Control.Exception      as E
+import qualified Data.UUID              as UUID
+import qualified Database.SQLite.Simple as SQL
+import           System.Directory       (getTemporaryDirectory, removeFile)
+import           System.Random          (randomIO)
+import           System.Timeout         (timeout)
 import qualified Data.Attoparsec.ByteString as A
 import qualified Data.ByteString        as BS
 import           Data.Conduit           (await, runConduit, yield, (.|))
 import           Data.Conduit.Network   (appSink, appSource, clientSettings,
                                          runTCPClient)
 import           Data.IORef             (newIORef, readIORef, writeIORef)
-import           Control.Monad          (replicateM)
+import           Control.Monad          (replicateM, unless)
 import qualified Data.ByteString.Lazy   as BL
 import           Data.List              (sort)
 import qualified Data.Map.Strict        as Map
@@ -371,9 +377,10 @@ unit_cleanSessionDropsOldSubs = withTestService $ \u -> do
 -- (e.g. drop the connection without sending DISCONNECT), which
 -- net-mqtt's client won't do.
 data RawConn = RawConn {
-  rawSend      :: T.MQTTPkt -> IO (),
-  rawSendBytes :: BS.ByteString -> IO (),
-  rawRecv      :: IO T.MQTTPkt
+  rawSend           :: T.MQTTPkt -> IO (),
+  rawSendBytes      :: BS.ByteString -> IO (),
+  rawRecv           :: IO T.MQTTPkt,
+  rawSessionPresent :: T.SessionReuse
   }
 
 -- | Connect, wait for a successful CONNACK and run the action.  The
@@ -389,22 +396,30 @@ withRawConn u pl req f = runTCPClient (clientSettings port "127.0.0.1") $ \ad ->
           go (A.Fail _ _ e)  = assertFailure ("parse error: " <> e)
           go (A.Partial k)   = runConduit (appSource ad .| await) >>=
                                maybe (assertFailure "connection closed") (go . k)
-      rc = RawConn send sendBytes recv
   send (T.ConnPkt req pl)
   recv >>= \case
-    T.ConnACKPkt (T.ConnACKFlags _ T.ConnAccepted _) -> f rc
+    T.ConnACKPkt (T.ConnACKFlags sp T.ConnAccepted _) -> f (RawConn send sendBytes recv sp)
     x -> assertFailure ("unexpected connect response: " <> show x)
   where
     port = read . drop 1 . uriPort . fromJust . uriAuthority $ u
 
--- | Subscribe to a QoS1 topic on a raw connection so the session
--- survives disconnection (sessions with only QoS0 subs don't; see H3).
-rawKeepSession :: RawConn -> IO ()
-rawKeepSession rc = do
-  rawSend rc (T.SubscribePkt (T.SubscribeRequest 1 [("keep/session", T.subOptions{T._subQoS=T.QoS1})] []))
+rawSubscribe :: RawConn -> BL.ByteString -> T.QoS -> IO ()
+rawSubscribe rc f q = do
+  rawSend rc (T.SubscribePkt (T.SubscribeRequest 1 [(f, T.subOptions{T._subQoS=q})] []))
   rawRecv rc >>= \case
     T.SubACKPkt _ -> pure ()
     x -> assertFailure ("unexpected subscribe response: " <> show x)
+
+-- | Give a raw connection's session a QoS1 subscription.
+rawKeepSession :: RawConn -> IO ()
+rawKeepSession rc = rawSubscribe rc "keep/session" T.QoS1
+
+-- | Receive a PUBLISH on a raw connection (skipping other packets).
+rawExpectPublish :: RawConn -> IO T.PublishRequest
+rawExpectPublish rc = timeout 2000000 go >>= maybe (assertFailure "no PUBLISH received") pure
+  where go = rawRecv rc >>= \case
+          T.PublishPkt p -> pure p
+          _              -> go
 
 willReq :: BL.ByteString -> Bool -> [T.Property] -> [T.Property] -> T.ConnectRequest
 willReq cid clean cprops wprops = T.connectRequest{
@@ -530,3 +545,76 @@ unit_willPropsOnPublish50 = withTestService $ \u -> do
   assertBool ("will delay forwarded: " <> show _pubProps) (T.PropWillDelayInterval 0 `notElem` _pubProps)
   assertBool ("content type missing: " <> show _pubProps) (T.PropContentType "text/plain" `elem` _pubProps)
   assertBool ("user property missing: " <> show _pubProps) (T.PropUserProperty "k" "v" `elem` _pubProps)
+
+-- * Session persistence
+
+-- H3: A session outlives its connection until it expires, whatever its
+-- subscriptions' QoS, and resumes with Session Present=1
+-- [MQTT-3.1.2-4] (3.1.1), [5.0 §3.1.2.11.2].
+sessionReq :: T.ProtocolLevel -> BL.ByteString -> T.ConnectRequest
+sessionReq pl cid = T.connectRequest{T._connID=cid, T._cleanSession=False,
+                                     T._connProperties=[T.PropSessionExpiryInterval 60 | pl == T.Protocol50]}
+
+qos0SessionSurvivesDisconnect :: T.ProtocolLevel -> BL.ByteString -> Assertion
+qos0SessionSurvivesDisconnect pl cid = withTestService $ \u -> do
+  withRawConn u pl (sessionReq pl cid) $ \rc -> rawSubscribe rc "h3/t" T.QoS0
+  withRawConn u pl (sessionReq pl cid) $ \rc -> do
+    assertEqual "session present" T.ExistingSession (rawSessionPresent rc)
+    pubber <- MC.connectURI MC.mqttConfig u
+    MC.publishq pubber "h3/t" "hello" False MC.QoS0 []
+    T.PublishRequest{..} <- rawExpectPublish rc
+    assertEqual "delivered on the resumed subscription" "h3/t" _pubTopic
+
+unit_qos0SessionSurvivesDisconnect311 :: Assertion
+unit_qos0SessionSurvivesDisconnect311 = qos0SessionSurvivesDisconnect T.Protocol311 "qos0-311"
+
+unit_qos0SessionSurvivesDisconnect50 :: Assertion
+unit_qos0SessionSurvivesDisconnect50 = qos0SessionSurvivesDisconnect T.Protocol50 "qos0-50"
+
+-- H3: ...including a session with no subscriptions at all.
+emptySessionSurvivesDisconnect :: T.ProtocolLevel -> BL.ByteString -> Assertion
+emptySessionSurvivesDisconnect pl cid = withTestService $ \u -> do
+  withRawConn u pl (sessionReq pl cid) (const $ pure ())
+  withRawConn u pl (sessionReq pl cid) $ \rc ->
+    assertEqual "session present" T.ExistingSession (rawSessionPresent rc)
+
+unit_emptySessionSurvivesDisconnect311 :: Assertion
+unit_emptySessionSurvivesDisconnect311 = emptySessionSurvivesDisconnect T.Protocol311 "empty-311"
+
+unit_emptySessionSurvivesDisconnect50 :: Assertion
+unit_emptySessionSurvivesDisconnect50 = emptySessionSurvivesDisconnect T.Protocol50 "empty-50"
+
+withTempDB :: (FilePath -> IO a) -> IO a
+withTempDB f = do
+  dir <- getTemporaryDirectory
+  name <- UUID.toString <$> randomIO
+  let path = dir <> "/mqttd-test-" <> name <> ".db"
+  f path `finally` (removeFile path `catch` (\(_ :: IOError) -> pure ()))
+
+-- | Wait for a session's subscriptions to be written to the DB.
+waitForStoredSubs :: FilePath -> BL.ByteString -> Assertion
+waitForStoredSubs path cid = timeout 2000000 loop >>= maybe (assertFailure "subscription never stored") pure
+  where
+    loop = do
+      n <- count `catch` \e -> case SQL.sqlError e of
+                                SQL.ErrorBusy -> pure 0 -- the server is writing
+                                _             -> E.throwIO e
+      unless (n > 0) $ threadDelay 10000 >> loop
+    count = SQL.withConnection path $ \db -> do
+      [SQL.Only (n :: Int)] <- SQL.query db "select count(*) from session_subs where session_id = ?" (SQL.Only cid)
+      pure n
+
+-- H3: ...and across a restart.
+unit_qos0SessionSurvivesRestart311 :: Assertion
+unit_qos0SessionSurvivesRestart311 = withTempDB $ \path -> do
+  let conf = testConfig{_confPersist = PersistenceConfig path}
+      req = sessionReq T.Protocol311 "restart-311"
+  withTestServiceConfig conf $ \u -> withRawConn u T.Protocol311 req $ \rc -> do
+    rawSubscribe rc "h3/t" T.QoS0
+    waitForStoredSubs path "restart-311"
+  withTestServiceConfig conf $ \u -> withRawConn u T.Protocol311 req $ \rc -> do
+    assertEqual "session present" T.ExistingSession (rawSessionPresent rc)
+    pubber <- MC.connectURI MC.mqttConfig u
+    MC.publishq pubber "h3/t" "hello" False MC.QoS0 []
+    T.PublishRequest{..} <- rawExpectPublish rc
+    assertEqual "delivered on the restored subscription" "h3/t" _pubTopic

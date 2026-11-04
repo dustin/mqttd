@@ -91,7 +91,9 @@ initTables db = do
 
 initDB :: Connection -> IO ()
 initDB db = do
-  mapM_ (execute_ db) ["pragma foreign_keys = ON"]
+  -- busy_timeout: wait for other readers of the DB (e.g. the sqlite3 CLI)
+  -- rather than failing a write, which would stop the DB writer.
+  mapM_ (execute_ db) ["pragma foreign_keys = ON", "pragma busy_timeout = 5000"]
   initTables db
 
 runOperations :: (IOE :> es, DB :> es, Stats :> es, LogFX :> es) => Eff es ()

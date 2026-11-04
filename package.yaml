@@ -113,3 +113,4 @@ tests:
       - QuickCheck
       - port-utils
       - network-uri
+      - directory

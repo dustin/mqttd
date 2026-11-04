@@ -240,6 +240,7 @@ test-suite mqttd-test
     , conduit
     , conduit-extra
     , containers
+    , directory
     , effectful-core
     , effectful-th
     , exceptions
