@@ -157,19 +157,28 @@ publishStats = forever (pubStats >> sleep 15)
       m <- retrieveStats
       mapM_ (\(k, v) -> pub (statKeyName k) v) (Map.assocs m)
 
-resolveAliasIn :: MonadIO m => Session -> T.PublishRequest -> m T.PublishRequest
-resolveAliasIn Session{_sessionClient=Nothing} r = pure r
+-- | The Topic Alias Maximum the server sends in CONNACK.
+topicAliasMaximum :: Word16
+topicAliasMaximum = 100
+
+-- | Resolve a PUBLISH's topic alias, or give the reason it's a protocol
+-- error [5.0 §3.3.2.3.4].
+resolveAliasIn :: MonadIO m => Session -> T.PublishRequest -> m (Either T.DiscoReason T.PublishRequest)
+resolveAliasIn Session{_sessionClient=Nothing} r = pure (Right r)
 resolveAliasIn Session{_sessionClient=Just ConnectedClient{_clientAliasIn}} r =
   case r ^? properties . folded . _PropTopicAlias of
-    Nothing -> pure r
-    Just n  -> resolve n r
+    Nothing -> pure (Right r)
+    Just n
+      | n == 0 || n > topicAliasMaximum -> pure (Left T.DiscoTopicAliasInvalid)
+      | otherwise -> resolve n r
 
   where
     resolve n T.PublishRequest{_pubTopic} = do
-      t <- atomically $ do
+      mt <- atomically $ do
         when (_pubTopic /= "") $ modifyTVar' _clientAliasIn (Map.insert n _pubTopic)
-        Map.findWithDefault "" n <$> readTVar _clientAliasIn
-      pure $ r & pubTopic .~ t & properties %~ cleanProps
+        Map.lookup n <$> readTVar _clientAliasIn
+      -- An empty topic with an alias that was never set.
+      pure $ maybe (Left T.DiscoProtocolError) (\t -> Right (r & pubTopic .~ t & properties %~ cleanProps)) mt
     cleanProps = filter (\case
                             (T.PropTopicAlias _) -> False
                             _                    -> True)
@@ -670,13 +679,18 @@ dispatch sess@Session{..} (T.UnsubscribePkt (T.UnsubscribeRequest pid subs props
   uns <- unsubscribe sess subs
   sendPacketIO_ _sessionChan (T.UnsubACKPkt (T.UnsubscribeResponse pid props uns))
 
-dispatch sess@Session{..} (T.PublishPkt req) = do
-  r@T.PublishRequest{..} <- resolveAliasIn sess req
-  case authPub (maybe InvalidTopic classifyTopic $ (T.mkFilter . blToText) _pubTopic) _sessionACL of
-    Left _  -> logInfoL ["Unauthorized topic: ", tshow _pubTopic] >> nak _pubQoS r
-    Right _ -> satisfyQoS _pubQoS r
+dispatch sess@Session{..} (T.PublishPkt req) = resolveAliasIn sess req >>= either protocolError pub
 
     where
+      protocolError reason = do
+        sendPacketIO_ _sessionChan (T.DisconnectPkt (T.DisconnectRequest reason []))
+        fail ("invalid topic alias: " <> show reason)
+
+      pub r@T.PublishRequest{..} =
+        case authPub (maybe InvalidTopic classifyTopic $ (T.mkFilter . blToText) _pubTopic) _sessionACL of
+          Left _  -> logInfoL ["Unauthorized topic: ", tshow _pubTopic] >> nak _pubQoS r
+          Right _ -> satisfyQoS _pubQoS r
+
       nak T.QoS0 _ = pure ()
       nak T.QoS1 T.PublishRequest{..} =
         sendPacketIO_ _sessionChan (T.PubACKPkt (T.PubACK _pubPktID 0x87 mempty))

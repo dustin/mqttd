@@ -30,6 +30,7 @@ import           Data.Maybe             (fromJust, fromMaybe)
 import           Data.Password.Bcrypt   (PasswordHash (..))
 import           Data.Time.Clock        (NominalDiffTime, diffUTCTime,
                                          getCurrentTime)
+import           Data.Word              (Word16)
 import           Effectful
 import           Network.MQTT.Client    as MC
 import qualified Network.MQTT.Types     as T
@@ -846,3 +847,41 @@ unit_subIdRejected = withTestService $ \u ->
       Just Nothing -> pure () -- closed (the DISCONNECT is best effort)
       Just (Just (T.DisconnectPkt (T.DisconnectRequest T.DiscoSubscriptionIdentifiersNotSupported _))) -> pure ()
       Just (Just x) -> assertFailure ("expected DISCONNECT 0xA1, got " <> show x)
+
+-- * Inbound topic aliases
+
+-- | Expect the server to disconnect: a DISCONNECT with the given reason
+-- (best effort), then the connection closing.
+rawExpectDisconnect :: RawConn -> T.DiscoReason -> Assertion
+rawExpectDisconnect rc reason = timeout 2000000 (rawRecvMaybe rc) >>= \case
+  Nothing -> assertFailure "connection wasn't closed"
+  Just Nothing -> pure ()
+  Just (Just (T.DisconnectPkt (T.DisconnectRequest r _))) -> assertEqual "disconnect reason" reason r
+  Just (Just x) -> assertFailure ("expected DISCONNECT " <> show reason <> ", got " <> show x)
+
+aliasedPublish :: BL.ByteString -> Word16 -> T.MQTTPkt
+aliasedPublish t n = T.PublishPkt T.PublishRequest{T._pubDup=False, T._pubQoS=T.QoS1, T._pubRetain=False,
+                                                   T._pubTopic=t, T._pubPktID=1, T._pubBody="x",
+                                                   T._pubProps=[T.PropTopicAlias n]}
+
+-- M3: A Topic Alias of 0, or above the Topic Alias Maximum the server
+-- sent (100), is a protocol error: DISCONNECT 0x94 [5.0 §3.3.2.3.4].
+invalidAlias :: BL.ByteString -> Word16 -> Assertion
+invalidAlias cid n = withTestService $ \u ->
+  withRawConn u T.Protocol50 T.connectRequest{T._connID=cid} $ \rc -> do
+    rawSend rc (aliasedPublish "m3/t" n)
+    rawExpectDisconnect rc T.DiscoTopicAliasInvalid
+
+unit_topicAliasZero :: Assertion
+unit_topicAliasZero = invalidAlias "m3-zero" 0
+
+unit_topicAliasTooBig :: Assertion
+unit_topicAliasTooBig = invalidAlias "m3-big" 101
+
+-- M3: So is an empty topic with an alias that hasn't been set
+-- [5.0 §3.3.2.3.4].
+unit_topicAliasUnknown :: Assertion
+unit_topicAliasUnknown = withTestService $ \u ->
+  withRawConn u T.Protocol50 T.connectRequest{T._connID="m3-unknown"} $ \rc -> do
+    rawSend rc (aliasedPublish "" 5)
+    rawExpectDisconnect rc T.DiscoProtocolError

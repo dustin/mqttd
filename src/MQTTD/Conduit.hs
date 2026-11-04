@@ -78,7 +78,7 @@ runMQTTDConduit (src, sink, addr) = runConduit $ do
       -- Register and accept the connection
       tid <- liftIO myThreadId
       (sess@Session{_sessionID, _sessionChan}, existing) <- registerClient req cid tid
-      let cprops = [ T.PropTopicAliasMaximum 100 ] <> [ T.PropAssignedClientIdentifier i | Just i <- [nid] ]
+      let cprops = [ T.PropTopicAliasMaximum topicAliasMaximum ] <> [ T.PropAssignedClientIdentifier i | Just i <- [nid] ]
                    -- Not supported [5.0 §3.2.2.3.12].
                    <> [ T.PropSubscriptionIdentifierAvailable 0 | pl == T.Protocol50 ]
                    <> [ T.PropServerKeepAlive (effectiveKeepAlive _keepAlive) | _keepAlive == 0, pl == T.Protocol50 ]
