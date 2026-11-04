@@ -194,7 +194,7 @@ unit_ephemeralSessionCleanup = do
                   runSchedule expirer . runAuth (Authorizer mempty True) .
                   fmap fst . runMQTTD env
   runAction $ do
-    (sess, _reuse) <- registerClient req 1 tid
+    (sess, _reuse) <- registerClient T.Protocol50 req 1 tid
     subscribe sess (T.SubscribeRequest 1 [("test/#", T.subOptions{T._subQoS=T.QoS1})] [])
     let sid = sess ^. sessionID
     unregisterClient T.Protocol50 sid 1

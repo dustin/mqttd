@@ -55,7 +55,8 @@ data ConnectedClient = ConnectedClient {
   _clientID       :: ClientID,
   _clientAliasIn  :: TVar (Map Word16 BL.ByteString),
   _clientAliasOut :: TVar (Map BL.ByteString Word16),
-  _clientALeft    :: TVar Word16
+  _clientALeft    :: TVar Word16,
+  _clientProtocol :: T.ProtocolLevel
   }
 
 makeLenses ''ConnectedClient

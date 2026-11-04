@@ -161,6 +161,11 @@ publishStats = forever (pubStats >> sleep 15)
 topicAliasMaximum :: Word16
 topicAliasMaximum = 100
 
+-- | The Receive Maximum the server sends in CONNACK: how many QoS 2
+-- PUBLISHes a 5.0 client may have waiting for PUBREL [5.0 §3.3.4].
+receiveMaximum :: Word16
+receiveMaximum = 100
+
 -- | Resolve a PUBLISH's topic alias, or give the reason it's a protocol
 -- error [5.0 §3.3.2.3.4].
 resolveAliasIn :: MonadIO m => Session -> T.PublishRequest -> m (Either T.DiscoReason T.PublishRequest)
@@ -312,8 +317,8 @@ modifySession :: (IOE :> es, MQTTD :> es) => SessionID -> (Session -> Maybe Sess
 modifySession k f = asks sessions >>= \s -> atomically $ modifyTVar' s (Map.update f k)
 
 registerClient :: (IOE :> es, AuthFX :> es, Fail :> es, MQTTD :> es, Stats :> es, DB :> es, LogFX :> es)
-               => T.ConnectRequest -> ClientID -> ThreadId -> Eff es (Session, T.SessionReuse)
-registerClient req@T.ConnectRequest{..} i o = do
+               => T.ProtocolLevel -> T.ConnectRequest -> ClientID -> ThreadId -> Eff es (Session, T.SessionReuse)
+registerClient pl req@T.ConnectRequest{..} i o = do
   c <- asks sessions
   subt <- asks allSubs
   ssubt <- asks sharedSubs
@@ -323,7 +328,7 @@ registerClient req@T.ConnectRequest{..} i o = do
   l <- liftIO $ newTVarIO (fromMaybe 0 (req ^? properties . folded . _PropTopicAliasMaximum))
   acl <- getACL _username
   let k = _connID
-      nc = ConnectedClient req o i ai ao l
+      nc = ConnectedClient req o i ai ao l pl
       maxInFlight = fromMaybe maxBound (req ^? properties . folded . _PropReceiveMaximum)
       dropSubs subsv = do
         subs <- readTVar subsv
@@ -684,7 +689,7 @@ dispatch sess@Session{..} (T.PublishPkt req) = resolveAliasIn sess req >>= eithe
     where
       protocolError reason = do
         sendPacketIO_ _sessionChan (T.DisconnectPkt (T.DisconnectRequest reason []))
-        fail ("invalid topic alias: " <> show reason)
+        fail ("protocol error: " <> show reason)
 
       pub r@T.PublishRequest{..} =
         case authPub (maybe InvalidTopic classifyTopic $ (T.mkFilter . blToText) _pubTopic) _sessionACL of
@@ -702,10 +707,23 @@ dispatch sess@Session{..} (T.PublishPkt req) = resolveAliasIn sess req >>= eithe
         sendPacketIO_ _sessionChan (T.PubACKPkt (T.PubACK _pubPktID 0 mempty))
         broadcast (Just _sessionID) r
         countIn
-      satisfyQoS T.QoS2 r@T.PublishRequest{..} = liftIO getCurrentTime >>= \now -> getStatStore >>= \ss -> atomically $ do
-        sendPacket_ _sessionChan (T.PubRECPkt (T.PubREC _pubPktID 0 mempty))
-        modifyTVar' _sessionInbound (Map.insert _pubPktID (deadline now r, r))
-        incrementStatSTM StatMsgRcvd 1 ss
+      satisfyQoS T.QoS2 r@T.PublishRequest{..} = do
+        now <- liftIO getCurrentTime
+        ss <- getStatStore
+        ok <- atomically $ do
+          inbound <- readTVar _sessionInbound
+          -- A 5.0 client may not have more than our Receive Maximum QoS 2
+          -- messages unreleased [5.0 §3.3.4].  (A resend doesn't count.)
+          if is50 && Map.size inbound >= fromIntegral receiveMaximum && Map.notMember _pubPktID inbound
+            then pure False
+            else do
+              sendPacket_ _sessionChan (T.PubRECPkt (T.PubREC _pubPktID 0 mempty))
+              modifyTVar' _sessionInbound (Map.insert _pubPktID (deadline now r, r))
+              incrementStatSTM StatMsgRcvd 1 ss
+              pure True
+        unless ok $ protocolError T.DiscoReceiveMaximumExceeded
+
+      is50 = (_sessionClient ^? _Just . clientProtocol) == Just T.Protocol50
 
       countIn = incrementStat StatMsgRcvd 1
 

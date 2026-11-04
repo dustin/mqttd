@@ -89,10 +89,11 @@ runMQTTDConduit (src, sink, addr) = runConduit $ do
       logConn "connection" req
       -- Register and accept the connection
       tid <- liftIO myThreadId
-      (sess@Session{_sessionID, _sessionChan}, existing) <- registerClient req cid tid
+      (sess@Session{_sessionID, _sessionChan}, existing) <- registerClient pl req cid tid
       let cprops = [ T.PropTopicAliasMaximum topicAliasMaximum ] <> [ T.PropAssignedClientIdentifier i | Just i <- [nid] ]
                    -- Not supported [5.0 §3.2.2.3.12].
                    <> [ T.PropSubscriptionIdentifierAvailable 0 | pl == T.Protocol50 ]
+                   <> [ T.PropReceiveMaximum receiveMaximum | pl == T.Protocol50 ]
                    <> [ T.PropServerKeepAlive (effectiveKeepAlive _keepAlive) | _keepAlive == 0, pl == T.Protocol50 ]
       deliverConnACK pl existing cprops
 

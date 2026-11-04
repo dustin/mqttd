@@ -1014,3 +1014,30 @@ unit_inboundOutboundIDsSeparate = withTestService $ \u -> do
     rawSend rc (T.PubRELPkt (T.PubREL 1 0 []))
     rawExpectPubCOMP rc 1
   awaitCount mv "k5/in" 1
+
+-- * Receive Maximum (inbound)
+
+-- T3: The server's Receive Maximum is sent in CONNACK...
+unit_receiveMaximumAdvertised :: Assertion
+unit_receiveMaximumAdvertised = withTestService $ \u ->
+  withRawConn u T.Protocol50 T.connectRequest{T._connID="t3-connack"} $ \rc ->
+    assertBool ("CONNACK properties: " <> show (rawConnAckProps rc))
+      (T.PropReceiveMaximum 100 `elem` rawConnAckProps rc)
+
+-- T3: ...and a client with more than that many QoS 2 PUBLISHes
+-- unreleased is disconnected with 0x93 [5.0 §3.3.4], [MQTT-3.3.4-9].
+unit_receiveMaximumExceeded :: Assertion
+unit_receiveMaximumExceeded = withTestService $ \u ->
+  withRawConn u T.Protocol50 T.connectRequest{T._connID="t3-exceeded"} $ \rc -> do
+    mapM_ (\p -> rawSend rc (qos2Publish "t3/t" p) >> rawExpectPubREC rc p) [1..100]
+    -- Resending one that's already waiting doesn't count.
+    rawSend rc (qos2Publish "t3/t" 100)
+    rawExpectPubREC rc 100
+    rawSend rc (qos2Publish "t3/t" 101)
+    rawExpectDisconnect rc T.DiscoReceiveMaximumExceeded
+
+-- T3: (3.1.1 has no Receive Maximum.)
+unit_receiveMaximum311 :: Assertion
+unit_receiveMaximum311 = withTestService $ \u ->
+  withRawConn u T.Protocol311 T.connectRequest{T._connID="t3-311"} $ \rc ->
+    mapM_ (\p -> rawSend rc (qos2Publish "t3/t" p) >> rawExpectPubREC rc p) [1..101]
