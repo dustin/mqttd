@@ -18,8 +18,11 @@ import qualified Database.SQLite.Simple as SQL
 import           System.Directory       (getTemporaryDirectory, removeFile)
 import           System.IO              (IOMode (WriteMode), withFile)
 import           System.Posix.Signals   (sigTERM, signalProcess)
-import           System.Process         (StdStream (UseHandle), createProcess, getPid, proc, std_err,
-                                         std_out, terminateProcess, waitForProcess)
+import           System.Process         (StdStream (UseHandle), createProcess, getPid, proc, readProcess,
+                                         std_err, std_out, terminateProcess, waitForProcess)
+import qualified Data.ByteString.Lazy.Char8 as BLC
+import           Data.Version           (showVersion)
+import           Paths_mqttd            (version)
 import           System.Random          (randomIO)
 import           System.Timeout         (timeout)
 import qualified Data.Attoparsec.ByteString as A
@@ -1860,3 +1863,15 @@ unit_serverMoved = redirected (ServerMoved "other:1883") T.Protocol50 T.ConnServ
 -- ...and a 3.1.1 client, which can't be, is told the server's unavailable.
 unit_redirect311 :: Assertion
 unit_redirect311 = redirected (ServerMoved "other:1883") T.Protocol311 T.ServerUnavailable []
+
+-- * Version
+
+-- The broker publishes its version and the git revision it was built from
+-- as $SYS/broker/version.
+unit_versionPublished :: Assertion
+unit_versionPublished = withTestService $ \u -> do
+  rev <- takeWhile (/= '\n') <$> readProcess "git" ["rev-parse", "--short", "HEAD"] ""
+  withRawConn u T.Protocol311 T.connectRequest{T._connID="version"} $ \rc -> do
+    rawSubscribe rc "$SYS/broker/version" T.QoS0
+    T.PublishRequest{_pubBody} <- rawExpectPublish rc
+    assertEqual "version" (BLC.pack ("mqttd " <> showVersion version <> " (" <> rev <> ")")) _pubBody

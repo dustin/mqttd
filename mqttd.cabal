@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: cb3d9095e42ef4c1401ffbf523fd952e1d70e0eb0c3b940dba673967b26edbfc
+-- hash: 496800893f8fd6cf77f5fd0f6229cc4740c00f9a1713c58cc317b1f415b57a5e
 
 name:           mqttd
 version:        0.9.6.0
@@ -20,6 +20,7 @@ build-type:     Simple
 extra-source-files:
     README.md
     ChangeLog.md
+    .git/HEAD
 
 source-repository head
   type: git
@@ -41,6 +42,7 @@ library
       MQTTD.SubTree
       MQTTD.Types
       MQTTD.Util
+      MQTTD.Version
       Scheduler
   other-modules:
       Paths_mqttd
@@ -70,6 +72,7 @@ library
     , conduit
     , conduit-extra
     , containers
+    , directory
     , effectful-core
     , effectful-th
     , exceptions
@@ -82,10 +85,12 @@ library
     , network-conduit-tls
     , optparse-applicative
     , password
+    , process
     , random
     , raw-strings-qq
     , sqlite-simple
     , stm
+    , template-haskell
     , text
     , time
     , unliftio

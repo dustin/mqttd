@@ -9,6 +9,8 @@ copyright: 'MIT'
 extra-source-files:
   - README.md
   - ChangeLog.md
+  # So cabal rebuilds MQTTD.Version, with the new revision, when HEAD moves.
+  - .git/HEAD
 
 # Metadata used when publishing your package
 # synopsis:            Short description of your package
@@ -55,6 +57,10 @@ library:
   source-dirs: src
   ghc-options:
     - -Wall
+  dependencies:
+    - directory
+    - process
+    - template-haskell
 
 default-extensions:
   - OverloadedStrings

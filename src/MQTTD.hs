@@ -45,6 +45,7 @@ import           UnliftIO                      (atomically, readTVarIO)
 
 import           MQTTD.Authorizer
 import           MQTTD.Config           (ACL (..), ACLAction (..), Limits (..), Redirect (..), noLimits)
+import           MQTTD.Version          (versionString)
 import           MQTTD.DB
 import           MQTTD.GCStats
 import           MQTTD.Logging
@@ -127,7 +128,16 @@ isClientConnected :: SessionID -> TVar (Map SessionID Session) -> STM Bool
 isClientConnected sid sidsv = readTVar sidsv >>= \sids -> pure $ isJust (_sessionClient =<< Map.lookup sid sids)
 
 publishStats :: (IOE :> es, MQTTD :> es, Stats :> es, DB :> es, LogFX :> es) => Eff es ()
-publishStats = forever (pubStats >> sleep 15)
+publishStats = do
+  broadcast Nothing (T.PublishRequest {T._pubTopic="$SYS/broker/version",
+                                       T._pubBody=textToBL (Txt.pack versionString),
+                                       T._pubDup=False,
+                                       T._pubQoS=T.QoS0,
+                                       T._pubRetain=True,
+                                       T._pubProps=mempty})
+
+
+  forever (pubStats >> sleep 15)
   where
     sleep = liftIO . threadDelay . seconds
 
