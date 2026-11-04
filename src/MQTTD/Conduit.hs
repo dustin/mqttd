@@ -142,11 +142,12 @@ runMQTTDConduit (src, sink, addr) = runConduit $ do
                    <> [ T.PropSubscriptionIdentifierAvailable 0 | pl == T.Protocol50 ]
                    <> [ T.PropReceiveMaximum receiveMaximum | pl == T.Protocol50 ]
                    <> [ T.PropMaximumPacketSize n | Just n <- [_limitPacketSize lims], pl == T.Protocol50 ]
-                   <> [ T.PropServerKeepAlive (effectiveKeepAlive _keepAlive) | _keepAlive == 0, pl == T.Protocol50 ]
+                   <> [ T.PropServerKeepAlive ka | let ka = effectiveKeepAlive (_limitKeepAlive lims) pl _keepAlive,
+                                                   ka /= _keepAlive, pl == T.Protocol50 ]
       deliverConnACK pl existing cprops
 
       wdch <- liftIO newTChanIO
-      w <- traverse (\to -> async $ watchdog to wdch pl sess tid) (keepAliveTimeout pl _keepAlive)
+      w <- traverse (\to -> async $ watchdog to wdch pl sess tid) (keepAliveTimeout (_limitKeepAlive lims) pl _keepAlive)
       o <- async $ processOut pl sess
       i <- async $ E.finally (processIn wdch sess pl `E.onException` logConn "process exception" req) (teardown pl cid req)
       retransmit sess

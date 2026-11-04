@@ -19,7 +19,7 @@ import           Data.String                (IsString (..))
 import           Data.Text                  (Text)
 import qualified Data.Text.IO               as TIO
 import           Data.Void                  (Void)
-import           Data.Word                  (Word32)
+import           Data.Word                  (Word16, Word32)
 import qualified Network.MQTT.Topic         as T
 import           Text.Megaparsec            (Parsec, between, choice, many, manyTill, option, parse, some, try)
 import           Text.Megaparsec.Char       (char, space, space1)
@@ -62,13 +62,15 @@ listenerOpts = lens r w
 newtype PersistenceConfig = PersistenceConfig { _persistenceDBPath :: FilePath } deriving (Show, Eq)
 
 -- | Limits the server puts on clients.
-newtype Limits = Limits {
+data Limits = Limits {
   -- | The biggest packet a client may send [5.0 §3.2.2.3.6].
-  _limitPacketSize :: Maybe Word32
+  _limitPacketSize :: Maybe Word32,
+  -- | The longest Keep Alive a 5.0 client may have [5.0 §3.2.2.3.14].
+  _limitKeepAlive  :: Maybe Word16
   } deriving (Show, Eq)
 
 noLimits :: Limits
-noLimits = Limits Nothing
+noLimits = Limits Nothing Nothing
 
 data Config = Config {
   _confDebug     :: Bool,
@@ -132,15 +134,17 @@ namedValue s p = symbeq s *> p
 parseListenOpts :: Parser ListenerOptions
 parseListenOpts = bt "{" "}" (ListenerOptions <$> namedValue "allow_anonymous" (Just <$> parseBool))
 
--- | Limits, each optional: { max_packet_size = 1048576 }
+-- | Limits, each optional: { max_packet_size = 1048576  max_keep_alive = 120 }
 parseLimits :: Parser Limits
 parseLimits = bt "{" "}" (foldr ($) noLimits <$> many (lexeme limit))
   where
     limit = choice [
-      (\n l -> l{_limitPacketSize=Just n}) <$> namedValue "max_packet_size" (lexeme positive)
+      (\n l -> l{_limitPacketSize=Just n}) <$> namedValue "max_packet_size" (lexeme (positive (maxBound :: Word32))),
+      (\n l -> l{_limitKeepAlive=Just n}) <$> namedValue "max_keep_alive" (lexeme (positive (maxBound :: Word16)))
       ]
-    positive = L.decimal >>= \n -> if n > 0 && n <= toInteger (maxBound :: Word32)
-                                     then pure (fromInteger n) else fail "must be from 1 to 4294967295"
+    positive :: (Integral a, Show a) => a -> Parser a
+    positive mx = L.decimal >>= \n -> if n > 0 && n <= toInteger mx
+                                        then pure (fromInteger n) else fail ("must be from 1 to " <> show mx)
 
 parsePersistence :: Parser PersistenceConfig
 parsePersistence = bt "{" "}" (PersistenceConfig <$> namedValue "db" (lexeme qstr))

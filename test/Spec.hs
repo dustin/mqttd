@@ -66,7 +66,7 @@ unit_configFiles =
                              _confDefaults = mempty,
                              _confListeners = [MQTTListener "*" 1883 mempty],
                              _confPersist = PersistenceConfig ":memory:",
-                             _confLimits = noLimits{_limitPacketSize = Just 1048576}})
+                             _confLimits = Limits{_limitPacketSize = Just 1048576, _limitKeepAlive = Just 120}})
       ]
   where
     aTest (f,w) = assertEqual f w =<< parseConfFile ("test/" <> f)
@@ -169,10 +169,15 @@ unit_nextPktIDExhausted = assertEqual "" Nothing (nextPktID (const True) 7)
 -- given a Server Keep Alive).
 unit_keepAliveTimeouts :: Assertion
 unit_keepAliveTimeouts = do
-  assertEqual "3.1.1, 0" Nothing (keepAliveTimeout T.Protocol311 0)
-  assertEqual "3.1.1, 2" (Just 3000000) (keepAliveTimeout T.Protocol311 2)
-  assertEqual "5.0, 2" (Just 3000000) (keepAliveTimeout T.Protocol50 2)
-  assertEqual "5.0, 0" (Just (seconds 2700)) (keepAliveTimeout T.Protocol50 0)
+  assertEqual "3.1.1, 0" Nothing (keepAliveTimeout Nothing T.Protocol311 0)
+  assertEqual "3.1.1, 2" (Just 3000000) (keepAliveTimeout Nothing T.Protocol311 2)
+  assertEqual "5.0, 2" (Just 3000000) (keepAliveTimeout Nothing T.Protocol50 2)
+  assertEqual "5.0, 0" (Just (seconds 2700)) (keepAliveTimeout Nothing T.Protocol50 0)
+  -- With a maximum of 60s
+  assertEqual "max, 5.0, 300" (Just (seconds 90)) (keepAliveTimeout (Just 60) T.Protocol50 300)
+  assertEqual "max, 5.0, 0" (Just (seconds 90)) (keepAliveTimeout (Just 60) T.Protocol50 0)
+  assertEqual "max, 5.0, 2" (Just 3000000) (keepAliveTimeout (Just 60) T.Protocol50 2)
+  assertEqual "max, 3.1.1, 300" (Just (seconds 450)) (keepAliveTimeout (Just 60) T.Protocol311 300)
 
 unit_listenerOptions :: Assertion
 unit_listenerOptions = do

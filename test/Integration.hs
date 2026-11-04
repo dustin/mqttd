@@ -1804,3 +1804,11 @@ unit_serverMaximumPacketSizeSmall :: Assertion
 unit_serverMaximumPacketSizeSmall = withTestServiceConfig limitedConfig $ \u ->
   withRawConn u T.Protocol50 T.connectRequest{T._connID="maxpkt-small"} $ \rc ->
     rawSubscribe rc "small/t" T.QoS0
+
+-- A Keep Alive longer than the server's maximum is cut to it, and the
+-- 5.0 client told with a Server Keep Alive [5.0 §3.2.2.3.14], [MQTT-3.2.2-21].
+unit_serverKeepAliveMaximum :: Assertion
+unit_serverKeepAliveMaximum = withTestServiceConfig testConfig{_confLimits = noLimits{_limitKeepAlive = Just 1}} $ \u ->
+  withRawConn u T.Protocol50 T.connectRequest{T._connID="maxka", T._keepAlive=300} $ \rc -> do
+    assertBool ("CONNACK properties: " <> show (rawConnAckProps rc)) (T.PropServerKeepAlive 1 `elem` rawConnAckProps rc)
+    rawExpectDisconnectWithin 3 rc T.DiscoKeepAliveTimeout
