@@ -11,6 +11,8 @@ import           Control.Concurrent.STM (TChan, TVar, check, modifyTVar', newTCh
                                          writeTChan, writeTVar)
 import           Control.Exception      (catch, finally)
 import qualified Control.Exception      as E
+import qualified Data.Text.Encoding     as TE
+import           Network.MQTT.Topic     (mkTopic)
 import qualified Data.UUID              as UUID
 import qualified Database.SQLite.Simple as SQL
 import           System.Directory       (getTemporaryDirectory, removeFile)
@@ -1265,3 +1267,58 @@ unit_emptyWillTopic50 = badWillTopic50 ""
 
 unit_wildcardWillTopic50 :: Assertion
 unit_wildcardWillTopic50 = badWillTopic50 "will/#"
+
+-- * Flow control
+
+-- | A 5.0 client with Receive Maximum 1, subscribed to the topic at the
+-- given QoS, with two messages published to it.  The action gets the
+-- first PUBLISH; the second waits for its slot.
+withOneSlot :: BL.ByteString -> T.QoS -> (RawConn -> T.PublishRequest -> Assertion) -> Assertion
+withOneSlot t q f = withTestService $ \u -> do
+  let req = T.connectRequest{T._connID="l4-" <> t, T._connProperties=[T.PropReceiveMaximum 1]}
+  withRawConn u T.Protocol50 req $ \rc -> do
+    rawSubscribe rc t q
+    pubber <- MC.connectURI MC.mqttConfig u
+    MC.publishq pubber (blToTopic t) "one" False q []
+    MC.publishq pubber (blToTopic t) "two" False q []
+    f rc =<< rawExpectPublish rc
+  where blToTopic = fromJust . mkTopic . TE.decodeUtf8 . BL.toStrict
+
+expectNoPublish :: RawConn -> Assertion
+expectNoPublish rc = timeout 500000 (rawRecv rc) >>= \case
+  Nothing -> pure ()
+  Just x  -> assertFailure ("expected nothing, got " <> show x)
+
+-- L4: An ack for a packet ID that isn't in flight doesn't free a slot
+-- [5.0 MQTT-3.3.4-7], [5.0 §4.9].
+unit_unknownPubACKKeepsQuota :: Assertion
+unit_unknownPubACKKeepsQuota = withOneSlot "l4/puback" T.QoS1 $ \rc T.PublishRequest{_pubPktID} -> do
+  rawSend rc (T.PubACKPkt (T.PubACK (_pubPktID + 100) 0 []))
+  expectNoPublish rc
+  rawSend rc (T.PubACKPkt (T.PubACK _pubPktID 0 []))
+  T.PublishRequest{_pubBody} <- rawExpectPublish rc
+  assertEqual "second message after the real ack" "two" _pubBody
+
+unit_unknownPubCOMPKeepsQuota :: Assertion
+unit_unknownPubCOMPKeepsQuota = withOneSlot "l4/pubcomp" T.QoS1 $ \rc T.PublishRequest{_pubPktID} -> do
+  rawSend rc (T.PubCOMPPkt (T.PubCOMP (_pubPktID + 100) 0 []))
+  expectNoPublish rc
+
+-- L4: A PUBREC with an error reason code ends the exchange: there's no
+-- PUBREL, and the slot is free [5.0 §4.3.3], [5.0 §4.9].
+unit_errorPubRECFreesQuota :: Assertion
+unit_errorPubRECFreesQuota = withOneSlot "l4/pubrec" T.QoS2 $ \rc T.PublishRequest{_pubPktID} -> do
+  rawSend rc (T.PubRECPkt (T.PubREC _pubPktID 0x80 []))
+  rawRecvWithin rc >>= \case
+    T.PublishPkt T.PublishRequest{_pubBody} -> assertEqual "second message" "two" _pubBody
+    x -> assertFailure ("expected the second PUBLISH, got " <> show x)
+
+-- L4: A PUBREC for an unknown packet ID gets PUBREL 0x92 (Packet
+-- Identifier not found) [5.0 §3.6.2.1].
+unit_unknownPubRECNotFound :: Assertion
+unit_unknownPubRECNotFound = withOneSlot "l4/pubrec-unknown" T.QoS2 $ \rc T.PublishRequest{_pubPktID} -> do
+  rawSend rc (T.PubRECPkt (T.PubREC (_pubPktID + 100) 0 []))
+  rawRecvWithin rc >>= \case
+    T.PubRELPkt (T.PubREL p st _) -> assertEqual "PUBREL" (_pubPktID + 100, 0x92) (p, st)
+    x -> assertFailure ("expected PUBREL, got " <> show x)
+  expectNoPublish rc

@@ -3,6 +3,7 @@
 {-# LANGUAGE FlexibleContexts           #-}
 {-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE GeneralisedNewtypeDeriving #-}
+{-# LANGUAGE MultiWayIf                 #-}
 {-# LANGUAGE ScopedTypeVariables        #-}
 {-# LANGUAGE TemplateHaskell            #-}
 {-# LANGUAGE TupleSections              #-}
@@ -662,19 +663,29 @@ dispatch :: (IOE :> es, Fail :> es, MQTTD :> es, DB :> es, LogFX :> es, Stats :>
 dispatch Session{..} T.PingPkt = sendPacketIO_ _sessionChan T.PongPkt
 
 -- QoS 1 ACK (receiving client got our publish message)
+-- Only an ack for a message in flight frees its slot [5.0 MQTT-3.3.4-7].
 dispatch sess@Session{..} (T.PubACKPkt ack) = liftIO getCurrentTime >>= \now -> getStatStore >>= \st -> atomically $ do
-  modifyTVar' _sessionQP (Map.delete (ack ^. pktID))
-  releasePubSlot now st sess
+  (r, m) <- Map.updateLookupWithKey (const.const $ Nothing) (ack ^. pktID) <$> readTVar _sessionQP
+  writeTVar _sessionQP m
+  when (isJust r) $ releasePubSlot now st sess
 
 -- QoS 2 ACK (receiving client received our message)
-dispatch Session{..} (T.PubRECPkt ack) = atomically $ do
-  let pid = ack ^. pktID
+dispatch sess@Session{..} (T.PubRECPkt (T.PubREC pid st _)) = liftIO getCurrentTime >>= \now -> getStatStore >>= \ss -> atomically $ do
   (r, m) <- Map.updateLookupWithKey (const.const $ Nothing) pid <$> readTVar _sessionQP
   writeTVar _sessionQP m
-  -- Keep the PUBREL state until PUBCOMP so it can be resent
-  -- [5.0 MQTT-4.4.0-1], [3.1.1 §4.4].
-  when (isJust r) $ modifyTVar' _sessionRel (Set.insert pid)
-  sendPacket_ _sessionChan (T.PubRELPkt $ T.PubREL pid 0 mempty)
+  known <- (isJust r ||) . Set.member pid <$> readTVar _sessionRel
+  if
+    -- An error code ends the exchange: no PUBREL, and the slot is free
+    -- [5.0 §4.3.3], [5.0 §4.9].
+    | st >= 0x80 -> when (isJust r) $ releasePubSlot now ss sess
+    -- Keep the PUBREL state until PUBCOMP so it can be resent
+    -- [5.0 MQTT-4.4.0-1], [3.1.1 §4.4].  (A repeated PUBREC gets the
+    -- PUBREL again.)
+    | known -> do
+        modifyTVar' _sessionRel (Set.insert pid)
+        sendPacket_ _sessionChan (T.PubRELPkt $ T.PubREL pid 0 mempty)
+    -- Packet Identifier not found [5.0 §3.6.2.1].
+    | otherwise -> sendPacket_ _sessionChan (T.PubRELPkt $ T.PubREL pid 0x92 mempty)
 
 -- QoS 2 REL (publishing client says we can ship the message)
 dispatch Session{..} (T.PubRELPkt rel) = do
@@ -687,8 +698,10 @@ dispatch Session{..} (T.PubRELPkt rel) = do
 
 -- QoS 2 COMPlete (publishing client says publish is complete)
 dispatch sess@Session{..} (T.PubCOMPPkt comp) = liftIO getCurrentTime >>= \now -> getStatStore >>= \st -> atomically $ do
-  modifyTVar' _sessionRel (Set.delete (comp ^. pktID))
-  releasePubSlot now st sess
+  let pid = comp ^. pktID
+  known <- Set.member pid <$> readTVar _sessionRel
+  modifyTVar' _sessionRel (Set.delete pid)
+  when known $ releasePubSlot now st sess
 
 -- Subscribe response is sent from the `subscribe` action because the
 -- interaction is a bit complicated.
