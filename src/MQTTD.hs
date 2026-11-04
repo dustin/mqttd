@@ -22,6 +22,7 @@ import           Data.Either                   (rights)
 import           Data.Foldable                 (fold, foldl')
 import           Data.Map.Strict               (Map)
 import qualified Data.Map.Strict               as Map
+import qualified Data.Set                      as Set
 import           Data.Maybe                    (catMaybes, fromMaybe, isJust, listToMaybe)
 import           Data.Monoid                   (Sum (..))
 import           Data.String                   (IsString (..))
@@ -309,7 +310,7 @@ registerClient req@T.ConnectRequest{..} i o = do
                     <*> newTVar maxInFlight <*> newTBQueue defaultQueueSize
                     <*> newTVar mempty <*> newTVar mempty
                     <*> pure Nothing <*> pure _lastWill <*> pure Nothing
-                    <*> newTVar 0
+                    <*> newTVar 0 <*> newTVar mempty
     m <- readTVar c
     let s = Map.lookup k m
         o' = _sessionClient =<< s
@@ -518,7 +519,8 @@ publish before sess@Session{..} pkt@T.PublishRequest{..} = whenM deliverable pub
           -- Packet IDs are per session, and an ID can't be reused while
           -- it's in flight [MQTT-2.2.1-3].
           inFlight <- readTVar _sessionQP
-          nextPktID (`Map.member` inFlight) <$> readTVar _sessionPktID >>= \case
+          rel <- readTVar _sessionRel
+          nextPktID (\i -> Map.member i inFlight || Set.member i rel) <$> readTVar _sessionPktID >>= \case
             Nothing -> pure () -- every packet ID is in flight; drop it
             Just pid -> do
               writeTVar _sessionPktID pid
@@ -597,8 +599,13 @@ dispatch sess@Session{..} (T.PubACKPkt ack) = liftIO getCurrentTime >>= \now -> 
 
 -- QoS 2 ACK (receiving client received our message)
 dispatch Session{..} (T.PubRECPkt ack) = atomically $ do
-  modifyTVar' _sessionQP (Map.delete (ack ^. pktID))
-  sendPacket_ _sessionChan (T.PubRELPkt $ T.PubREL (ack ^. pktID) 0 mempty)
+  let pid = ack ^. pktID
+  (r, m) <- Map.updateLookupWithKey (const.const $ Nothing) pid <$> readTVar _sessionQP
+  writeTVar _sessionQP m
+  -- Keep the PUBREL state until PUBCOMP so it can be resent
+  -- [5.0 MQTT-4.4.0-1], [3.1.1 §4.4].
+  when (isJust r) $ modifyTVar' _sessionRel (Set.insert pid)
+  sendPacket_ _sessionChan (T.PubRELPkt $ T.PubREL pid 0 mempty)
 
 -- QoS 2 REL (publishing client says we can ship the message)
 dispatch Session{..} (T.PubRELPkt rel) = do
@@ -610,7 +617,9 @@ dispatch Session{..} (T.PubRELPkt rel) = do
   justM (broadcast (Just _sessionID) . snd) pkt
 
 -- QoS 2 COMPlete (publishing client says publish is complete)
-dispatch sess (T.PubCOMPPkt _) = liftIO getCurrentTime >>= \now -> getStatStore >>= \st -> atomically $ releasePubSlot now st sess
+dispatch sess@Session{..} (T.PubCOMPPkt comp) = liftIO getCurrentTime >>= \now -> getStatStore >>= \st -> atomically $ do
+  modifyTVar' _sessionRel (Set.delete (comp ^. pktID))
+  releasePubSlot now st sess
 
 -- Subscribe response is sent from the `subscribe` action because the
 -- interaction is a bit complicated.

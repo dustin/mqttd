@@ -22,6 +22,7 @@ import           Control.Monad.IO.Class (MonadIO (..))
 import           Control.Monad.Logger   (MonadLogger (..))
 import qualified Data.ByteString.Lazy   as BL
 import           Data.Map.Strict        (Map)
+import           Data.Set               (Set)
 import qualified Data.Text              as Txt
 import           Data.Time.Clock        (NominalDiffTime, UTCTime (..), addUTCTime, diffUTCTime)
 import           Data.Word              (Word16)
@@ -77,8 +78,11 @@ data Session = Session {
   -- Interval).  Nothing while connected, or when no will is pending.
   _sessionWillAt  :: Maybe UTCTime,
   -- | The last packet ID assigned to an outbound PUBLISH.  Packet IDs
-  -- are per session, and an ID in _sessionQP isn't reused.
-  _sessionPktID   :: TVar T.PktID
+  -- are per session, and an ID in _sessionQP or _sessionRel isn't reused.
+  _sessionPktID   :: TVar T.PktID,
+  -- | Outbound QoS 2 packet IDs that have been PUBREC'd and are waiting
+  -- for PUBCOMP.  Their PUBRELs are resent when the session resumes.
+  _sessionRel     :: TVar (Set T.PktID)
   }
 
 makeLenses ''Session

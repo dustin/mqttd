@@ -635,3 +635,62 @@ unit_overlappingSubsDistinctPktIDs = withTestService $ \u ->
     a <- rawExpectPublish rc
     b <- rawExpectPublish rc
     assertBool ("duplicate in-flight packet ID: " <> show (a, b)) (T._pubPktID a /= T._pubPktID b)
+
+-- * QoS 2 delivery
+
+-- | Receive the next packet on a raw connection, failing if none arrives.
+rawRecvWithin :: RawConn -> IO T.MQTTPkt
+rawRecvWithin rc = timeout 2000000 (rawRecv rc) >>= maybe (assertFailure "no packet received") pure
+
+rawExpectPubREL :: RawConn -> IO T.PktID
+rawExpectPubREL rc = rawRecvWithin rc >>= \case
+  T.PubRELPkt (T.PubREL p _ _) -> pure p
+  x -> assertFailure ("expected PUBREL, got " <> show x)
+
+-- | Receive a QoS2 PUBLISH, PUBREC it, and receive the PUBREL.
+rawPubRecvToRel :: RawConn -> IO T.PktID
+rawPubRecvToRel rc = do
+  T.PublishRequest{_pubPktID} <- rawExpectPublish rc
+  rawSend rc (T.PubRECPkt (T.PubREC _pubPktID 0 []))
+  p <- rawExpectPubREL rc
+  assertEqual "PUBREL for our PUBREC" _pubPktID p
+  pure p
+
+-- H6: After PUBREC, the server must keep the PUBREL state and resend
+-- the PUBREL when the session resumes [5.0 MQTT-4.4.0-1], [3.1.1 §4.4].
+pubrelResentAfterReconnect :: T.ProtocolLevel -> BL.ByteString -> Assertion
+pubrelResentAfterReconnect pl cid = withTestService $ \u -> do
+  pid <- withRawConn u pl (sessionReq pl cid) $ \rc -> do
+    rawSubscribe rc "h6/t" T.QoS2
+    pubber <- MC.connectURI MC.mqttConfig u
+    MC.publishq pubber "h6/t" "x" False MC.QoS2 []
+    rawPubRecvToRel rc
+  -- Dropped before PUBCOMP.
+  withRawConn u pl (sessionReq pl cid) $ \rc -> do
+    assertEqual "session present" T.ExistingSession (rawSessionPresent rc)
+    p <- rawExpectPubREL rc
+    assertEqual "resent PUBREL" pid p
+
+unit_pubrelResentAfterReconnect311 :: Assertion
+unit_pubrelResentAfterReconnect311 = pubrelResentAfterReconnect T.Protocol311 "h6-311"
+
+unit_pubrelResentAfterReconnect50 :: Assertion
+unit_pubrelResentAfterReconnect50 = pubrelResentAfterReconnect T.Protocol50 "h6-50"
+
+-- H6: ...but once PUBCOMP arrives, the exchange is done and nothing is
+-- resent.
+unit_nothingResentAfterPubcomp :: Assertion
+unit_nothingResentAfterPubcomp = withTestService $ \u -> do
+  let req = sessionReq T.Protocol311 "h6-done"
+  withRawConn u T.Protocol311 req $ \rc -> do
+    rawSubscribe rc "h6/t" T.QoS2
+    pubber <- MC.connectURI MC.mqttConfig u
+    MC.publishq pubber "h6/t" "x" False MC.QoS2 []
+    p <- rawPubRecvToRel rc
+    rawSend rc (T.PubCOMPPkt (T.PubCOMP p 0 []))
+    -- A PINGRESP shows the PUBCOMP has been processed.
+    rawSend rc T.PingPkt
+    rawRecvWithin rc >>= assertEqual "ping response" T.PongPkt
+  withRawConn u T.Protocol311 req $ \rc -> do
+    assertEqual "session present" T.ExistingSession (rawSessionPresent rc)
+    timeout 500000 (rawRecv rc) >>= mapM_ (\x -> assertFailure ("unexpected resend: " <> show x))

@@ -22,6 +22,7 @@ import qualified Data.Conduit.Combinators as C
 import           Data.Conduit.Network     (AppData, appSink, appSockAddr, appSource)
 import           Data.Functor             (($>))
 import qualified Data.Map.Strict          as Map
+import qualified Data.Set                 as Set
 import           Data.String              (IsString (..))
 import           Data.Text                (Text, intercalate, pack, unpack)
 import           Data.Time.Clock          (getCurrentTime)
@@ -158,6 +159,11 @@ runMQTTDConduit (src, sink, addr) = runConduit $ do
       -- queue size.  The rest is returned for async processing.
       now <- liftIO getCurrentTime
       bl <- atomically do
+        -- PUBRELs waiting for PUBCOMP are resent first.  They're still in
+        -- flight, so each takes a slot [5.0 MQTT-4.4.0-1], [3.1.1 §4.4].
+        rel <- Set.toList <$> readTVar _sessionRel
+        mapM_ (\p -> sendPacket _sessionChan (T.PubRELPkt (T.PubREL p 0 mempty))) rel
+        modifyTVar' _sessionFlight (\x -> x - min x (fromIntegral (length rel)))
         tokens <- readTVar _sessionFlight
         modifyTVar' _sessionQP (Map.filter (stillValid now))
         (t, bl) <- splitAt (min defaultQueueSize (fromIntegral tokens)) . Map.elems <$> readTVar _sessionQP
