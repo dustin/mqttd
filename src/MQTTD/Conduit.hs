@@ -231,17 +231,16 @@ runMQTTDConduit (src, sink, addr) = runConduit $ do
         pure bl
       -- The backlog is processed as space frees up in its queue.
       allSessions <- asks sessions
-      mapM_ (atomically . art now allSessions) bl
+      mapM_ (atomically . art allSessions) bl
         where
-          art now allSessions (_, p) = do
+          -- It keeps its original deadline [MQTT-3.3.2-5].
+          art allSessions dp = do
               guard =<< isClientConnected _sessionID allSessions
-              writeTBQueue _sessionBacklog (deadline now p, p)
+              writeTBQueue _sessionBacklog dp
 
           stillValid now (Just t, _) = now < t
           stillValid _ _             = True
 
-          adjExpiry _ Nothing p    = p
-          adjExpiry now (Just t) p = p & T.properties . traversed . T._PropMessageExpiryInterval .~ relExp now t
 
 webSocketsApp :: (IOE :> es, ScheduleFX SessionID :> es, AuthFX :> es, Fail :> es, MQTTD :> es, Stats :> es, LogFX :> es, DB :> es) => WS.PendingConnection -> Eff es ()
 webSocketsApp pc = do

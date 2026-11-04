@@ -28,11 +28,11 @@ import           Control.Monad          (replicateM, unless)
 import qualified Data.ByteString.Lazy   as BL
 import           Data.List              (sort)
 import qualified Data.Map.Strict        as Map
-import           Data.Maybe             (fromJust, fromMaybe)
+import           Data.Maybe             (fromJust, fromMaybe, listToMaybe)
 import           Data.Password.Bcrypt   (PasswordHash (..))
 import           Data.Time.Clock        (NominalDiffTime, diffUTCTime,
                                          getCurrentTime)
-import           Data.Word              (Word16, Word8)
+import           Data.Word              (Word16, Word32, Word8)
 import           Effectful
 import           Network.MQTT.Client    as MC
 import qualified Network.MQTT.Types     as T
@@ -1375,3 +1375,45 @@ unit_noLocalSharedProtocolError = withTestService $ \u ->
   withRawConn u T.Protocol50 T.connectRequest{T._connID="l5-nolocal"} $ \rc -> do
     rawSend rc (T.SubscribePkt (T.SubscribeRequest 1 [("$share/g/l5/t", T.subOptions{T._noLocal=True})] []))
     rawExpectDisconnect rc T.DiscoProtocolError
+
+-- * Message expiry
+
+expiryOf :: T.PublishRequest -> Maybe Word32
+expiryOf T.PublishRequest{_pubProps} = listToMaybe [x | T.PropMessageExpiryInterval x <- _pubProps]
+
+-- L2: A message that waited in the backlog is sent with its Message
+-- Expiry Interval reduced by the time it waited [5.0 MQTT-3.3.2-6].
+unit_backlogExpiryReduced :: Assertion
+unit_backlogExpiryReduced = withTestService $ \u -> do
+  let req = T.connectRequest{T._connID="l2-backlog", T._connProperties=[T.PropReceiveMaximum 1]}
+  withRawConn u T.Protocol50 req $ \rc -> do
+    rawSubscribe rc "l2/t" T.QoS1
+    pubber <- MC.connectURI MC.mqttConfig{_protocol=MC.Protocol50} u
+    MC.publishq pubber "l2/t" "one" False MC.QoS1 [T.PropMessageExpiryInterval 10]
+    MC.publishq pubber "l2/t" "two" False MC.QoS1 [T.PropMessageExpiryInterval 10]
+    T.PublishRequest{_pubPktID} <- rawExpectPublish rc
+    sleep 2
+    rawSend rc (T.PubACKPkt (T.PubACK _pubPktID 0 []))
+    p <- rawExpectPublish rc
+    assertBool ("expiry not reduced: " <> show (expiryOf p)) (maybe False (<= 8) (expiryOf p))
+
+-- L2: A message moved back to the backlog on reconnect keeps its
+-- original deadline, so it expires on time [MQTT-3.3.2-5].
+unit_backlogDeadlineKeptOnReconnect :: Assertion
+unit_backlogDeadlineKeptOnReconnect = withTestService $ \u -> do
+  let req = (sessionReq T.Protocol50 "l2-reconnect"){T._connProperties=[T.PropSessionExpiryInterval 60,
+                                                                         T.PropReceiveMaximum 1]}
+  withRawConn u T.Protocol50 req $ \rc -> do
+    rawSubscribe rc "l2/r" T.QoS1
+    pubber <- MC.connectURI MC.mqttConfig{_protocol=MC.Protocol50} u
+    MC.publishq pubber "l2/r" "one" False MC.QoS1 []
+    MC.publishq pubber "l2/r" "two" False MC.QoS1 [T.PropMessageExpiryInterval 3]
+    _ <- rawExpectPublish rc
+    pure ()
+  sleep 2
+  withRawConn u T.Protocol50 req $ \rc -> do
+    T.PublishRequest{_pubPktID, _pubBody} <- rawExpectPublish rc
+    assertEqual "first message resent" "one" _pubBody
+    sleep 2
+    rawSend rc (T.PubACKPkt (T.PubACK _pubPktID 0 []))
+    expectNoPublish rc

@@ -647,6 +647,12 @@ authTopic tt action = foldr check (Right ())
 
     ftot = fromString . Txt.unpack . T.unFilter
 
+-- | Set a PUBLISH's Message Expiry Interval to the time left before its
+-- deadline [MQTT-3.3.2-6].
+adjExpiry :: UTCTime -> Maybe UTCTime -> T.PublishRequest -> T.PublishRequest
+adjExpiry _ Nothing p    = p
+adjExpiry now (Just t) p = p & properties . traversed . _PropMessageExpiryInterval .~ relExp now t
+
 releasePubSlot :: UTCTime -> StatStore -> Session -> STM ()
 releasePubSlot now ss sess@Session{..} = do
   modifyTVar' _sessionFlight succ
@@ -655,7 +661,9 @@ releasePubSlot now ss sess@Session{..} = do
     getOne = tryReadTBQueue _sessionBacklog >>= \case
       Nothing -> pure () -- Nothing to do
       Just (Nothing, p) -> deliverOrNext p -- No deadline
-      Just (Just t, p) | now < t -> deliverOrNext p -- Deadline not yet reached
+      -- Deadline not yet reached.  It goes out with the time it has
+      -- left [MQTT-3.3.2-6].
+      Just (Just t, p) | now < t -> deliverOrNext (adjExpiry now (Just t) p)
       -- This one's expired [MQTT-3.3.2-5].  It's no longer in flight, so
       -- free its packet ID and see if there's another one.
       Just (Just _, p) -> modifyTVar' _sessionQP (Map.delete (p ^. pktID)) >> getOne
