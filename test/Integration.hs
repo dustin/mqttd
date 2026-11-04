@@ -392,7 +392,13 @@ data RawConn = RawConn {
 -- | Connect, wait for a successful CONNACK and run the action.  The
 -- connection is closed (without DISCONNECT) when the action returns.
 withRawConn :: TestServer -> T.ProtocolLevel -> T.ConnectRequest -> (RawConn -> IO a) -> IO a
-withRawConn u pl req f = runTCPClient (clientSettings port "127.0.0.1") $ \ad -> do
+withRawConn u pl req f = withRawConnAck u pl req $ \ack rc -> case ack of
+  T.ConnACKFlags sp T.ConnAccepted props -> f rc{rawSessionPresent=sp, rawConnAckProps=props}
+  x -> assertFailure ("unexpected connect response: " <> show x)
+
+-- | Connect and run the action with whatever CONNACK came back.
+withRawConnAck :: TestServer -> T.ProtocolLevel -> T.ConnectRequest -> (T.ConnACKFlags -> RawConn -> IO a) -> IO a
+withRawConnAck u pl req f = runTCPClient (clientSettings port "127.0.0.1") $ \ad -> do
   buf <- newIORef BS.empty
   let sendBytes b = runConduit $ yield b .| appSink ad
       send = sendBytes . BL.toStrict . T.toByteString pl
@@ -404,7 +410,7 @@ withRawConn u pl req f = runTCPClient (clientSettings port "127.0.0.1") $ \ad ->
       recv = recvMaybe >>= maybe (assertFailure "connection closed") pure
   send (T.ConnPkt req pl)
   recv >>= \case
-    T.ConnACKPkt (T.ConnACKFlags sp T.ConnAccepted props) -> f (RawConn send sendBytes recv recvMaybe sp props)
+    T.ConnACKPkt ack@(T.ConnACKFlags sp _ props) -> f ack (RawConn send sendBytes recv recvMaybe sp props)
     x -> assertFailure ("unexpected connect response: " <> show x)
   where
     port = read . drop 1 . uriPort . fromJust . uriAuthority $ u
@@ -885,3 +891,25 @@ unit_topicAliasUnknown = withTestService $ \u ->
   withRawConn u T.Protocol50 T.connectRequest{T._connID="m3-unknown"} $ \rc -> do
     rawSend rc (aliasedPublish "" 5)
     rawExpectDisconnect rc T.DiscoProtocolError
+
+-- * Client IDs
+
+-- M7: In 3.1.1, an empty client ID requires CleanSession=1; otherwise
+-- the server must reply with CONNACK 0x02 and close the connection
+-- [MQTT-3.1.3-8].
+unit_emptyClientIDPersistent311 :: Assertion
+unit_emptyClientIDPersistent311 = withTestService $ \u ->
+  withRawConnAck u T.Protocol311 T.connectRequest{T._connID="", T._cleanSession=False} $ \ack rc -> do
+    case ack of
+      T.ConnACKFlags _ T.IdentifierRejected _ -> pure ()
+      x -> assertFailure ("expected identifier rejected, got " <> show x)
+    timeout 2000000 (rawRecvMaybe rc) >>= \case
+      Just Nothing -> pure ()
+      x -> assertFailure ("expected the connection to close, got " <> show x)
+
+-- M7: (5.0 allows it; the server assigns an ID.)
+unit_emptyClientIDPersistent50 :: Assertion
+unit_emptyClientIDPersistent50 = withTestService $ \u ->
+  withRawConn u T.Protocol50 T.connectRequest{T._connID="", T._cleanSession=False} $ \rc ->
+    assertBool ("no assigned ID: " <> show (rawConnAckProps rc))
+      (any (\case T.PropAssignedClientIdentifier _ -> True; _ -> False) (rawConnAckProps rc))

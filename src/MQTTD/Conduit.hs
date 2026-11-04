@@ -58,6 +58,12 @@ runMQTTDConduit (src, sink, addr) = runConduit $ do
     count s x = incrementStat s (fromIntegral $ BCS.length x) >> pure x
 
     run :: (IOE :> es, ScheduleFX SessionID :> es, AuthFX :> es, Fail :> es, DB :> es, Stats :> es, MQTTD :> es) => T.ProtocolLevel -> ClientID -> T.MQTTPkt -> Maybe SessionID -> Eff es ()
+    -- In 3.1.1, an empty client ID (one we generated) requires a clean
+    -- session [MQTT-3.1.3-8].  Returning closes the connection.
+    run T.Protocol311 _ (T.ConnPkt T.ConnectRequest{T._cleanSession=False} _) (Just _) = do
+      logInfoL ["Rejecting empty client ID without a clean session from ", addr]
+      runConduit $ yield (T.ConnACKPkt $ T.ConnACKFlags T.NewSession T.IdentifierRejected []) .| commonOut T.Protocol311
+
     run pl cid (T.ConnPkt req _) nid = either (notAuthorized pl req) (const $ authorized pl cid req nid) =<< authorize req
 
     run _ _ pkt _ = fail ("Unhandled start packet from " <> unpack addr <> ": " <> show pkt)
