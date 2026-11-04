@@ -19,7 +19,7 @@ import qualified Data.Attoparsec.ByteString as A
 import qualified Data.ByteString.Char8    as BCS
 import qualified Data.ByteString.Lazy     as BL
 import           Data.Conduit             (ConduitT, Void, await, runConduit, yield, (.|))
-import           Data.Conduit.Attoparsec  (conduitParser, sinkParser)
+import           Data.Conduit.Attoparsec  (Position (..), PositionRange (..), conduitParser, sinkParser)
 import qualified Data.Conduit.Combinators as C
 import           Data.Conduit.Network     (AppData, appSink, appSockAddr, appSource)
 import           Data.Functor             (($>))
@@ -42,6 +42,7 @@ import           UnliftIO                 (async, atomically, waitAnyCancel)
 
 import           MQTTD
 import           MQTTD.Authorizer
+import           MQTTD.Config             (Limits (..))
 import           MQTTD.DB                 (DB (..))
 import           MQTTD.Logging
 import           MQTTD.ScheduleFX
@@ -135,10 +136,12 @@ runMQTTDConduit (src, sink, addr) = runConduit $ do
       -- Register and accept the connection
       tid <- liftIO myThreadId
       (sess@Session{_sessionID, _sessionChan}, existing) <- registerClient pl req cid tid
+      lims <- asks limits
       let cprops = [ T.PropTopicAliasMaximum topicAliasMaximum ] <> [ T.PropAssignedClientIdentifier i | Just i <- [nid] ]
                    -- Not supported [5.0 §3.2.2.3.12].
                    <> [ T.PropSubscriptionIdentifierAvailable 0 | pl == T.Protocol50 ]
                    <> [ T.PropReceiveMaximum receiveMaximum | pl == T.Protocol50 ]
+                   <> [ T.PropMaximumPacketSize n | Just n <- [_limitPacketSize lims], pl == T.Protocol50 ]
                    <> [ T.PropServerKeepAlive (effectiveKeepAlive _keepAlive) | _keepAlive == 0, pl == T.Protocol50 ]
       deliverConnACK pl existing cprops
 
@@ -176,9 +179,19 @@ runMQTTDConduit (src, sink, addr) = runConduit $ do
         .| C.mapM (\i@(_,x) -> logDbgL ["<< ", tshow x] >> pure i)
         .| dispatchUntilDisconnect
       where
+        -- A packet bigger than the Maximum Packet Size is a protocol
+        -- error (DISCONNECT 0x95 for 5.0) [5.0 §3.2.2.3.6].
+        tooBig maxSize (PositionRange start end) = maybe False (\m -> posOffset end - posOffset start > fromIntegral m) maxSize
+        rejectBig = do
+          when (pl == T.Protocol50) $
+            sendPacketIO_ (_sessionChan sess) (T.DisconnectPkt (T.DisconnectRequest T.DiscoPacketTooLarge []))
+          fail "packet bigger than the maximum packet size"
+
         -- Nothing follows a client's DISCONNECT, and returning closes the
         -- connection [3.1.1 §3.14.4], [5.0 §3.14.4].
-        dispatchUntilDisconnect = await >>= mapM_ \(_,x) -> do
+        dispatchUntilDisconnect = await >>= mapM_ \(pos,x) -> do
+          maxSize <- lift (asks (_limitPacketSize . limits))
+          when (tooBig maxSize pos) $ lift rejectBig
           lift (feed wdch >> dispatch sess x)
           case x of
             T.DisconnectPkt{} -> pure ()

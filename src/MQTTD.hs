@@ -44,7 +44,7 @@ import           System.Random                 (getStdGen, newStdGen, randomR)
 import           UnliftIO                      (atomically, readTVarIO)
 
 import           MQTTD.Authorizer
-import           MQTTD.Config           (ACL (..), ACLAction (..))
+import           MQTTD.Config           (ACL (..), ACLAction (..), Limits (..), noLimits)
 import           MQTTD.DB
 import           MQTTD.GCStats
 import           MQTTD.Logging
@@ -62,7 +62,8 @@ data Env = Env {
   clientIDGen :: TVar ClientID,
   allSubs     :: TVar (SubTree (Map SessionID T.SubOptions)),
   sharedSubs  :: TVar (SubTree (Map SubscriberName [(SessionID, T.SubOptions)])),
-  retainer    :: Retainer
+  retainer    :: Retainer,
+  limits      :: Limits
   }
 
 data MQTTD :: Effect where
@@ -80,6 +81,7 @@ newEnv = liftIO $ Env
          <*> newTVarIO mempty -- all subs
          <*> newTVarIO mempty -- shared subs
          <*> newRetainer
+         <*> pure noLimits
 
 runMQTTD :: forall es a. Env -> Eff (MQTTD : es) a -> Eff es (a, Env)
 runMQTTD initialEnv = reinterpret (runState initialEnv) \_ -> \case

@@ -54,7 +54,7 @@ runServerLogging Config{..} = do
   liftIO $ initDB db
   dbc <- async $ finally pause (logDbg "Closing DB connection" >> liftIO (close db))
 
-  e <- newEnv
+  e <- (\x -> x{limits=_confLimits}) <$> newEnv
   ss <- getStatStore
   expirer <- Scheduler.newRunner
   dbq <- liftIO $ newTBQueueIO 100

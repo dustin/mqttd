@@ -2,6 +2,7 @@
 {-# LANGUAGE StrictData  #-}
 
 module MQTTD.Config (Config(..), Creds(..), User(..), ACLAction(..), ACL(..), PersistenceConfig(..),
+                     Limits(..), noLimits,
                      Listener(..), ListenerOptions(..), listenerOpts,
                      parseConfFile) where
 
@@ -18,8 +19,9 @@ import           Data.String                (IsString (..))
 import           Data.Text                  (Text)
 import qualified Data.Text.IO               as TIO
 import           Data.Void                  (Void)
+import           Data.Word                  (Word32)
 import qualified Network.MQTT.Topic         as T
-import           Text.Megaparsec            (Parsec, between, choice, manyTill, option, parse, some, try)
+import           Text.Megaparsec            (Parsec, between, choice, many, manyTill, option, parse, some, try)
 import           Text.Megaparsec.Char       (char, space, space1)
 import qualified Text.Megaparsec.Char.Lexer as L
 import           Text.Megaparsec.Error      (errorBundlePretty)
@@ -59,15 +61,26 @@ listenerOpts = lens r w
 
 newtype PersistenceConfig = PersistenceConfig { _persistenceDBPath :: FilePath } deriving (Show, Eq)
 
+-- | Limits the server puts on clients.
+newtype Limits = Limits {
+  -- | The biggest packet a client may send [5.0 §3.2.2.3.6].
+  _limitPacketSize :: Maybe Word32
+  } deriving (Show, Eq)
+
+noLimits :: Limits
+noLimits = Limits Nothing
+
 data Config = Config {
   _confDebug     :: Bool,
   _confUsers     :: Map BL.ByteString User,
   _confListeners :: [Listener],
   _confDefaults  :: ListenerOptions,
-  _confPersist   :: PersistenceConfig
+  _confPersist   :: PersistenceConfig,
+  _confLimits    :: Limits
   } deriving (Show, Eq)
 
 data Section = DebugSection Bool
+             | LimitsSection Limits
              | UserSection [User]
              | DefaultsSection ListenerOptions
              | ListenerSection [Listener]
@@ -119,6 +132,16 @@ namedValue s p = symbeq s *> p
 parseListenOpts :: Parser ListenerOptions
 parseListenOpts = bt "{" "}" (ListenerOptions <$> namedValue "allow_anonymous" (Just <$> parseBool))
 
+-- | Limits, each optional: { max_packet_size = 1048576 }
+parseLimits :: Parser Limits
+parseLimits = bt "{" "}" (foldr ($) noLimits <$> many (lexeme limit))
+  where
+    limit = choice [
+      (\n l -> l{_limitPacketSize=Just n}) <$> namedValue "max_packet_size" (lexeme positive)
+      ]
+    positive = L.decimal >>= \n -> if n > 0 && n <= toInteger (maxBound :: Word32)
+                                     then pure (fromInteger n) else fail "must be from 1 to 4294967295"
+
 parsePersistence :: Parser PersistenceConfig
 parsePersistence = bt "{" "}" (PersistenceConfig <$> namedValue "db" (lexeme qstr))
 
@@ -128,11 +151,12 @@ parseSection = lexeme $ choice [
   DefaultsSection <$> namedValue "defaults" parseListenOpts,
   UserSection <$> namedList "users" parseUser,
   ListenerSection <$> namedList "listeners" parseListener,
-  PersistenceSection <$> namedValue "persistence" parsePersistence
+  PersistenceSection <$> namedValue "persistence" parsePersistence,
+  LimitsSection <$> namedValue "limits" parseLimits
   ]
 
 parseConfig :: Parser Config
-parseConfig = foldr up (Config False mempty mempty mempty (PersistenceConfig ":memory:")) <$> some parseSection
+parseConfig = foldr up (Config False mempty mempty mempty (PersistenceConfig ":memory:") noLimits) <$> some parseSection
 
     where
       up (DebugSection d) c = c{_confDebug=d}
@@ -141,6 +165,7 @@ parseConfig = foldr up (Config False mempty mempty mempty (PersistenceConfig ":m
       up (ListenerSection l) c@Config{..} = c{_confListeners=_confListeners <> l}
       up (DefaultsSection l) c = c{_confDefaults=l}
       up (PersistenceSection l) c = c{_confPersist=l}
+      up (LimitsSection l) c = c{_confLimits=l}
 
 parseBool :: Parser Bool
 parseBool = True <$ lexeme "true" <|> False <$ lexeme "false"

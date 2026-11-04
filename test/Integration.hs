@@ -61,7 +61,8 @@ testConfig = Config {
   _confUsers = mempty,
   _confListeners = [], -- filled in by withTestServiceConfig
   _confDefaults = ListenerOptions { _optAllowAnonymous = Just True },
-  _confPersist = PersistenceConfig ":memory:"
+  _confPersist = PersistenceConfig ":memory:",
+  _confLimits = noLimits
   }
 
 withTestServiceConfig :: Config -> (TestServer -> Assertion) -> Assertion
@@ -1769,3 +1770,37 @@ unit_sigtermFlushesWrites = withTempDB $ \path -> do
   SQL.withConnection path $ \db -> do
     [SQL.Only (n :: Int)] <- SQL.query db "select count(*) from session_subs where session_id = ?" (SQL.Only ("sigterm" :: BL.ByteString))
     assertEqual "stored subscriptions" 1 n
+
+-- * Server limits
+
+-- A Maximum Packet Size is advertised to 5.0 clients, and a bigger packet
+-- gets DISCONNECT 0x95 [5.0 §3.2.2.3.6], [MQTT-3.1.2-24].
+limitedConfig :: Config
+limitedConfig = testConfig{_confLimits = noLimits{_limitPacketSize = Just 100}}
+
+bigPublish :: T.MQTTPkt
+bigPublish = T.PublishPkt T.PublishRequest{T._pubDup=False, T._pubQoS=T.QoS0, T._pubRetain=False,
+                                           T._pubTopic="big", T._pubPktID=0, T._pubBody=BL.replicate 200 0x78,
+                                           T._pubProps=[]}
+
+unit_serverMaximumPacketSize50 :: Assertion
+unit_serverMaximumPacketSize50 = withTestServiceConfig limitedConfig $ \u ->
+  withRawConn u T.Protocol50 T.connectRequest{T._connID="maxpkt50"} $ \rc -> do
+    assertBool ("CONNACK properties: " <> show (rawConnAckProps rc)) (T.PropMaximumPacketSize 100 `elem` rawConnAckProps rc)
+    rawSend rc bigPublish
+    rawExpectDisconnect rc T.DiscoPacketTooLarge
+
+-- ...and 3.1.1 clients, who can't be told, have their connection closed.
+unit_serverMaximumPacketSize311 :: Assertion
+unit_serverMaximumPacketSize311 = withTestServiceConfig limitedConfig $ \u ->
+  withRawConn u T.Protocol311 T.connectRequest{T._connID="maxpkt311"} $ \rc -> do
+    rawSend rc bigPublish
+    timeout 2000000 (rawRecvMaybe rc) >>= \case
+      Just Nothing -> pure ()
+      x -> assertFailure ("expected the connection to close, got " <> show x)
+
+-- ...and smaller packets are fine.
+unit_serverMaximumPacketSizeSmall :: Assertion
+unit_serverMaximumPacketSizeSmall = withTestServiceConfig limitedConfig $ \u ->
+  withRawConn u T.Protocol50 T.connectRequest{T._connID="maxpkt-small"} $ \rc ->
+    rawSubscribe rc "small/t" T.QoS0
