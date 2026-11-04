@@ -1322,3 +1322,56 @@ unit_unknownPubRECNotFound = withOneSlot "l4/pubrec-unknown" T.QoS2 $ \rc T.Publ
     T.PubRELPkt (T.PubREL p st _) -> assertEqual "PUBREL" (_pubPktID + 100, 0x92) (p, st)
     x -> assertFailure ("expected PUBREL, got " <> show x)
   expectNoPublish rc
+
+-- * Subscription reason codes
+
+rawSubscribeResult :: RawConn -> [BL.ByteString] -> IO [Either T.SubErr T.QoS]
+rawSubscribeResult rc fs = do
+  rawSend rc (T.SubscribePkt (T.SubscribeRequest 1 [(f, T.subOptions) | f <- fs] []))
+  rawRecvWithin rc >>= \case
+    T.SubACKPkt (T.SubscribeResponse _ r _) -> pure r
+    x -> assertFailure ("expected SUBACK, got " <> show x)
+
+invalidFilters :: [BL.ByteString]
+invalidFilters = ["a/#/b", "$share//x", "$share/g"]
+
+-- L5: An invalid filter is 0x8F (Topic Filter invalid), not 0x87 (Not
+-- authorized) [5.0 §3.9.3].
+unit_invalidFilterSubACK50 :: Assertion
+unit_invalidFilterSubACK50 = withTestService $ \u ->
+  withRawConn u T.Protocol50 T.connectRequest{T._connID="l5-sub50"} $ \rc -> do
+    r <- rawSubscribeResult rc invalidFilters
+    assertEqual "SUBACK" (Left T.SubErrTopicFilterInvalid <$ invalidFilters) r
+
+-- L5: 3.1.1 only has 0x80 for a failure [MQTT-3.9.3-2].
+unit_invalidFilterSubACK311 :: Assertion
+unit_invalidFilterSubACK311 = withTestService $ \u ->
+  withRawConn u T.Protocol311 T.connectRequest{T._connID="l5-sub311"} $ \rc -> do
+    r <- rawSubscribeResult rc invalidFilters
+    assertEqual "SUBACK" (Left T.SubErrUnspecifiedError <$ invalidFilters) r
+
+unit_deniedFilterSubACK311 :: Assertion
+unit_deniedFilterSubACK311 =
+  withTestServiceConfig testConfig{
+    _confUsers = Map.fromList [("u", User "u" (Plaintext "p") [Allow ACLPubSub "ok/#", Deny "#"])]} $ \u ->
+  withRawConn u T.Protocol311 T.connectRequest{T._connID="l5-deny311", T._username=Just "u", T._password=Just "p"} $ \rc -> do
+    r <- rawSubscribeResult rc ["ok/a", "no/a"]
+    assertEqual "SUBACK" [Right T.QoS0, Left T.SubErrUnspecifiedError] r
+
+-- L5: ...and the same for UNSUBSCRIBE [5.0 §3.11.3].
+unit_invalidFilterUnsubACK :: Assertion
+unit_invalidFilterUnsubACK = withTestService $ \u ->
+  withRawConn u T.Protocol50 T.connectRequest{T._connID="l5-unsub"} $ \rc -> do
+    rawSend rc (T.UnsubscribePkt (T.UnsubscribeRequest 1 ("ok/a" : invalidFilters) []))
+    rawRecvWithin rc >>= \case
+      T.UnsubACKPkt (T.UnsubscribeResponse _ _ r) ->
+        assertEqual "UNSUBACK" (T.UnsubNoSubscriptionExisted : (T.UnsubTopicFilterInvalid <$ invalidFilters)) r
+      x -> assertFailure ("expected UNSUBACK, got " <> show x)
+
+-- L5: No Local on a shared subscription is a protocol error
+-- [MQTT-3.8.3-4].
+unit_noLocalSharedProtocolError :: Assertion
+unit_noLocalSharedProtocolError = withTestService $ \u ->
+  withRawConn u T.Protocol50 T.connectRequest{T._connID="l5-nolocal"} $ \rc -> do
+    rawSend rc (T.SubscribePkt (T.SubscribeRequest 1 [("$share/g/l5/t", T.subOptions{T._noLocal=True})] []))
+    rawExpectDisconnect rc T.DiscoProtocolError

@@ -243,11 +243,13 @@ subscribe sess@Session{..} (T.SubscribeRequest pid topics props) = do
   ss <- getStatStore
   let topics' = map (\(t,o) ->
                        case (T.mkFilter . blToText) t of
-                         Nothing -> Left T.SubErrNotAuthorized
-                         Just t' ->
-                           bimap (const T.SubErrNotAuthorized)
+                         Just t' | classifyTopic t' /= InvalidTopic ->
+                           bimap (const (subErr T.SubErrNotAuthorized))
                                  (const (t', o))
-                                 (authTopic (classifyTopic t') IntentSubscribe _sessionACL)) topics
+                                 (authTopic (classifyTopic t') IntentSubscribe _sessionACL)
+                         _ -> Left (subErr T.SubErrTopicFilterInvalid)) topics
+      -- 3.1.1 has only the one failure code [MQTT-3.9.3-2].
+      subErr e = if sessionIs50 sess then e else T.SubErrUnspecifiedError
       (shared, normal) = partitionShared (rights topics')
       new = Map.fromList normal
   existing <- atomically $ do
@@ -319,9 +321,11 @@ unsubscribe Session{..} topics = asks allSubs >>= \subs -> asks sharedSubs >>= \
     pure (reverse uns)
 
     where
-      unm = maybe T.UnsubNoSubscriptionExisted (const T.UnsubSuccess)
-      up Nothing  = (Nothing,)
-      up (Just t) = Map.updateLookupWithKey (const.const $ Nothing) t
+      unm (Left e)  = e
+      unm (Right r) = maybe T.UnsubNoSubscriptionExisted (const T.UnsubSuccess) r
+      up (Just t) | classifyTopic t /= InvalidTopic = first Right . Map.updateLookupWithKey (const.const $ Nothing) t
+      -- [5.0 §3.11.3]
+      up _ = (Left T.UnsubTopicFilterInvalid,)
 
 modifySession :: (IOE :> es, MQTTD :> es) => SessionID -> (Session -> Maybe Session) -> Eff es ()
 modifySession k f = asks sessions >>= \s -> atomically $ modifyTVar' s (Map.update f k)
@@ -658,6 +662,10 @@ releasePubSlot now ss sess@Session{..} = do
     -- If it wasn't sent (e.g. it's too big), the slot is still free.
     deliverOrNext p = deliver ss sess p >>= \sent -> unless sent getOne
 
+-- | Whether the session's connected client speaks MQTT 5.0.
+sessionIs50 :: Session -> Bool
+sessionIs50 Session{_sessionClient} = (_sessionClient ^? _Just . clientProtocol) == Just T.Protocol50
+
 dispatch :: (IOE :> es, Fail :> es, MQTTD :> es, DB :> es, LogFX :> es, Stats :> es) => Session -> T.MQTTPkt -> Eff es ()
 
 dispatch Session{..} T.PingPkt = sendPacketIO_ _sessionChan T.PongPkt
@@ -711,6 +719,13 @@ dispatch Session{..} (T.SubscribePkt (T.SubscribeRequest _ _ props))
   | any (has _PropSubscriptionIdentifier) props = do
       sendPacketIO_ _sessionChan (T.DisconnectPkt (T.DisconnectRequest T.DiscoSubscriptionIdentifiersNotSupported []))
       fail "subscription identifiers aren't supported"
+-- No Local on a shared subscription is a protocol error [MQTT-3.8.3-4].
+dispatch Session{..} (T.SubscribePkt (T.SubscribeRequest _ subs _))
+  | any noLocalShared subs = do
+      sendPacketIO_ _sessionChan (T.DisconnectPkt (T.DisconnectRequest T.DiscoProtocolError []))
+      fail "No Local on a shared subscription"
+  where noLocalShared (f, T.SubOptions{T._noLocal}) =
+          _noLocal && maybe False (\case SharedSubscription{} -> True; _ -> False) (classifyTopic <$> T.mkFilter (blToText f))
 dispatch sess (T.SubscribePkt req) = subscribe sess req
 
 dispatch sess@Session{..} (T.UnsubscribePkt (T.UnsubscribeRequest pid subs props)) = do
@@ -760,7 +775,7 @@ dispatch sess@Session{..} (T.PublishPkt req) = resolveAliasIn sess req >>= eithe
               pure True
         unless ok $ protocolError T.DiscoReceiveMaximumExceeded
 
-      is50 = (_sessionClient ^? _Just . clientProtocol) == Just T.Protocol50
+      is50 = sessionIs50 sess
 
       countIn = incrementStat StatMsgRcvd 1
 
