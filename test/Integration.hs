@@ -864,13 +864,20 @@ unit_subIdRejected = withTestService $ \u ->
 
 -- * Inbound topic aliases
 
--- | Expect the server to disconnect: a DISCONNECT with the given reason
--- (best effort), then the connection closing.
+-- | Expect the server to disconnect: a DISCONNECT with the given reason,
+-- then the connection closing [5.0 §4.13].
 rawExpectDisconnect :: RawConn -> T.DiscoReason -> Assertion
-rawExpectDisconnect rc reason = timeout 2000000 (rawRecvMaybe rc) >>= \case
-  Nothing -> assertFailure "connection wasn't closed"
-  Just Nothing -> pure ()
-  Just (Just (T.DisconnectPkt (T.DisconnectRequest r _))) -> assertEqual "disconnect reason" reason r
+rawExpectDisconnect rc reason = rawExpectDisconnectWithin 2 rc reason
+
+rawExpectDisconnectWithin :: Int -> RawConn -> T.DiscoReason -> Assertion
+rawExpectDisconnectWithin secs rc reason = timeout (secs * 1000000) (rawRecvMaybe rc) >>= \case
+  Nothing -> assertFailure ("no DISCONNECT " <> show reason)
+  Just Nothing -> assertFailure ("connection closed without DISCONNECT " <> show reason)
+  Just (Just (T.DisconnectPkt (T.DisconnectRequest r _))) -> do
+    assertEqual "disconnect reason" reason r
+    timeout 2000000 (rawRecvMaybe rc) >>= \case
+      Just Nothing -> pure ()
+      x -> assertFailure ("expected the connection to close, got " <> show x)
   Just (Just x) -> assertFailure ("expected DISCONNECT " <> show reason <> ", got " <> show x)
 
 aliasedPublish :: BL.ByteString -> Word16 -> T.MQTTPkt
@@ -1441,3 +1448,20 @@ unit_willACLSubscribeOnly311 = willACL T.Protocol311 "ro/w" T.NotAuthorized
 
 unit_willACLDenied50 :: Assertion
 unit_willACLDenied50 = willACL T.Protocol50 "no/w" T.ConnNotAuthorized
+
+-- * Server DISCONNECTs
+
+-- L7: A 5.0 connection that's taken over gets DISCONNECT 0x8E (Session
+-- taken over) [5.0 §3.1.4], [5.0 §4.13].
+unit_takeoverDisconnect50 :: Assertion
+unit_takeoverDisconnect50 = withTestService $ \u ->
+  withRawConn u T.Protocol50 T.connectRequest{T._connID="l7-takeover"} $ \old ->
+    withRawConn u T.Protocol50 T.connectRequest{T._connID="l7-takeover"} $ \_ ->
+      rawExpectDisconnect old T.DiscoSessiontakenOver
+
+-- L7: ...and one that misses its keep alive gets 0x8D (Keep Alive
+-- timeout) [5.0 §3.1.2.10].
+unit_keepAliveDisconnect50 :: Assertion
+unit_keepAliveDisconnect50 = withTestService $ \u ->
+  withRawConn u T.Protocol50 T.connectRequest{T._connID="l7-keepalive", T._keepAlive=1} $ \rc ->
+    rawExpectDisconnectWithin 3 rc T.DiscoKeepAliveTimeout

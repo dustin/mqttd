@@ -9,7 +9,7 @@ module MQTTD.Conduit where
 
 import           Control.Applicative      ((<|>))
 import           Control.Concurrent       (myThreadId, throwTo)
-import           Control.Concurrent.STM   (check, modifyTVar', newTChanIO, orElse, readTBQueue, readTChan, readTVar,
+import           Control.Concurrent.STM   (check, flushTBQueue, modifyTVar', newTChanIO, orElse, readTBQueue, readTChan, readTVar,
                                            registerDelay, writeTBQueue, writeTChan)
 import           Control.Lens
 import           Control.Monad            (forever, guard, unless, void, when)
@@ -142,11 +142,11 @@ runMQTTDConduit (src, sink, addr) = runConduit $ do
       deliverConnACK pl existing cprops
 
       wdch <- liftIO newTChanIO
-      w <- traverse (\to -> async $ watchdog to wdch _sessionID tid) (keepAliveTimeout pl _keepAlive)
+      w <- traverse (\to -> async $ watchdog to wdch pl sess tid) (keepAliveTimeout pl _keepAlive)
       o <- async $ processOut pl sess
       i <- async $ E.finally (processIn wdch sess pl `E.onException` logConn "process exception" req) (teardown pl cid req)
       retransmit sess
-      void $ waitAnyCancel ([i, o] <> maybeToList w)
+      void (waitAnyCancel ([i, o] <> maybeToList w)) `E.finally` flushDisconnect pl _sessionChan
 
     logConn h T.ConnectRequest{..} =
       logInfoL [h,  " from ",  addr,  lu,
@@ -186,8 +186,12 @@ runMQTTDConduit (src, sink, addr) = runConduit $ do
     deliverConnACK pl existing cprops = runConduit $
       yield (T.ConnACKPkt $ T.ConnACKFlags existing T.ConnAccepted cprops) .| commonOut pl
 
-    processOut pl Session{..} = runConduit $
-      C.repeatM (atomically $ readTBQueue _sessionChan >>= sending) .| commonOut pl
+    -- Each packet is taken off the queue and written with async
+    -- exceptions masked, so one isn't lost by the connection being
+    -- killed between the two.
+    processOut pl Session{..} = forever . E.mask_ $ do
+      p <- atomically $ readTBQueue _sessionChan >>= sending
+      runConduit $ yield p .| commonOut pl
       where
         -- Once a PUBLISH goes out, sending it again is a resend, so the
         -- copy kept for retransmission gets DUP=1 [MQTT-3.3.1-1].
@@ -208,11 +212,21 @@ runMQTTDConduit (src, sink, addr) = runConduit $ do
 
     feed wdch = atomically (writeTChan wdch True)
 
-    watchdog pp wdch sid t = forever $ do
+    -- A DISCONNECT the connection was ending with (a protocol error, a
+    -- takeover or a keep alive timeout) may still be queued when it's
+    -- killed.  It's sent before the connection closes [5.0 §4.13].
+    flushDisconnect pl ch = when (pl == T.Protocol50) $ do
+      pending <- atomically $ flushTBQueue ch
+      E.handle (\(_ :: E.SomeException) -> pure ()) . runConduit $
+        C.yieldMany [p | p@T.DisconnectPkt{} <- pending] .| commonOut pl
+
+    watchdog pp wdch pl Session{_sessionID, _sessionChan} t = forever $ do
       toch <- liftIO $ registerDelay pp
       timedOut <- atomically $ ((check =<< readTVar toch) $> True) `orElse` (readTChan wdch $> False)
       when timedOut $ do
-        logInfoL ["Client with session ", tshow sid, " timed out"]
+        logInfoL ["Client with session ", tshow _sessionID, " timed out"]
+        when (pl == T.Protocol50) $
+          sendPacketIO_ _sessionChan (T.DisconnectPkt (T.DisconnectRequest T.DiscoKeepAliveTimeout []))
         liftIO $ throwTo t MQTTPingTimeout
 
     retransmit Session{..} = do

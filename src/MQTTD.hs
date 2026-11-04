@@ -364,6 +364,11 @@ registerClient pl req@T.ConnectRequest{..} i o = do
         (ns, ruse) = maybeClean clean emptySession s
         discarded = if clean then s else Nothing
     mapM_ (dropSubs . _sessionSubs) discarded
+    -- The connection being taken over is told why [5.0 §3.1.4].
+    case (s, o') of
+      (Just Session{_sessionChan=oldChan}, Just ConnectedClient{_clientProtocol=T.Protocol50}) ->
+        sendPacket_ oldChan (T.DisconnectPkt (T.DisconnectRequest T.DiscoSessiontakenOver []))
+      _ -> pure ()
     writeTVar c (Map.insert k ns m)
     pure (o', ruse, ns, discarded, replacedWill clean =<< s)
   -- The cascade removes the discarded session's persisted subscriptions.
