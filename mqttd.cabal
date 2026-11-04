@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 7f0d5c479aa91a7e5275610d4bca0321ecbf56d34ba4d51950ef42f6501f6211
+-- hash: e0f60f1f47ee3c9441804ab728da177cedfe19d866f31f2c0a0d2af9756c9500
 
 name:           mqttd
 version:        0.9.6.0
@@ -81,7 +81,7 @@ library
     , megaparsec
     , monad-logger
     , mtl
-    , net-mqtt >=0.8.7.0 && <0.9
+    , net-mqtt >=0.8.7.1 && <0.9
     , net-mqtt-lens
     , network-conduit-tls
     , optparse-applicative
@@ -139,7 +139,7 @@ executable mqttd
     , monad-logger
     , mqttd
     , mtl
-    , net-mqtt >=0.8.7.0 && <0.9
+    , net-mqtt >=0.8.7.1 && <0.9
     , net-mqtt-lens
     , network-conduit-tls
     , optparse-applicative
@@ -195,7 +195,7 @@ executable mqttdpass
     , megaparsec
     , monad-logger
     , mtl
-    , net-mqtt >=0.8.7.0 && <0.9
+    , net-mqtt >=0.8.7.1 && <0.9
     , net-mqtt-lens
     , network-conduit-tls
     , optparse-applicative
@@ -262,7 +262,7 @@ test-suite mqttd-test
     , monad-logger
     , mqttd
     , mtl
-    , net-mqtt >=0.8.7.0 && <0.9
+    , net-mqtt >=0.8.7.1 && <0.9
     , net-mqtt-lens
     , network-conduit-tls
     , network-uri
