@@ -1417,3 +1417,27 @@ unit_backlogDeadlineKeptOnReconnect = withTestService $ \u -> do
     sleep 2
     rawSend rc (T.PubACKPkt (T.PubACK _pubPktID 0 []))
     expectNoPublish rc
+
+-- * Will ACLs
+
+-- L8: A will is published as the client, so its topic needs the same
+-- publish permission; a CONNECT whose will the client couldn't publish
+-- is refused as not authorized.
+willACL :: T.ProtocolLevel -> BL.ByteString -> T.ConnACKRC -> Assertion
+willACL pl t want =
+  withTestServiceConfig testConfig{
+    _confUsers = Map.fromList [("u", User "u" (Plaintext "p") [Allow ACLPubSub "ok/#", Allow ACLSub "ro/#", Deny "#"])]} $ \u -> do
+  let req = (badWillReq t){T._connID="l8", T._username=Just "u", T._password=Just "p"}
+  withRawConnAck u pl req $ \(T.ConnACKFlags _ rc' _) _ -> assertEqual "CONNACK" want rc'
+
+unit_willACLAllowed :: Assertion
+unit_willACLAllowed = willACL T.Protocol311 "ok/w" T.ConnAccepted
+
+unit_willACLDenied311 :: Assertion
+unit_willACLDenied311 = willACL T.Protocol311 "no/w" T.NotAuthorized
+
+unit_willACLSubscribeOnly311 :: Assertion
+unit_willACLSubscribeOnly311 = willACL T.Protocol311 "ro/w" T.NotAuthorized
+
+unit_willACLDenied50 :: Assertion
+unit_willACLDenied50 = willACL T.Protocol50 "no/w" T.ConnNotAuthorized

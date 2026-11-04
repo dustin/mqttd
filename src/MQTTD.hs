@@ -674,6 +674,12 @@ releasePubSlot now ss sess@Session{..} = do
 sessionIs50 :: Session -> Bool
 sessionIs50 Session{_sessionClient} = (_sessionClient ^? _Just . clientProtocol) == Just T.Protocol50
 
+-- | Whether a client with the given ACL may have this will.
+authWill :: [ACL] -> T.LastWill -> Either String ()
+authWill acl T.LastWill{_willTopic} = case classifyTopic (fromString (Txt.unpack (blToText _willTopic))) of
+  t@(Normal _) -> authTopic t IntentPublish acl
+  _            -> Left "invalid will topic"
+
 dispatch :: (IOE :> es, Fail :> es, MQTTD :> es, DB :> es, LogFX :> es, Stats :> es) => Session -> T.MQTTPkt -> Eff es ()
 
 dispatch Session{..} T.PingPkt = sendPacketIO_ _sessionChan T.PongPkt

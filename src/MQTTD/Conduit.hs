@@ -107,7 +107,12 @@ runMQTTDConduit (src, sink, addr) = runConduit $ do
           when (pl == T.Protocol50) $
             runConduit $ yield (T.ConnACKPkt $ T.ConnACKFlags T.NewSession T.ConnTopicNameInvalid []) .| commonOut pl
 
-    run pl cid (T.ConnPkt req _) nid = either (notAuthorized pl req) (const $ authorized pl cid req nid) =<< authorize req
+    run pl cid (T.ConnPkt req _) nid = either (notAuthorized pl req) (const $ authorized pl cid req nid) =<< auth
+      where
+        -- The will is published as the client, so it needs permission
+        -- to publish to its topic.
+        auth = authorize req >>= either (pure . Left) (const $ willAuth <$> getACL (T._username req))
+        willAuth acl = maybe (Right ()) (authWill acl) (T._lastWill req)
 
     run _ _ pkt _ = fail ("Unhandled start packet from " <> unpack addr <> ": " <> show pkt)
 
