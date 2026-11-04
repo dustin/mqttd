@@ -1591,3 +1591,49 @@ unit_maximumPacketSizeOnResend = withTestService $ \u -> do
     MC.publishq pubber "m8r/small" "small" False MC.QoS1 []
     T.PublishRequest{_pubTopic} <- rawExpectPublish rc
     assertEqual "oversize message not resent" "m8r/small" _pubTopic
+
+-- * Mosquitto leads
+
+-- DISCONNECT 0x04 (Disconnect with Will Message) sends the will
+-- [5.0 §3.14.2.1].
+unit_disconnectWithWill :: Assertion
+unit_disconnectWithWill = withTestService $ \u -> do
+  wills <- willWatcher u
+  withRawConn u T.Protocol50 (willReq "dww" True [] []) $ \rc ->
+    rawSend rc (T.DisconnectPkt (T.DisconnectRequest T.DiscoDisconnectWithWill []))
+  T.PublishRequest{_pubTopic} <- expectWill 2000000 wills
+  assertEqual "will" "will/dww" _pubTopic
+
+-- Until its PUBREL, a QoS 2 packet ID stays with its first message: a
+-- later PUBLISH reusing it is only acknowledged [MQTT-4.3.3-9].
+unit_qos2ReusedIDKeepsFirst :: Assertion
+unit_qos2ReusedIDKeepsFirst = withTestService $ \u -> do
+  got <- newTChanIO
+  sub <- MC.connectURI MC.mqttConfig{_msgCB=MC.SimpleCallback (\_ _ m _ -> atomically $ writeTChan got m)} u
+  _ <- MC.subscribe sub [("reuse/t", MC.subOptions{_subQoS=MC.QoS2})] []
+  withRawConn u T.Protocol311 T.connectRequest{T._connID="reuse"} $ \rc -> do
+    let pub b = T.PublishPkt T.PublishRequest{T._pubDup=False, T._pubQoS=T.QoS2, T._pubRetain=False,
+                                              T._pubTopic="reuse/t", T._pubPktID=7, T._pubBody=b, T._pubProps=[]}
+    rawSend rc (pub "first")
+    rawExpectPubREC rc 7
+    rawSend rc (pub "second")
+    rawExpectPubREC rc 7
+    rawSend rc (T.PubRELPkt (T.PubREL 7 0 []))
+    rawExpectPubCOMP rc 7
+  m <- nextWithin 2000000 got
+  assertEqual "delivered" (Just "first") m
+  nextWithin 500000 got >>= mapM_ (\x -> assertFailure ("unexpected second delivery: " <> show x))
+
+-- A will's Message Expiry Interval applies to it like any other message:
+-- it isn't delivered to an offline subscriber after it expires
+-- [MQTT-3.3.2-5].
+unit_willMessageExpiry :: Assertion
+unit_willMessageExpiry = withTestService $ \u -> do
+  let sreq = sessionReq T.Protocol50 "wme-sub"
+  withRawConn u T.Protocol50 sreq $ \rc -> rawSubscribe rc "will/wme" T.QoS1
+  withRawConn u T.Protocol50 (willReq "wme" True [] [T.PropMessageExpiryInterval 1]){T._lastWill=
+    Just T.LastWill{T._willRetain=False, T._willQoS=T.QoS1, T._willTopic="will/wme", T._willMsg="gone",
+                    T._willProps=[T.PropMessageExpiryInterval 1]}} $ \_ -> pure ()
+  sleep 2
+  withRawConn u T.Protocol50 sreq $ \rc ->
+    timeout 1000000 (rawExpectPublish rc) >>= mapM_ (\p -> assertFailure ("expired will delivered: " <> show p))

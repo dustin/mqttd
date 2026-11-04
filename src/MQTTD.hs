@@ -787,8 +787,11 @@ dispatch sess@Session{..} (T.PublishPkt req) = resolveAliasIn sess req >>= eithe
             then pure False
             else do
               sendPacket_ _sessionChan (T.PubRECPkt (T.PubREC _pubPktID 0 mempty))
-              modifyTVar' _sessionInbound (Map.insert _pubPktID (deadline now r, r))
-              incrementStatSTM StatMsgRcvd 1 ss
+              -- Until the PUBREL, a PUBLISH reusing the packet ID is only
+              -- acknowledged; the first message stands [MQTT-4.3.3-9].
+              when (Map.notMember _pubPktID inbound) $ do
+                modifyTVar' _sessionInbound (Map.insert _pubPktID (deadline now r, r))
+                incrementStatSTM StatMsgRcvd 1 ss
               pure True
         unless ok $ protocolError T.DiscoReceiveMaximumExceeded
 
