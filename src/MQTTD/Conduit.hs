@@ -76,10 +76,12 @@ runMQTTDConduit (src, sink, addr) = runConduit $ do
 
     notAuthorized pl req s = do
       logInfoL ["Unauthorized connection from ", addr, ": ", tshow req]
-      runConduit $ do
-        yield (T.ConnACKPkt $ T.ConnACKFlags T.NewSession (noauth pl) []) .| commonOut pl
-        yield (T.DisconnectPkt $ T.DisconnectRequest T.DiscoNotAuthorized [
-                  T.PropReasonString (fromString s)
+      -- Just the CONNACK; returning closes the connection.  There's no
+      -- DISCONNECT after a refusing CONNACK [3.1.1 MQTT-3.2.2-5],
+      -- [5.0 MQTT-3.2.2-7, MQTT-3.14.0-1].
+      runConduit $
+        yield (T.ConnACKPkt $ T.ConnACKFlags T.NewSession (noauth pl) [
+                  T.PropReasonString (fromString s) | pl == T.Protocol50
                   ]) .| commonOut pl
 
           where noauth T.Protocol311 = T.NotAuthorized

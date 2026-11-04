@@ -1096,3 +1096,22 @@ unit_wildcardPublish311 = withTestService $ \u -> do
       Just Nothing -> pure ()
       x -> assertFailure ("expected the connection to close, got " <> show x)
   assertNothingRetained u
+
+-- * Refused connections
+
+-- M5: A refused CONNECT gets CONNACK and the connection is closed, with
+-- no DISCONNECT [3.1.1 MQTT-3.2.2-5], [5.0 MQTT-3.2.2-7, MQTT-3.14.0-1].
+refusedConnect :: T.ProtocolLevel -> T.ConnACKRC -> Assertion
+refusedConnect pl want =
+  withTestServiceConfig testConfig{_confDefaults = ListenerOptions (Just False)} $ \u ->
+    withRawConnAck u pl T.connectRequest{T._connID="m5"} $ \(T.ConnACKFlags _ rc' _) rc -> do
+      assertEqual "CONNACK return code" want rc'
+      timeout 2000000 (rawRecvMaybe rc) >>= \case
+        Just Nothing -> pure ()
+        x -> assertFailure ("expected the connection to close, got " <> show x)
+
+unit_refusedConnect311 :: Assertion
+unit_refusedConnect311 = refusedConnect T.Protocol311 T.NotAuthorized
+
+unit_refusedConnect50 :: Assertion
+unit_refusedConnect50 = refusedConnect T.Protocol50 T.ConnNotAuthorized
