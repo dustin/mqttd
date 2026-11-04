@@ -62,7 +62,8 @@ testConfig = Config {
   _confListeners = [], -- filled in by withTestServiceConfig
   _confDefaults = ListenerOptions { _optAllowAnonymous = Just True },
   _confPersist = PersistenceConfig ":memory:",
-  _confLimits = noLimits
+  _confLimits = noLimits,
+  _confResponsePrefix = Nothing
   }
 
 withTestServiceConfig :: Config -> (TestServer -> Assertion) -> Assertion
@@ -1812,3 +1813,25 @@ unit_serverKeepAliveMaximum = withTestServiceConfig testConfig{_confLimits = noL
   withRawConn u T.Protocol50 T.connectRequest{T._connID="maxka", T._keepAlive=300} $ \rc -> do
     assertBool ("CONNACK properties: " <> show (rawConnAckProps rc)) (T.PropServerKeepAlive 1 `elem` rawConnAckProps rc)
     rawExpectDisconnectWithin 3 rc T.DiscoKeepAliveTimeout
+
+-- * Response Information
+
+-- A 5.0 client that sets Request Response Information gets the configured
+-- prefix with its client ID as Response Information [5.0 §3.2.2.3.15]...
+responseInfo :: [T.Property] -> IO [BL.ByteString]
+responseInfo props = do
+  got <- newTVarIO []
+  withTestServiceConfig testConfig{_confResponsePrefix = Just "responses/"} $ \u ->
+    withRawConn u T.Protocol50 T.connectRequest{T._connID="ri", T._connProperties=props} $ \rc ->
+      atomically $ writeTVar got [x | T.PropResponseInformation x <- rawConnAckProps rc]
+  readTVarIO got
+
+unit_responseInformation :: Assertion
+unit_responseInformation =
+  responseInfo [T.PropRequestResponseInformation 1] >>= assertEqual "Response Information" ["responses/ri/"]
+
+-- ...and one that doesn't, doesn't [MQTT-3.1.2-28].
+unit_responseInformationNotRequested :: Assertion
+unit_responseInformationNotRequested = do
+  responseInfo [] >>= assertEqual "Response Information" []
+  responseInfo [T.PropRequestResponseInformation 0] >>= assertEqual "Response Information" []

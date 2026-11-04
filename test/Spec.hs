@@ -53,20 +53,23 @@ unit_configFiles =
                                               MQTTSListener "*" 8883 "certificate.pem" "key.pem"
                                               (ListenerOptions (Just False) )],
                             _confPersist = PersistenceConfig "mqttd.db",
-                            _confLimits = noLimits}),
+                            _confLimits = noLimits,
+                            _confResponsePrefix = Nothing}),
       ("test2.conf", Config {_confDebug = False,
                              _confUsers = mempty,
                              _confDefaults = mempty,
                              _confListeners = [MQTTListener "*" 1883 mempty,
                                                MQTTSListener "*" 8883 "certificate.pem" "key.pem" mempty],
                              _confPersist = PersistenceConfig ":memory:",
-                             _confLimits = noLimits}),
+                             _confLimits = noLimits,
+                            _confResponsePrefix = Nothing}),
       ("test3.conf", Config {_confDebug = False,
                              _confUsers = mempty,
                              _confDefaults = mempty,
                              _confListeners = [MQTTListener "*" 1883 mempty],
                              _confPersist = PersistenceConfig ":memory:",
-                             _confLimits = Limits{_limitPacketSize = Just 1048576, _limitKeepAlive = Just 120}})
+                             _confLimits = Limits{_limitPacketSize = Just 1048576, _limitKeepAlive = Just 120},
+                             _confResponsePrefix = Just "responses/"})
       ]
   where
     aTest (f,w) = assertEqual f w =<< parseConfFile ("test/" <> f)

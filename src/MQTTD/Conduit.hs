@@ -137,11 +137,16 @@ runMQTTDConduit (src, sink, addr) = runConduit $ do
       tid <- liftIO myThreadId
       (sess@Session{_sessionID, _sessionChan}, existing) <- registerClient pl req cid tid
       lims <- asks limits
+      rprefix <- asks responsePrefix
       let cprops = [ T.PropTopicAliasMaximum topicAliasMaximum ] <> [ T.PropAssignedClientIdentifier i | Just i <- [nid] ]
                    -- Not supported [5.0 §3.2.2.3.12].
                    <> [ T.PropSubscriptionIdentifierAvailable 0 | pl == T.Protocol50 ]
                    <> [ T.PropReceiveMaximum receiveMaximum | pl == T.Protocol50 ]
                    <> [ T.PropMaximumPacketSize n | Just n <- [_limitPacketSize lims], pl == T.Protocol50 ]
+                   -- Only for a client that asked [MQTT-3.1.2-28].
+                   <> [ T.PropResponseInformation (p <> _connID <> "/")
+                      | Just p <- [rprefix], pl == T.Protocol50,
+                        T.PropRequestResponseInformation 1 `elem` _connProperties ]
                    <> [ T.PropServerKeepAlive ka | let ka = effectiveKeepAlive (_limitKeepAlive lims) pl _keepAlive,
                                                    ka /= _keepAlive, pl == T.Protocol50 ]
       deliverConnACK pl existing cprops

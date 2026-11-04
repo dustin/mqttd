@@ -63,7 +63,9 @@ data Env = Env {
   allSubs     :: TVar (SubTree (Map SessionID T.SubOptions)),
   sharedSubs  :: TVar (SubTree (Map SubscriberName [(SessionID, T.SubOptions)])),
   retainer    :: Retainer,
-  limits      :: Limits
+  limits      :: Limits,
+  -- | Response Information is this plus the client ID, for clients that ask.
+  responsePrefix :: Maybe BL.ByteString
   }
 
 data MQTTD :: Effect where
@@ -82,6 +84,7 @@ newEnv = liftIO $ Env
          <*> newTVarIO mempty -- shared subs
          <*> newRetainer
          <*> pure noLimits
+         <*> pure Nothing
 
 runMQTTD :: forall es a. Env -> Eff (MQTTD : es) a -> Eff es (a, Env)
 runMQTTD initialEnv = reinterpret (runState initialEnv) \_ -> \case

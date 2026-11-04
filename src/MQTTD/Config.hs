@@ -78,11 +78,15 @@ data Config = Config {
   _confListeners :: [Listener],
   _confDefaults  :: ListenerOptions,
   _confPersist   :: PersistenceConfig,
-  _confLimits    :: Limits
+  _confLimits    :: Limits,
+  -- | Prefix for the Response Information given to clients that ask
+  -- [5.0 §3.2.2.3.15].
+  _confResponsePrefix :: Maybe BL.ByteString
   } deriving (Show, Eq)
 
 data Section = DebugSection Bool
              | LimitsSection Limits
+             | ResponsePrefixSection BL.ByteString
              | UserSection [User]
              | DefaultsSection ListenerOptions
              | ListenerSection [Listener]
@@ -156,11 +160,12 @@ parseSection = lexeme $ choice [
   UserSection <$> namedList "users" parseUser,
   ListenerSection <$> namedList "listeners" parseListener,
   PersistenceSection <$> namedValue "persistence" parsePersistence,
-  LimitsSection <$> namedValue "limits" parseLimits
+  LimitsSection <$> namedValue "limits" parseLimits,
+  ResponsePrefixSection <$> namedValue "response_prefix" (lexeme qstr)
   ]
 
 parseConfig :: Parser Config
-parseConfig = foldr up (Config False mempty mempty mempty (PersistenceConfig ":memory:") noLimits) <$> some parseSection
+parseConfig = foldr up (Config False mempty mempty mempty (PersistenceConfig ":memory:") noLimits Nothing) <$> some parseSection
 
     where
       up (DebugSection d) c = c{_confDebug=d}
@@ -170,6 +175,7 @@ parseConfig = foldr up (Config False mempty mempty mempty (PersistenceConfig ":m
       up (DefaultsSection l) c = c{_confDefaults=l}
       up (PersistenceSection l) c = c{_confPersist=l}
       up (LimitsSection l) c = c{_confLimits=l}
+      up (ResponsePrefixSection p) c = c{_confResponsePrefix=Just p}
 
 parseBool :: Parser Bool
 parseBool = True <$ lexeme "true" <|> False <$ lexeme "false"
