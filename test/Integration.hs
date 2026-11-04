@@ -1182,3 +1182,26 @@ unit_sharedSubSurvivesRestart = withTempDB $ \path -> do
     MC.publishq pubber "k3/t" "x" False MC.QoS1 []
     T.PublishRequest{_pubTopic} <- rawExpectPublish rc
     assertEqual "delivered on the restored shared subscription" "k3/t" _pubTopic
+
+-- T5: A session that ends with its connection (3.1.1 CleanSession=1,
+-- 5.0 Session Expiry 0) is gone once that connection is taken over, so a
+-- persistent takeover starts a new session [MQTT-3.1.2-6], [MQTT-3.2.2-2].
+takeoverOfTransientSession :: T.ProtocolLevel -> BL.ByteString -> Assertion
+takeoverOfTransientSession pl cid = withTestService $ \u -> do
+  let transient = T.connectRequest{T._connID=cid, T._cleanSession=True}
+  withRawConn u pl transient $ \old -> do
+    rawSubscribe old "t5/old" T.QoS1
+    withRawConn u pl (sessionReq pl cid) $ \new -> do
+      assertEqual "session present" T.NewSession (rawSessionPresent new)
+      rawSubscribe new "t5/canary" T.QoS1
+      pubber <- MC.connectURI MC.mqttConfig u
+      MC.publishq pubber "t5/old" "x" False MC.QoS1 []
+      MC.publishq pubber "t5/canary" "x" False MC.QoS1 []
+      T.PublishRequest{_pubTopic} <- rawExpectPublish new
+      assertEqual "old subscription not inherited" "t5/canary" _pubTopic
+
+unit_takeoverOfTransientSession311 :: Assertion
+unit_takeoverOfTransientSession311 = takeoverOfTransientSession T.Protocol311 "t5-311"
+
+unit_takeoverOfTransientSession50 :: Assertion
+unit_takeoverOfTransientSession50 = takeoverOfTransientSession T.Protocol50 "t5-50"

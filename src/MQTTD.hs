@@ -353,11 +353,14 @@ registerClient pl req@T.ConnectRequest{..} i o = do
     m <- readTVar c
     let s = Map.lookup k m
         o' = _sessionClient =<< s
-        (ns, ruse) = maybeClean emptySession s
-        discarded = if _cleanSession then s else Nothing
+        -- A session that ends with its connection ends when it's taken
+        -- over, too [MQTT-3.1.2-6].
+        clean = _cleanSession || any endsWithConnection o'
+        (ns, ruse) = maybeClean clean emptySession s
+        discarded = if clean then s else Nothing
     mapM_ (dropSubs . _sessionSubs) discarded
     writeTVar c (Map.insert k ns m)
-    pure (o', ruse, ns, discarded, replacedWill =<< s)
+    pure (o', ruse, ns, discarded, replacedWill clean =<< s)
   -- The cascade removes the discarded session's persisted subscriptions.
   when (isJust discarded) $ deleteSession k
   mapM_ (publishWill k) oldWill
@@ -367,9 +370,9 @@ registerClient pl req@T.ConnectRequest{..} i o = do
   pure (ns, x)
 
     where
-      maybeClean ns Nothing = (ns, T.NewSession)
-      maybeClean ns (Just s)
-        | _cleanSession = (ns, T.NewSession)
+      maybeClean _ ns Nothing = (ns, T.NewSession)
+      maybeClean clean ns (Just s)
+        | clean = (ns, T.NewSession)
         | otherwise = (s{_sessionClient=_sessionClient ns,
                          _sessionExpires=Nothing,
                          _sessionChan=_sessionChan ns,
@@ -383,12 +386,20 @@ registerClient pl req@T.ConnectRequest{..} i o = do
       -- session cancels a delayed will [MQTT-3.1.3-9], but it's sent if
       -- the session is ending (clean start) or a taken over connection had
       -- no delay [MQTT-3.1.4-3].
-      replacedWill old = do
+      replacedWill clean old = do
         w <- _sessionWill old
         let connected = isJust (_sessionClient old)
         guard (connected || isJust (_sessionWillAt old))
-        guard (_cleanSession || (connected && willDelay w == 0))
+        guard (clean || (connected && willDelay w == 0))
         pure w
+
+-- | Whether a connected client's session ends when its connection does:
+-- CleanSession=1 in 3.1.1, or a Session Expiry Interval of 0 in 5.0
+-- [MQTT-3.1.2-6], [5.0 §3.1.2.11.2].
+endsWithConnection :: ConnectedClient -> Bool
+endsWithConnection ConnectedClient{_clientProtocol, _clientConnReq=req}
+  | _clientProtocol == T.Protocol50 = maybe True (== 0) (req ^? properties . folded . _PropSessionExpiryInterval)
+  | otherwise = T._cleanSession req
 
 expireSession :: (IOE :> es, ScheduleFX SessionID :> es, MQTTD :> es, Stats :> es, DB :> es, LogFX :> es) => SessionID -> Eff es ()
 expireSession k = do
