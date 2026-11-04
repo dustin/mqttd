@@ -166,7 +166,7 @@ runMQTTDConduit (src, sink, addr) = runConduit $ do
       deliverConnACK pl existing cprops
 
       wdch <- liftIO newTChanIO
-      w <- traverse (\to -> async $ watchdog to wdch pl sess tid) (keepAliveTimeout (_limitKeepAlive lims) pl _keepAlive)
+      w <- traverse (\t -> async $ watchdog t wdch pl sess tid) (keepAliveTimeout (_limitKeepAlive lims) pl _keepAlive)
       o <- async $ processOut pl sess
       i <- async $ E.finally (processIn wdch sess pl `E.onException` logConn "process exception" req) (teardown pl cid req)
       retransmit sess

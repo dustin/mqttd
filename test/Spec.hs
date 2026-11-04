@@ -13,10 +13,11 @@ import           Test.Tasty.HUnit
 import           Test.Tasty.QuickCheck    as QC
 
 import           Control.Concurrent       (myThreadId)
-import           Control.Concurrent.STM   (atomically, newTBQueueIO, newTVarIO, readTVar)
+import           Control.Concurrent.STM   (atomically, newTBQueueIO, readTVar)
 import           Data.Either              (isLeft, isRight)
 import           Data.Foldable            (for_)
 import qualified Data.Map.Strict          as Map
+import           Data.Maybe               (listToMaybe)
 
 import           Data.Password.Bcrypt     (PasswordHash (..))
 import           Network.MQTT.Arbitrary   (MatchingTopic (..))
@@ -136,8 +137,8 @@ newtype ACLParams = ACLParams (Topic, Intention, [ACL], Bool) deriving (Eq, Show
 
 instance Arbitrary ACLParams where
   arbitrary = do
-    MatchingTopic (t, ms) <- arbitrary
-    let m = head ms
+    -- A topic and one of the filters matching it (there may be none).
+    (t, m) <- arbitrary `suchThatMap` (\(MatchingTopic (t', ms)) -> (,) t' <$> listToMaybe ms)
     i <- elements [IntentPublish, IntentSubscribe]
     acl <- ($ m) <$> anACL
     let want = case (i, acl) of

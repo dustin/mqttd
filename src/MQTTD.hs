@@ -21,7 +21,7 @@ import           Control.Monad                 (forever, guard, mfilter, unless,
 import           Data.Bifunctor                (first, second)
 import           Data.Either                   (rights)
 import qualified Data.ByteString.Lazy          as BL
-import           Data.Foldable                 (fold, foldl')
+import           Data.Foldable                 (fold)
 import           Data.Map.Strict               (Map)
 import qualified Data.Map.Strict               as Map
 import qualified Data.Set                      as Set
@@ -141,6 +141,7 @@ publishStats = do
                                        T._pubDup=False,
                                        T._pubQoS=T.QoS0,
                                        T._pubRetain=True,
+                                       T._pubPktID=0,
                                        T._pubProps=mempty})
 
 
@@ -518,7 +519,7 @@ unregisterClient pl k mid = do
   expireSession k
 
     where
-      up now sess@Session{_sessionClient=Just cc@ConnectedClient{_clientID=i,
+      up now sess@Session{_sessionClient=Just ConnectedClient{_clientID=i,
                                                                  _clientConnReq=creq}}
         -- A will left on the session (i.e. not discarded by DISCONNECT) is
         -- due after its delay [MQTT-3.1.2-8], [5.0 §3.1.3.2.2].
@@ -534,7 +535,6 @@ unregisterClient pl k mid = do
               | Just x <- creq ^? properties . folded . _PropSessionExpiryInterval ->
                   Just (addUTCTime (fromIntegral x) now)
               | otherwise -> Nothing
-            _ -> Just (addUTCTime defaultSessionExp now)
       up _ s = Just s
 
 tryWriteQ :: TBQueue a -> a -> STM Bool

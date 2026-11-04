@@ -44,7 +44,7 @@ import           Effectful
 import           Network.MQTT.Client    as MC
 import qualified Network.MQTT.Types     as T
 import           Network.Socket.Free    (getFreePort)
-import           Network.URI
+import           Network.URI            hiding (path)
 import           UnliftIO               (Concurrently (..), atomically, bracket,
                                          cancel, concurrently, mapConcurrently_,
                                          runConcurrently)
