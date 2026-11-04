@@ -805,3 +805,21 @@ unit_keepAliveTimeout = withTestService $ \u ->
   withRawConn u T.Protocol50 T.connectRequest{T._connID="m4", T._keepAlive=2} $ \rc -> do
     t <- rawTimeToClose rc
     assertBool ("closed after " <> show t <> ", expected about 3s") (t >= 2.5 && t <= 3.5)
+
+-- * Maximum Packet Size
+
+-- M8: A PUBLISH bigger than the client's Maximum Packet Size isn't sent,
+-- and is treated as if it had been delivered [MQTT-3.1.2-24],
+-- [MQTT-3.1.2-25].  (With Receive Maximum 1, a discarded message still
+-- in flight would block the next one.)
+unit_maximumPacketSize :: Assertion
+unit_maximumPacketSize = withTestService $ \u ->
+  withRawConn u T.Protocol50 T.connectRequest{T._connID="m8",
+                                              T._connProperties=[T.PropMaximumPacketSize 100,
+                                                                 T.PropReceiveMaximum 1]} $ \rc -> do
+    rawSubscribe rc "m8/#" T.QoS1
+    pubber <- MC.connectURI MC.mqttConfig{_protocol=MC.Protocol50} u
+    MC.publishq pubber "m8/big" (BL.replicate 200 0x78) False MC.QoS1 []
+    MC.publishq pubber "m8/small" "small" False MC.QoS1 []
+    T.PublishRequest{_pubTopic} <- rawExpectPublish rc
+    assertEqual "oversize message discarded" "m8/small" _pubTopic

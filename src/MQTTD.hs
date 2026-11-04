@@ -19,6 +19,7 @@ import           Control.Lens
 import           Control.Monad                 (forever, guard, mfilter, unless, void, when)
 import           Data.Bifunctor                (first, second)
 import           Data.Either                   (rights)
+import qualified Data.ByteString.Lazy          as BL
 import           Data.Foldable                 (fold, foldl')
 import           Data.Map.Strict               (Map)
 import qualified Data.Map.Strict               as Map
@@ -529,7 +530,7 @@ publish before sess@Session{..} pkt@T.PublishRequest{..} = whenM deliverable pub
     deliverable = maybe (pure True) (\t -> liftIO getCurrentTime >>= \now -> pure (now < t)) before
     publish'
       -- QoS 0 is special-cased because it's fire-and-forget with no retries or anything.
-      | _pubQoS == T.QoS0 = getStatStore >>= \ss -> atomically $ deliver ss sess pkt
+      | _pubQoS == T.QoS0 = getStatStore >>= \ss -> atomically . void $ deliver ss sess pkt
       | otherwise = getStatStore >>= \ss -> atomically $ do
           -- Packet IDs are per session, and an ID can't be reused while
           -- it's in flight [MQTT-2.2.1-3].
@@ -544,14 +545,29 @@ publish before sess@Session{..} pkt@T.PublishRequest{..} = whenM deliverable pub
               tokens <- readTVar _sessionFlight
               if tokens == 0
                 then void $ tryWriteQ _sessionBacklog (before, pkt')
-                else deliver ss sess pkt'
+                else void $ deliver ss sess pkt'
 
-deliver :: StatStore -> Session -> T.PublishRequest -> STM ()
-deliver ss Session{..} pkt@T.PublishRequest{..} = do
-  when (_pubQoS > T.QoS0) $ modifyTVar' _sessionFlight pred
-  p <- maybe (pure pkt) (`aliasOut` pkt) _sessionClient
-  sendPacket_ _sessionChan (T.PublishPkt p)
-  incrementStatSTM StatMsgSent 1 ss
+-- | Send a PUBLISH to a session, returning whether it was sent.
+deliver :: StatStore -> Session -> T.PublishRequest -> STM Bool
+deliver ss Session{..} pkt@T.PublishRequest{..}
+  | maybe False (`tooLargeFor` pkt) _sessionClient = do
+      -- Discard it as if it had been delivered [MQTT-3.1.2-25].
+      modifyTVar' _sessionQP (Map.delete _pubPktID)
+      pure False
+  | otherwise = do
+      when (_pubQoS > T.QoS0) $ modifyTVar' _sessionFlight pred
+      p <- maybe (pure pkt) (`aliasOut` pkt) _sessionClient
+      sendPacket_ _sessionChan (T.PublishPkt p)
+      incrementStatSTM StatMsgSent 1 ss
+      pure True
+
+-- | Whether a PUBLISH is bigger than the client's Maximum Packet Size
+-- [MQTT-3.1.2-24].  It's measured before any topic alias is applied,
+-- which can only make it smaller.
+tooLargeFor :: ConnectedClient -> T.PublishRequest -> Bool
+tooLargeFor ConnectedClient{_clientConnReq} p =
+  maybe False (\m -> BL.length (T.toByteString T.Protocol50 (T.PublishPkt p)) > fromIntegral m)
+        (_clientConnReq ^? properties . folded . _PropMaximumPacketSize)
 
 aliasOut :: ConnectedClient -> T.PublishRequest -> STM T.PublishRequest
 aliasOut ConnectedClient{..} pkt@T.PublishRequest{..} =
@@ -599,11 +615,13 @@ releasePubSlot now ss sess@Session{..} = do
   where
     getOne = tryReadTBQueue _sessionBacklog >>= \case
       Nothing -> pure () -- Nothing to do
-      Just (Nothing, p) -> deliver ss sess p -- No deadline
-      Just (Just t, p) | now < t -> deliver ss sess p -- Deadline not yet reached
+      Just (Nothing, p) -> deliverOrNext p -- No deadline
+      Just (Just t, p) | now < t -> deliverOrNext p -- Deadline not yet reached
       -- This one's expired [MQTT-3.3.2-5].  It's no longer in flight, so
       -- free its packet ID and see if there's another one.
       Just (Just _, p) -> modifyTVar' _sessionQP (Map.delete (p ^. pktID)) >> getOne
+    -- If it wasn't sent (e.g. it's too big), the slot is still free.
+    deliverOrNext p = deliver ss sess p >>= \sent -> unless sent getOne
 
 dispatch :: (IOE :> es, Fail :> es, MQTTD :> es, DB :> es, LogFX :> es, Stats :> es) => Session -> T.MQTTPkt -> Eff es ()
 
