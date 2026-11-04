@@ -77,7 +77,7 @@ library
     , megaparsec
     , monad-logger
     , mtl
-    , net-mqtt >=0.8.6.5 && <0.9
+    , net-mqtt >=0.8.7.0 && <0.9
     , net-mqtt-lens
     , network-conduit-tls
     , optparse-applicative
@@ -132,7 +132,7 @@ executable mqttd
     , monad-logger
     , mqttd
     , mtl
-    , net-mqtt >=0.8.6.5 && <0.9
+    , net-mqtt >=0.8.7.0 && <0.9
     , net-mqtt-lens
     , network-conduit-tls
     , optparse-applicative
@@ -186,7 +186,7 @@ executable mqttdpass
     , megaparsec
     , monad-logger
     , mtl
-    , net-mqtt >=0.8.6.5 && <0.9
+    , net-mqtt >=0.8.7.0 && <0.9
     , net-mqtt-lens
     , network-conduit-tls
     , optparse-applicative
@@ -250,7 +250,7 @@ test-suite mqttd-test
     , monad-logger
     , mqttd
     , mtl
-    , net-mqtt >=0.8.6.5 && <0.9
+    , net-mqtt >=0.8.7.0 && <0.9
     , net-mqtt-lens
     , network-conduit-tls
     , network-uri

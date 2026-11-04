@@ -21,7 +21,7 @@ description: Please see the README on GitHub at <https://github.com/dustin/mqttd
 
 dependencies:
   - base >= 4.7 && < 5
-  - net-mqtt >= 0.8.6.5 && < 0.9
+  - net-mqtt >= 0.8.7.0 && < 0.9
   - net-mqtt-lens
   - optparse-applicative
   - sqlite-simple

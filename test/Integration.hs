@@ -1638,3 +1638,51 @@ unit_willMessageExpiry = withTestService $ \u -> do
   sleep 2
   withRawConn u T.Protocol50 sreq $ \rc ->
     timeout 1000000 (rawExpectPublish rc) >>= mapM_ (\p -> assertFailure ("expired will delivered: " <> show p))
+
+-- * net-mqtt matching and parsing
+
+-- L1: Only a filter's first level skips $ topics, so a/# gets a
+-- retained a/$x [MQTT-4.7.2-1].
+unit_retainedDollarLevel :: Assertion
+unit_retainedDollarLevel = withTestService $ \u -> do
+  pubber <- MC.connectURI MC.mqttConfig u
+  MC.publishq pubber "l1/$x" "kept" True MC.QoS1 []
+  withRawConn u T.Protocol311 T.connectRequest{T._connID="l1-retained"} $ \rc -> do
+    rawSubscribe rc "l1/#" T.QoS0
+    T.PublishRequest{_pubTopic} <- rawExpectPublish rc
+    assertEqual "retained message" "l1/$x" _pubTopic
+
+-- L6: A wildcard has to be a whole level [MQTT-4.7.1-1].
+unit_partialWildcardFilter :: Assertion
+unit_partialWildcardFilter = withTestService $ \u ->
+  withRawConn u T.Protocol50 T.connectRequest{T._connID="l6-filter"} $ \rc -> do
+    r <- rawSubscribeResult rc ["a+b", "a/b#"]
+    assertEqual "SUBACK" [Left T.SubErrTopicFilterInvalid, Left T.SubErrTopicFilterInvalid] r
+
+-- L6: A CONNECT with the reserved flag set is malformed, so the
+-- connection is closed [MQTT-3.1.2-3].
+unit_connectReservedFlag :: Assertion
+unit_connectReservedFlag = withTestService $ \u -> withRawSocket u T.Protocol311 $ \rc -> do
+  rawSendBytes rc (BS.pack [0x10, 0x0d, 0x00, 0x04, 0x4d, 0x51, 0x54, 0x54, 0x04, 0x03, 0x00, 0x3c, 0x00, 0x01, 0x78])
+  timeout 2000000 (rawRecvMaybe rc) >>= \case
+    Just Nothing -> pure ()
+    x -> assertFailure ("expected the connection to close, got " <> show x)
+
+-- L6: Retain Handling 3 is a protocol error [MQTT-3.8.3-5].
+unit_retainHandling3 :: Assertion
+unit_retainHandling3 = withTestService $ \u ->
+  withRawConn u T.Protocol50 T.connectRequest{T._connID="l6-rh3"} $ \rc -> do
+    rawSendBytes rc (BS.pack [0x82, 0x07, 0x00, 0x01, 0x00, 0x00, 0x01, 0x61, 0x30])
+    timeout 2000000 (rawRecvMaybe rc) >>= \case
+      Just Nothing -> pure ()
+      Just (Just (T.DisconnectPkt _)) -> pure ()
+      x -> assertFailure ("expected the connection to close, got " <> show x)
+
+-- A CONNECT with the will flag set but no will fields is malformed, so
+-- the connection is closed [MQTT-3.1.2-9].
+unit_willFlagWithoutWill :: Assertion
+unit_willFlagWithoutWill = withTestService $ \u -> withRawSocket u T.Protocol311 $ \rc -> do
+  rawSendBytes rc (BS.pack [0x10, 0x0d, 0x00, 0x04, 0x4d, 0x51, 0x54, 0x54, 0x04, 0x06, 0x00, 0x3c, 0x00, 0x01, 0x78])
+  timeout 2000000 (rawRecvMaybe rc) >>= \case
+    Just Nothing -> pure ()
+    x -> assertFailure ("expected the connection to close, got " <> show x)
