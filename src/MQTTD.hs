@@ -153,7 +153,7 @@ publishStats = do
 
     pubBS k v = broadcast Nothing (T.PublishRequest {
                                       T._pubDup=False,
-                                      T._pubQoS=T.QoS2,
+                                      T._pubQoS=T.QoS0,
                                       T._pubRetain=True,
                                       T._pubTopic=k,
                                       T._pubPktID=0,
