@@ -1064,3 +1064,35 @@ unit_retainHandlingNewOnly = withTestService $ \u -> do
     -- Anything sent because of the SUBSCRIBE comes before the PINGRESP.
     rawSend rc T.PingPkt
     rawRecvWithin rc >>= assertEqual "nothing resent on resubscribe" T.PongPkt
+
+-- * Topic names
+
+wildPublish :: T.MQTTPkt
+wildPublish = T.PublishPkt T.PublishRequest{T._pubDup=False, T._pubQoS=T.QoS1, T._pubRetain=True,
+                                            T._pubTopic="m2/#", T._pubPktID=1, T._pubBody="x", T._pubProps=[]}
+
+-- | Nothing retained matches m2/#.
+assertNothingRetained :: TestServer -> Assertion
+assertNothingRetained u = withRawConn u T.Protocol50 T.connectRequest{T._connID="m2-check"} $ \rc -> do
+  rawSubscribe rc "m2/#" T.QoS0
+  rawSend rc T.PingPkt
+  rawRecvWithin rc >>= assertEqual "nothing retained" T.PongPkt
+
+-- M2: A topic name can't contain wildcards [MQTT-3.3.2-2]; in 5.0
+-- that's DISCONNECT 0x90 [5.0 §3.3.2.1]...
+unit_wildcardPublish50 :: Assertion
+unit_wildcardPublish50 = withTestService $ \u -> do
+  withRawConn u T.Protocol50 T.connectRequest{T._connID="m2-50"} $ \rc -> do
+    rawSend rc wildPublish
+    rawExpectDisconnect rc T.DiscoTopicNameInvalid
+  assertNothingRetained u
+
+-- M2: ...and in 3.1.1, the connection is just closed.
+unit_wildcardPublish311 :: Assertion
+unit_wildcardPublish311 = withTestService $ \u -> do
+  withRawConn u T.Protocol311 T.connectRequest{T._connID="m2-311"} $ \rc -> do
+    rawSend rc wildPublish
+    timeout 2000000 (rawRecvMaybe rc) >>= \case
+      Just Nothing -> pure ()
+      x -> assertFailure ("expected the connection to close, got " <> show x)
+  assertNothingRetained u

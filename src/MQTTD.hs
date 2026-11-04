@@ -691,14 +691,18 @@ dispatch sess@Session{..} (T.UnsubscribePkt (T.UnsubscribeRequest pid subs props
 dispatch sess@Session{..} (T.PublishPkt req) = resolveAliasIn sess req >>= either protocolError pub
 
     where
+      -- 3.1.1 has no DISCONNECT from the server; the connection is just closed.
       protocolError reason = do
-        sendPacketIO_ _sessionChan (T.DisconnectPkt (T.DisconnectRequest reason []))
+        when is50 $ sendPacketIO_ _sessionChan (T.DisconnectPkt (T.DisconnectRequest reason []))
         fail ("protocol error: " <> show reason)
 
-      pub r@T.PublishRequest{..} =
-        case authPub (maybe InvalidTopic classifyTopic $ (T.mkFilter . blToText) _pubTopic) _sessionACL of
-          Left _  -> logInfoL ["Unauthorized topic: ", tshow _pubTopic] >> nak _pubQoS r
-          Right _ -> satisfyQoS _pubQoS r
+      pub r@T.PublishRequest{..}
+        -- A topic name can't contain wildcards [MQTT-3.3.2-2].
+        | BL.any (`elem` [0x23, 0x2b]) _pubTopic = protocolError T.DiscoTopicNameInvalid
+        | otherwise =
+            case authPub (maybe InvalidTopic classifyTopic $ (T.mkFilter . blToText) _pubTopic) _sessionACL of
+              Left _  -> logInfoL ["Unauthorized topic: ", tshow _pubTopic] >> nak _pubQoS r
+              Right _ -> satisfyQoS _pubQoS r
 
       nak T.QoS0 _ = pure ()
       nak T.QoS1 T.PublishRequest{..} =
