@@ -1166,3 +1166,19 @@ unit_emptyShareName = withTestService $ \u -> do
   pubber <- MC.connectURI MC.mqttConfig u
   MC.publishq pubber "k2" "x" False MC.QoS0 []
   awaitCount mv "k2" 1
+
+-- K3: Shared subscriptions are part of the session, so they survive a
+-- restart like any other subscription [5.0 §4.1].
+unit_sharedSubSurvivesRestart :: Assertion
+unit_sharedSubSurvivesRestart = withTempDB $ \path -> do
+  let conf = testConfig{_confPersist = PersistenceConfig path}
+      req = sessionReq T.Protocol311 "k3-restart"
+  withTestServiceConfig conf $ \u -> withRawConn u T.Protocol311 req $ \rc -> do
+    rawSubscribe rc "$share/g/k3/t" T.QoS1
+    waitForStoredSubs path "k3-restart"
+  withTestServiceConfig conf $ \u -> withRawConn u T.Protocol311 req $ \rc -> do
+    assertEqual "session present" T.ExistingSession (rawSessionPresent rc)
+    pubber <- MC.connectURI MC.mqttConfig u
+    MC.publishq pubber "k3/t" "x" False MC.QoS1 []
+    T.PublishRequest{_pubTopic} <- rawExpectPublish rc
+    assertEqual "delivered on the restored shared subscription" "k3/t" _pubTopic

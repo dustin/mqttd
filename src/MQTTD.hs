@@ -215,17 +215,22 @@ findSubs t = liftA2 (<>) getRegularSubs getSharedSubs
 restoreSessions :: (IOE :> es, ScheduleFX SessionID :> es, MQTTD :> es, Stats :> es, LogFX :> es, DB :> es) => Eff es ()
 restoreSessions = do
   ss <- loadSessions
-  subs <- SubTree.fromList . fold <$> traverse flatSubs ss
+  -- Shared subscriptions go back in their own tree, as subscribe puts them.
+  (shared, normal) <- partitionShared . fold <$> traverse sessSubs ss
+  let subs = SubTree.fromList [(f, Map.singleton sid o) | (f, (sid, o)) <- normal]
+      ssubs = foldr (\(n, f, (sid, o)) -> SubTree.addWith f (Map.unionWith (<>)) (Map.singleton n [(sid, o)])) mempty shared
   sessv <- asks sessions
   subv <- asks allSubs
+  ssubv <- asks sharedSubs
   atomically $ do
     writeTVar sessv (Map.fromList . map (\s@Session{..} -> (_sessionID, s)) $ ss)
     writeTVar subv subs
+    writeTVar ssubv ssubs
   mapM_ (expireSession . _sessionID) ss
 
   where
-    flatSubs :: MonadIO m => Session -> m [(T.Filter, Map SessionID T.SubOptions)]
-    flatSubs Session{..} = Map.foldMapWithKey (\k v -> [(k, Map.singleton _sessionID v)]) <$> readTVarIO _sessionSubs
+    sessSubs :: MonadIO m => Session -> m [(T.Filter, (SessionID, T.SubOptions))]
+    sessSubs Session{..} = map (second (_sessionID,)) . Map.assocs <$> readTVarIO _sessionSubs
 
 restoreRetained :: (IOE :> es, MQTTD :> es, Stats :> es, LogFX :> es, DB :> es) => Eff es ()
 restoreRetained = asks retainer >>= MQTTD.Retention.restoreRetained
